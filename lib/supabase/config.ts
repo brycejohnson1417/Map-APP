@@ -10,6 +10,14 @@ export function getSupabaseServiceRoleKey() {
   return process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
 }
 
+export function getApplicationEncryptionKey() {
+  return process.env.APP_ENCRYPTION_KEY?.trim() ?? "";
+}
+
 export function isSupabaseConfigured() {
   return Boolean(getSupabaseUrl() && (getSupabaseAnonKey() || getSupabaseServiceRoleKey()));
+}
+
+export function isConnectorSecretEnvelopeConfigured() {
+  return Boolean(getApplicationEncryptionKey());
 }

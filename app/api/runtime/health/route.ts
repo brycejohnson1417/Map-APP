@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isConnectorSecretEnvelopeConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
 
 export async function GET() {
   return NextResponse.json(
@@ -7,6 +7,7 @@ export async function GET() {
       ok: true,
       runtime: "supabase-first",
       supabaseConfigured: isSupabaseConfigured(),
+      connectorSecretEnvelopeConfigured: isConnectorSecretEnvelopeConfigured(),
       checkedAt: new Date().toISOString(),
     },
     {

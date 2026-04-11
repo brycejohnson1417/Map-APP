@@ -1,0 +1,29 @@
+import "server-only";
+
+import type { OrganizationRuntimeSnapshot } from "@/lib/domain/runtime";
+import { IntegrationRepository } from "@/lib/infrastructure/supabase/integration-repository";
+import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
+import { SyncJobRepository } from "@/lib/infrastructure/supabase/sync-job-repository";
+
+const organizations = new OrganizationRepository();
+const integrations = new IntegrationRepository();
+const syncJobs = new SyncJobRepository();
+
+export async function getOrganizationRuntimeSnapshot(slug: string): Promise<OrganizationRuntimeSnapshot | null> {
+  const organization = await organizations.findBySlug(slug);
+
+  if (!organization) {
+    return null;
+  }
+
+  const [integrationList, recentSyncJobs] = await Promise.all([
+    integrations.listByOrganizationId(organization.id),
+    syncJobs.listRecentByOrganizationId(organization.id, 12),
+  ]);
+
+  return {
+    organization,
+    integrations: integrationList,
+    recentSyncJobs,
+  };
+}
