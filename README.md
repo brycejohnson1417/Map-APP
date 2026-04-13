@@ -66,6 +66,15 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 APP_ENCRYPTION_KEY=
+ORG_SLUG=picc
+ORG_NAME="PICC Sales"
+OWNER_CLERK_ID=
+OWNER_EMAIL=
+OWNER_NAME=
+NOTION_TOKEN=
+NOTION_WORKSPACE_ID=
+NOTION_DATA_SOURCE_IDS=[]
+NABIS_API_KEY=
 ```
 
 3. Run the app
@@ -82,3 +91,11 @@ npm run dev
 4. normalized Nabis ingestion and local order aggregates
 5. unified account system across map, accounts, calendar, and vendor days
 6. adapter-based BYO integrations for future customers
+
+## Seed the runtime
+
+To create the first organization and connector records:
+
+```bash
+npm run seed:runtime
+```

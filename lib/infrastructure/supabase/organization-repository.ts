@@ -5,6 +5,25 @@ import { mapOrganizationRow } from "@/lib/infrastructure/supabase/runtime-mapper
 import type { Organization } from "@/lib/domain/runtime";
 
 export class OrganizationRepository {
+  async createOrganization(input: { slug: string; name: string }) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("organization")
+      .insert({
+        slug: input.slug,
+        name: input.name,
+        status: "active",
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return mapOrganizationRow(data as Record<string, unknown>);
+  }
+
   async findBySlug(slug: string): Promise<Organization | null> {
     const supabase = getSupabaseAdminClient() as any;
     const { data, error } = await supabase

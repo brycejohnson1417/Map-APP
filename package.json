@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app components lib",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "seed:runtime": "node scripts/seed-runtime.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
