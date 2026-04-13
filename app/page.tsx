@@ -6,6 +6,8 @@ import { SectionCard } from "@/components/ui/section-card";
 import { architecturePrinciples, buildPhases, platformCapabilities } from "@/lib/content/home";
 
 export default function HomePage() {
+  const defaultOrgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim();
+
   return (
     <AppFrame>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-8 md:px-10 md:py-10">
@@ -32,6 +34,14 @@ export default function HomePage() {
                 Open Territory Foundation
                 <ArrowRight className="h-4 w-4" />
               </Link>
+              {defaultOrgSlug ? (
+                <Link
+                  href={`/runtime/${defaultOrgSlug}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-elevated)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--accent-primary)]"
+                >
+                  Open Runtime Snapshot
+                </Link>
+              ) : null}
               <Link
                 href="/architecture"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-elevated)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--accent-primary)]"
