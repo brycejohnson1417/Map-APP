@@ -20,7 +20,7 @@ export function TerritoryFoundationPreview() {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-tertiary)]">Territory v2</p>
         <h2 className="text-2xl font-semibold tracking-[-0.03em]">Shared runtime model, smaller payloads, cleaner sync</h2>
         <p className="max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
-          The territory rebuild starts by separating pin reads, overlays, and sync health from the current all-purpose
+          The territory foundation starts by separating pin reads, overlays, and sync health from the current all-purpose
           CRM route. That is the prerequisite for faster loading and lower database transfer.
         </p>
       </div>

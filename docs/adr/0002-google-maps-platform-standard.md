@@ -13,3 +13,4 @@ The product needs highly polished map UX, reliable routing, and commercial-grade
 - Google Maps JavaScript API drives the map UI.
 - Geocoding and route generation use Google APIs.
 - PostGIS is still used for local spatial logic such as point-in-polygon, radius search, and territory balancing.
+- Google Maps is a product standard, not a pluggable provider contract for year one.

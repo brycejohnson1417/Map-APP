@@ -6,9 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app components lib",
+    "lint": "oxlint app components lib scripts --deny-warnings",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "seed:runtime": "node scripts/seed-runtime.ts"
+    "mapapp": "node scripts/mapapp.mjs",
+    "seed:runtime": "node scripts/seed-runtime.mjs",
+    "smoke:runtime": "node scripts/smoke-runtime.mjs",
+    "verify:browser": "playwright test",
+    "verify": "node scripts/verify.mjs",
+    "review:adversarial": "node scripts/adversarial-review.mjs",
+    "verify:full": "npm run verify && npm run review:adversarial"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -19,13 +25,18 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "globals": "^17.5.0",
+    "oxlint": "^1.60.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.46.1"
   }
 }

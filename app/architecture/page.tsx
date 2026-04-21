@@ -14,7 +14,7 @@ export default function ArchitecturePage() {
             Local-first runtime, explicit sync, one account system
           </h1>
           <p className="max-w-4xl text-lg leading-8 text-[var(--text-secondary)]">
-            The rebuild is organized around Postgres read models, deterministic identity resolution, and event-driven
+            The platform is organized around Postgres read models, deterministic identity resolution, and event-driven
             CRM sync. The UI should never need to “go ask Notion again” just to be correct.
           </p>
         </header>

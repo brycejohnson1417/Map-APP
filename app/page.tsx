@@ -15,7 +15,7 @@ export default function HomePage() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--surface-elevated)] px-4 py-1.5 text-sm font-medium text-[var(--text-secondary)]">
               <span className="h-2 w-2 rounded-full bg-[var(--accent-success)]" />
-              Supabase-first internal platform rebuild
+              Multi-tenant operations harness
             </div>
             <div className="space-y-4">
               <h1 className="max-w-4xl text-5xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-7xl">
@@ -31,7 +31,7 @@ export default function HomePage() {
                 href="/territory"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--accent-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-primary-strong)]"
               >
-                Open Territory Foundation
+                Open Territory
                 <ArrowRight className="h-4 w-4" />
               </Link>
               {defaultOrgSlug ? (
@@ -106,7 +106,7 @@ export default function HomePage() {
 
           <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold tracking-[-0.02em]">Rebuild Track</h2>
+              <h2 className="text-xl font-semibold tracking-[-0.02em]">Delivery Track</h2>
               <span className="rounded-full bg-[var(--accent-secondary-soft)] px-3 py-1 text-xs uppercase tracking-[0.24em] text-[var(--accent-secondary-strong)]">
                 phased
               </span>
@@ -129,7 +129,7 @@ export default function HomePage() {
           <div className="mb-6 flex flex-col gap-2">
             <h2 className="text-xl font-semibold tracking-[-0.02em]">Platform Capabilities</h2>
             <p className="max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
-              This rebuild is intentionally organized around a single account system, explicit sync pipelines, and
+              The platform is intentionally organized around a single account system, explicit sync pipelines, and
               smaller specialized read models instead of a pile of disconnected mini-apps.
             </p>
           </div>

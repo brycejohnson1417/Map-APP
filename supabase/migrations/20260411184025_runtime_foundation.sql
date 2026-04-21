@@ -1,52 +1,98 @@
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists postgis with schema extensions;
 
-create type public.membership_role as enum ('owner', 'admin', 'manager', 'member', 'guest');
-create type public.external_provider as enum (
-  'notion',
-  'nabis',
-  'google_calendar',
-  'google_maps',
-  'hubspot',
-  'salesforce',
-  'airtable',
-  'csv_import'
-);
-create type public.external_entity_type as enum (
-  'organization',
-  'account',
-  'contact',
-  'order',
-  'calendar',
-  'calendar_event',
-  'territory_boundary',
-  'territory_marker'
-);
-create type public.sync_status as enum ('idle', 'queued', 'running', 'success', 'error');
-create type public.sync_job_kind as enum (
-  'notion_pages',
-  'notion_comments',
-  'orders_accounts',
-  'orders_events',
-  'calendar_pull',
-  'calendar_push',
-  'read_model_refresh',
-  'reconciliation'
-);
-create type public.audit_event_type as enum (
-  'sync_started',
-  'sync_succeeded',
-  'sync_failed',
-  'account_created',
-  'account_updated',
-  'boundary_created',
-  'boundary_updated',
-  'marker_created',
-  'marker_updated',
-  'integration_connected',
-  'integration_updated',
-  'integration_disconnected'
-);
+do $$
+begin
+  create type public.membership_role as enum ('owner', 'admin', 'manager', 'member', 'guest');
+exception
+  when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.external_provider as enum (
+    'notion',
+    'nabis',
+    'google_calendar',
+    'google_maps',
+    'hubspot',
+    'salesforce',
+    'airtable',
+    'csv_import'
+  );
+exception
+  when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.external_entity_type as enum (
+    'organization',
+    'account',
+    'contact',
+    'order',
+    'calendar',
+    'calendar_event',
+    'territory_boundary',
+    'territory_marker'
+  );
+exception
+  when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.sync_status as enum ('idle', 'queued', 'running', 'success', 'error');
+exception
+  when duplicate_object then null;
+end
+$$;
+alter type public.sync_status add value if not exists 'idle';
+alter type public.sync_status add value if not exists 'queued';
+alter type public.sync_status add value if not exists 'running';
+alter type public.sync_status add value if not exists 'success';
+alter type public.sync_status add value if not exists 'error';
+
+do $$
+begin
+  create type public.sync_job_kind as enum (
+    'notion_pages',
+    'notion_comments',
+    'orders_accounts',
+    'orders_events',
+    'calendar_pull',
+    'calendar_push',
+    'read_model_refresh',
+    'reconciliation'
+  );
+exception
+  when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.audit_event_type as enum (
+    'sync_started',
+    'sync_succeeded',
+    'sync_failed',
+    'account_created',
+    'account_updated',
+    'boundary_created',
+    'boundary_updated',
+    'marker_created',
+    'marker_updated',
+    'integration_connected',
+    'integration_updated',
+    'integration_disconnected'
+  );
+exception
+  when duplicate_object then null;
+end
+$$;
 
 create schema if not exists app_private;
 
@@ -134,7 +180,7 @@ create table if not exists public.account (
   country text default 'US',
   latitude double precision,
   longitude double precision,
-  location geography(point, 4326),
+  location extensions.geography(point, 4326),
   sales_rep_names text[] not null default '{}'::text[],
   account_manager_names text[] not null default '{}'::text[],
   last_contacted_at date,
@@ -209,7 +255,7 @@ create table if not exists public.territory_boundary (
   color text not null default '#ef4444',
   border_width integer not null default 2,
   is_visible_by_default boolean not null default true,
-  geometry geometry(multipolygon, 4326),
+  geometry extensions.geometry(multipolygon, 4326),
   geojson jsonb not null,
   custom_fields jsonb not null default '{}'::jsonb,
   created_by_member_id uuid references public.organization_member(id) on delete set null,
@@ -217,6 +263,8 @@ create table if not exists public.territory_boundary (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.territory_boundary
+  add column if not exists geometry extensions.geometry(multipolygon, 4326);
 create index if not exists territory_boundary_geometry_gix on public.territory_boundary using gist (geometry);
 
 create table if not exists public.territory_marker (
@@ -228,7 +276,7 @@ create table if not exists public.territory_marker (
   address text,
   latitude double precision not null,
   longitude double precision not null,
-  location geography(point, 4326) generated always as (extensions.ST_SetSRID(extensions.ST_MakePoint(longitude, latitude), 4326)::geography) stored,
+  location extensions.geography(point, 4326) generated always as (extensions.ST_SetSRID(extensions.ST_MakePoint(longitude, latitude), 4326)::extensions.geography) stored,
   color text not null default '#0f172a',
   icon text not null default 'marker',
   is_visible_by_default boolean not null default true,
@@ -238,6 +286,9 @@ create table if not exists public.territory_marker (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.territory_marker
+  add column if not exists location extensions.geography(point, 4326)
+  generated always as (extensions.ST_SetSRID(extensions.ST_MakePoint(longitude, latitude), 4326)::extensions.geography) stored;
 create index if not exists territory_marker_location_gix on public.territory_marker using gist (location);
 
 create table if not exists public.sync_cursor (

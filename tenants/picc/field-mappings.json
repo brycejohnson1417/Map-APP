@@ -1,0 +1,39 @@
+{
+  "organizationSlug": "picc",
+  "status": "partial-confirmed",
+  "notes": "Confirmed from legacy source and live Notion master-list schema on 2026-04-16. Additional tenant-specific display fields can be added later without changing the core runtime.",
+  "crm": [
+    { "sourceSystem": "notion_master_list", "sourceField": "Dispensary Name", "sourceType": "title", "targetEntity": "account", "targetField": "name" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Licensed Location ID", "sourceType": "rich_text", "targetEntity": "account_identity", "targetField": "licensed_location_id" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Nabis Retailer ID", "sourceType": "rich_text", "targetEntity": "account_identity", "targetField": "nabis_retailer_id" },
+    { "sourceSystem": "notion_master_list", "sourceField": "License Number", "sourceType": "rich_text", "targetEntity": "account", "targetField": "license_number" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Account Status", "sourceType": "status", "targetEntity": "account", "targetField": "status" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Rep", "sourceType": "people", "targetEntity": "account", "targetField": "rep_assignments" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Account Manager", "sourceType": "people", "targetEntity": "account", "targetField": "account_manager_assignments" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Referral Source", "sourceType": "select", "targetEntity": "account", "targetField": "referral_source" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Vendor Day Status", "sourceType": "status", "targetEntity": "account", "targetField": "vendor_day_status" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Last Sample Order Date", "sourceType": "rollup", "targetEntity": "account", "targetField": "last_sample_order_date" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Last Order Date", "sourceType": "rollup", "targetEntity": "account", "targetField": "last_order_date" },
+    { "sourceSystem": "notion_master_list", "sourceField": "Map Location", "sourceType": "place", "targetEntity": "account", "targetField": "map_point" }
+  ],
+  "orders": [
+    { "sourceSystem": "nabis", "sourceField": "licensedLocationId", "targetEntity": "account_identity", "targetField": "licensed_location_id" },
+    { "sourceSystem": "nabis", "sourceField": "retailerId", "targetEntity": "account_identity", "targetField": "nabis_retailer_id" },
+    { "sourceSystem": "nabis", "sourceField": "siteLicenseNumber", "targetEntity": "account", "targetField": "license_number" },
+    { "sourceSystem": "nabis", "sourceField": "createdDate", "targetEntity": "order", "targetField": "created_at" },
+    { "sourceSystem": "nabis", "sourceField": "deliveryDate", "targetEntity": "order", "targetField": "delivery_date" },
+    { "sourceSystem": "nabis", "sourceField": "soldBy", "targetEntity": "order", "targetField": "sales_rep_raw" },
+    { "sourceSystem": "nabis", "sourceField": "orderTotal", "targetEntity": "order", "targetField": "order_total" }
+  ],
+  "legacy": [
+    { "sourceModel": "Account", "targetEntity": "account" },
+    { "sourceModel": "Contact", "targetEntity": "contact" },
+    { "sourceModel": "ActivityLog", "targetEntity": "activity" },
+    { "sourceModel": "AccountIdentityMapping", "targetEntity": "account_identity" },
+    { "sourceModel": "NabisOrder", "targetEntity": "order" },
+    { "sourceModel": "NabisRetailer", "targetEntity": "retailer_identity" },
+    { "sourceModel": "Territory", "targetEntity": "territory_boundary" },
+    { "sourceModel": "TerritoryMarker", "targetEntity": "territory_marker" },
+    { "sourceModel": "AuditEvent", "targetEntity": "audit_event" }
+  ]
+}

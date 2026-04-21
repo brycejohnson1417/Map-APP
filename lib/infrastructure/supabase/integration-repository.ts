@@ -83,7 +83,7 @@ export class IntegrationRepository {
 
   async storeSecret(organizationId: string, installationId: string, keyName: string, secretValue: unknown) {
     const supabase = getSupabaseAdminClient() as any;
-    const { error } = await supabase.schema("app_private").from("integration_secret").upsert(
+    const { error } = await supabase.from("integration_secret").upsert(
       {
         organization_id: organizationId,
         installation_id: installationId,

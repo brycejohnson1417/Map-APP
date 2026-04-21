@@ -21,7 +21,7 @@ export const buildPhases = [
   {
     name: "Phase 1 — Runtime foundation",
     status: "active",
-    summary: "Supabase schema, v2 API surfaces, environment contract, and rebuild docs.",
+    summary: "Supabase schema, v2 API surfaces, environment contract, and platform docs.",
   },
   {
     name: "Phase 2 — Identity and ingestion",

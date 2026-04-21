@@ -20,9 +20,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-tertiary)]">
-                  PICC Internal Platform
+                  Multi-tenant field operations platform
                 </p>
-                <p className="text-base font-semibold tracking-[-0.02em]">Map App Rebuild</p>
+                <p className="text-base font-semibold tracking-[-0.02em]">Map App Harness</p>
               </div>
             </Link>
             <nav className="hidden items-center gap-2 md:flex">
@@ -42,7 +42,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </nav>
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm text-[var(--text-secondary)]">
               <Settings2 className="h-4 w-4" />
-              Rebuild foundation
+              Platform foundation
             </div>
           </div>
         </header>

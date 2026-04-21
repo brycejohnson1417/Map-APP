@@ -13,8 +13,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Map App | Supabase-first internal platform rebuild",
-  description: "A local-first CRM and territory operations platform rebuild for cannabis distribution and sales teams.",
+  title: "Map App Harness",
+  description: "A local-first CRM and territory operations platform for field sales teams and brand ambassadors.",
 };
 
 export default function RootLayout({

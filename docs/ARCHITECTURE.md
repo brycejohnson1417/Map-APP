@@ -1,7 +1,14 @@
-# Map App Architecture
+# Map App Harness Architecture
 
 ## Product Thesis
-Map App is a multi-tenant revenue operations platform for field sales teams. PICC is tenant zero, not the product itself. The system must support additional companies bringing their own CRM, order, calendar, and directory providers without changing the domain model.
+Map App is a multi-tenant revenue operations platform for field sales teams. The system must support additional companies bringing their own CRM, order, calendar, and directory providers without changing the domain model.
+
+## Architectural Shape
+The product is intentionally split into:
+- `runtime plane`: tenant data, read models, sync jobs, and user-facing workflows
+- `control plane`: tenant setup, connector installation state, feature flags, and platform operations
+
+The first implementation can keep both in one repo and one deployment if that is the fastest path, but the architecture should preserve the separation so the control plane can grow independently later.
 
 ## Core Runtime Decisions
 - `Supabase Postgres` is the operational source of truth.
@@ -9,6 +16,7 @@ Map App is a multi-tenant revenue operations platform for field sales teams. PIC
 - `Google Maps Platform` is the rendering, geocoding, and routing provider.
 - `Notion`, `Nabis`, and future systems are external integrations, not runtime databases.
 - User-facing reads come from local Postgres tables and read models only.
+- The core runtime schema stays strongly typed and shared across tenants.
 
 ## Non-Negotiable Rules
 1. No sync-on-read for normal UI surfaces.
@@ -47,7 +55,6 @@ Business concepts and invariants.
 - orders
 - activities
 - territories
-- calendar events
 - external identities
 - sync state
 
@@ -77,6 +84,8 @@ Interfaces over the same use-cases.
 - CLI commands
 - webhooks
 
+The CLI is a first-class part of the product harness, not an afterthought.
+
 ## Canonical Entity Model
 
 ### Core entities
@@ -92,6 +101,14 @@ Interfaces over the same use-cases.
 - `sync_cursor`
 - `sync_job`
 - `audit_event`
+
+### Extension points
+- `custom_fields jsonb` on core entities
+- tenant-scoped `field_mapping`
+- tenant-scoped `integration_installation`
+- encrypted tenant connector secrets
+
+The design goal is a strong global schema with controlled tenant extension points, not per-tenant schema drift.
 
 ### Generic external identity model
 Every provider-specific object link is stored explicitly.
@@ -111,7 +128,6 @@ Each external system plugs into a connector contract, not the core domain.
 - `orders_adapter`
 - `calendar_adapter`
 - `directory_adapter`
-- `maps_adapter`
 
 ### Connector responsibilities
 - credential handling
@@ -120,6 +136,22 @@ Each external system plugs into a connector contract, not the core domain.
 - retries and backoff
 - sync health reporting
 - outbound updates when supported
+
+### Google Maps credential model
+Google Maps remains a single-provider standard, but credentials are organization-scoped.
+
+- each organization brings its own Google Cloud project
+- browser map rendering uses that organization's restricted browser key
+- geocoding and routing use that organization's encrypted server key
+- no global Google Maps client singleton is allowed across organizations
+
+### Plugin future
+Connectors should be designed as first-party plugin contracts. The platform should later support:
+- first-party adapters
+- tenant-private adapters
+- marketplace adapters
+
+That means contract stability matters more than short-term provider-specific convenience.
 
 ### Connector configuration
 Tenant connector credentials and config live in encrypted storage and are always keyed by `organization_id`.
@@ -153,7 +185,9 @@ The UI never uses one giant catch-all endpoint.
 - `account_filter_facet_view`: filter counts and facet values
 
 ## Performance Rules
-- small map payloads
+- `territory_pin_view` payload target: under 200 KB compressed for 5,000 pins and the minimum fields needed to paint/filter the map
+- hot map endpoints: under 500 ms P95 from local read models before browser/network overhead
+- Notion-to-runtime freshness target: under 60 seconds P95 after webhook delivery, under 3 minutes with incremental fallback polling
 - separate detail payloads
 - webhook/event-driven invalidation before polling
 - no broad refetches on every screen
@@ -170,6 +204,8 @@ Examples:
 
 This is achieved through adapters plus tenant field mappings, not forks of the application.
 
+The platform should also support agentic engineers and automation workflows connecting or managing these adapters through the CLI and stable service-layer contracts.
+
 ## Observability
 Operational visibility matters as much as the feature surface.
 
@@ -180,6 +216,17 @@ Operational visibility matters as much as the feature surface.
 - dead-letter queues for failed sync jobs
 - audit history for every important mutation
 
+## Deployment Topology
+
+### Default
+- shared multi-tenant Supabase project
+- strict tenant scoping with RLS
+
+### Later
+- dedicated database/project/region for larger customers
+
+This is an infrastructure concern. The application layer should not need to know whether a tenant is shared or isolated.
+
 ## Security
 - Row Level Security on exposed tenant tables
 - encrypted tenant connector secrets
@@ -187,5 +234,15 @@ Operational visibility matters as much as the feature surface.
 - explicit admin/member/guest roles per organization
 - complete mutation audit trail
 
+## Control Plane Priority
+The control plane is not a late polish layer.
+
+The first implementation must include enough control-plane surface to:
+- bootstrap an organization
+- install connector credentials
+- apply field mappings
+- expose sync health
+- support a first-customer migration without code forks
+
 ## Product Strategy
-PICC remains the first real tenant and the fastest proving ground. The product architecture, schema, and adapters should be generic enough that a second company can onboard without code forks.
+The product architecture, schema, and adapters should be generic enough that a new tenant can onboard without code forks.
