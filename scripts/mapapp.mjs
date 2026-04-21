@@ -246,6 +246,109 @@ function exitFromChecks(checks) {
   process.exit(checks.every((check) => check.ok) ? 0 : 1);
 }
 
+async function collectLegacyNeonCounts() {
+  const { Client } = await import("pg");
+  const client = new Client({
+    connectionString: process.env.NEON_SOURCE_DATABASE_URL,
+    connectionTimeoutMillis: 15_000,
+    query_timeout: 30_000,
+  });
+
+  const tables = [
+    "Account",
+    "Contact",
+    "ActivityLog",
+    "NabisRetailer",
+    "NabisOrder",
+    "AccountIdentityMapping",
+    "Territory",
+    "TerritoryMarker",
+    "AuditEvent",
+    "TerritoryStoreReadModel",
+    "TerritoryCheckInMirror",
+    "TerritoryStoreSyncJob",
+  ];
+
+  await client.connect();
+  try {
+    const counts = {};
+    for (const table of tables) {
+      const result = await client.query(`select count(*)::int as count from public."${table}"`);
+      counts[table] = Number(result.rows[0]?.count ?? 0);
+    }
+
+    return counts;
+  } finally {
+    await client.end();
+  }
+}
+
+async function collectSupabaseRuntimeCounts() {
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      fetch: (input, init = {}) =>
+        fetch(input, {
+          ...init,
+          signal: init.signal ?? AbortSignal.timeout(15_000),
+        }),
+    },
+  });
+
+  const tables = [
+    "organization",
+    "organization_member",
+    "integration_installation",
+    "integration_secret",
+    "field_mapping",
+    "account",
+    "account_identity",
+    "contact",
+    "activity",
+    "territory_boundary",
+    "territory_marker",
+    "sync_cursor",
+    "sync_job",
+    "audit_event",
+  ];
+
+  const counts = {};
+  for (const table of tables) {
+    const { count, error } = await supabase.from(table).select("*", { count: "exact", head: true });
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+
+    counts[table] = count ?? 0;
+  }
+
+  return counts;
+}
+
+async function runMigrationDryRun(org) {
+  const legacyCounts = await collectLegacyNeonCounts();
+  const runtimeCounts = await collectSupabaseRuntimeCounts();
+
+  console.log(
+    JSON.stringify(
+      {
+        org,
+        mode: "read-only",
+        legacyNeonCounts: legacyCounts,
+        supabaseRuntimeCounts: runtimeCounts,
+        interpretation:
+          "This dry-run verifies source/target connectivity and row-count visibility. It does not transform or write legacy rows yet.",
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 async function main() {
   const [scope, action, org] = process.argv.slice(2);
 
@@ -283,7 +386,12 @@ async function main() {
     }
 
     printResults(`Migration dry-run for ${org}`, checks);
-    exitFromChecks(checks);
+    if (!checks.every((check) => check.ok)) {
+      process.exit(1);
+    }
+
+    await runMigrationDryRun(org);
+    process.exit(0);
   }
 
   usage();

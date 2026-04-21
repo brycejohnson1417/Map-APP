@@ -196,3 +196,25 @@ Remaining blockers:
 - authenticated legacy app timing and payload baselines are still missing
 - real row-level Neon-to-Supabase migration dry-run is not implemented yet
 - production cutover is not ready; this deployment is the platform foundation/runtime health milestone
+
+## 2026-04-21 — Read-only migration dry-run
+Commands run:
+- `npm install pg`
+- `npm install -D @types/pg`
+- `npm run mapapp -- migration dry-run picc`
+
+What changed:
+- `migration dry-run` now performs a real read-only connectivity/count check against:
+  - the legacy Neon source database through `NEON_SOURCE_DATABASE_URL`
+  - the new Supabase runtime through the service-role key
+- `BASELINE.md` and `DATA_MIGRATION.md` now include the latest 2026-04-21 source counts from the dry-run
+
+What passed:
+- legacy Neon connection succeeded
+- Supabase runtime connection succeeded
+- source counts were visible for account, contact, activity, Nabis, identity, territory, audit, and territory read-model tables
+- target counts were visible for organization, integration, encrypted secret, field mapping, and empty canonical runtime tables
+
+Remaining blockers:
+- dry-run still does not transform or write rows
+- next migration slice must add staging writes plus parity validation for accounts, identities, orders, territory boundaries, and markers

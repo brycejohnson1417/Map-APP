@@ -15,6 +15,20 @@ This file records the measured or source-confirmed behavior of the legacy `picc-
 - territory comment mirror rows in separate overlay org: 742
 - territory sync-job rows in separate overlay org: 1686
 
+### Legacy data volume captured by read-only dry-run on 2026-04-21
+- `Account`: 775
+- `Contact`: 30
+- `ActivityLog`: 78
+- `NabisRetailer`: 765
+- `NabisOrder`: 1386
+- `AccountIdentityMapping`: 4605
+- `Territory`: 1
+- `TerritoryMarker`: 1
+- `AuditEvent`: 761
+- `TerritoryStoreReadModel`: 770
+- `TerritoryCheckInMirror`: 912
+- `TerritoryStoreSyncJob`: 1864
+
 ### Legacy route and cache behavior
 - heavy territory response route existed at `app/api/territory/stores/route.ts`
 - heavy route used an in-process cache TTL of `30000 ms`

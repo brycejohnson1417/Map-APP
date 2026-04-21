@@ -34,15 +34,18 @@ The new runtime should consolidate the accepted PICC data into one organization-
 - move tenant-specific display fields into mapped runtime fields or custom fields instead of hardcoded logic
 
 ## Current accepted source counts
-- shared workspace `Account`: 757
-- shared workspace `NabisRetailer`: 762
-- shared workspace `NabisOrder`: 1350
-- shared workspace `AccountIdentityMapping`: 4590
+- read-only dry-run `Account`: 775
+- read-only dry-run `Contact`: 30
+- read-only dry-run `ActivityLog`: 78
+- read-only dry-run `NabisRetailer`: 765
+- read-only dry-run `NabisOrder`: 1386
+- read-only dry-run `AccountIdentityMapping`: 4605
 - shared workspace `Territory`: 1
 - shared workspace `TerritoryMarker`: 1
-- overlay-org `TerritoryStoreReadModel`: 769
-- overlay-org `TerritoryCheckInMirror`: 742
-- overlay-org `TerritoryStoreSyncJob`: 1686
+- read-only dry-run `AuditEvent`: 761
+- read-only dry-run `TerritoryStoreReadModel`: 770
+- read-only dry-run `TerritoryCheckInMirror`: 912
+- read-only dry-run `TerritoryStoreSyncJob`: 1864
 
 ## Validation SQL
 
