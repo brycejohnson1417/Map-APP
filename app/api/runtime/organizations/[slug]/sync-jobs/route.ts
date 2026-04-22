@@ -14,12 +14,16 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
     return NextResponse.json({ ok: false, error: "organization_not_found" }, { status: 404 });
   }
 
-  const jobs = await syncJobs.listRecentByOrganizationId(organization.id, 20);
+  const [jobs, statusCounts] = await Promise.all([
+    syncJobs.listRecentByOrganizationId(organization.id, 20),
+    syncJobs.countByStatusForOrganizationId(organization.id),
+  ]);
 
   return NextResponse.json(
     {
       ok: true,
       organization,
+      statusCounts,
       jobs,
     },
     {

@@ -12,6 +12,20 @@ export type ExternalProvider =
 
 export type SyncStatus = "idle" | "queued" | "running" | "success" | "error";
 
+export type AuditEventType =
+  | "sync_started"
+  | "sync_succeeded"
+  | "sync_failed"
+  | "account_created"
+  | "account_updated"
+  | "boundary_created"
+  | "boundary_updated"
+  | "marker_created"
+  | "marker_updated"
+  | "integration_connected"
+  | "integration_updated"
+  | "integration_disconnected";
+
 export type SyncJobKind =
   | "notion_pages"
   | "notion_comments"
@@ -73,10 +87,28 @@ export interface SyncJob {
   updatedAt: string;
 }
 
+export interface AuditEvent {
+  id: string;
+  organizationId: string;
+  actorMemberId: string | null;
+  eventType: AuditEventType;
+  entityType: string;
+  entityId: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SyncJobStatusCount {
+  status: SyncStatus;
+  count: number;
+}
+
 export interface OrganizationRuntimeSnapshot {
   organization: Organization;
   integrations: IntegrationInstallation[];
   recentSyncJobs: SyncJob[];
+  syncJobStatusCounts: SyncJobStatusCount[];
+  recentAuditEvents: AuditEvent[];
 }
 
 export interface QueueSyncJobInput {
@@ -84,6 +116,15 @@ export interface QueueSyncJobInput {
   installationId?: string | null;
   kind: SyncJobKind;
   dedupeKey?: string | null;
+  payload?: Record<string, unknown>;
+}
+
+export interface RecordAuditEventInput {
+  organizationId: string;
+  actorMemberId?: string | null;
+  eventType: AuditEventType;
+  entityType: string;
+  entityId: string;
   payload?: Record<string, unknown>;
 }
 
@@ -95,6 +136,7 @@ export interface TerritoryAccountPin {
   status: string | null;
   leadStatus: string | null;
   referralSource: string | null;
+  vendorDayStatus?: string | null;
   city: string | null;
   state: string | null;
   latitude: number | null;
@@ -119,10 +161,128 @@ export interface TerritoryRuntimeDashboard {
     noLastSampleDeliveryDate: number;
   };
   repFacets: Array<{ name: string; count: number }>;
+  statusFacets: Array<{ name: string; count: number }>;
+  referralSourceFacets: Array<{ name: string; count: number }>;
+  vendorDayFacets: Array<{ name: string; count: number }>;
   pins: TerritoryAccountPin[];
   appliedFilters: {
     search: string | null;
     flag: TerritoryFilterFlag | null;
     rep: string | null;
+    status: string | null;
+    referralSource: string | null;
+    vendorDayStatus: string | null;
+  };
+}
+
+export interface TerritoryBoundaryRuntime {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  borderWidth: number;
+  isVisibleByDefault: boolean;
+  coordinates: Array<[number, number]>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TerritoryMarkerRuntime {
+  id: string;
+  name: string;
+  description: string | null;
+  markerType: string;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  color: string;
+  icon: string;
+  isVisibleByDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TerritoryOverlayRuntime {
+  organization: Organization;
+  boundaries: TerritoryBoundaryRuntime[];
+  markers: TerritoryMarkerRuntime[];
+}
+
+export interface AccountIdentity {
+  id: string;
+  provider: ExternalProvider;
+  externalEntityType: string;
+  externalId: string;
+  matchMethod: string;
+  matchConfidence: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountContact {
+  id: string;
+  fullName: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  customFields: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountActivity {
+  id: string;
+  contactId: string | null;
+  activityType: string;
+  summary: string;
+  occurredAt: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountOrder {
+  id: string;
+  externalOrderId: string;
+  orderNumber: string | null;
+  status: string | null;
+  paymentStatus: string | null;
+  orderTotal: number | null;
+  orderCreatedAt: string | null;
+  deliveryDate: string | null;
+  salesRepName: string | null;
+  isInternalTransfer: boolean;
+}
+
+export interface AccountRuntimeDetail {
+  organization: Organization;
+  account: TerritoryAccountPin & {
+    legalName: string | null;
+    vendorDayStatus: string | null;
+    licensedLocationId: string | null;
+    licenseNumber: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    postalCode: string | null;
+    country: string | null;
+    accountManagerNames: string[];
+    lastSampleOrderDate: string | null;
+    customerSinceDate: string | null;
+    crmUpdatedAt: string | null;
+    externalUpdatedAt: string | null;
+    customFields: Record<string, unknown>;
+  };
+  identities: AccountIdentity[];
+  contacts: AccountContact[];
+  activities: AccountActivity[];
+  recentOrders: AccountOrder[];
+  orderSummary: {
+    totalOrders: number;
+    totalRevenue: number;
+    nonTransferOrders: number;
+    lastOrderDate: string | null;
+    customerSinceDate: string | null;
   };
 }

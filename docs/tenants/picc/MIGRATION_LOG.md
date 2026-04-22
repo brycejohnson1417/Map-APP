@@ -264,5 +264,99 @@ What passed:
 
 Known caveats:
 - the legacy source does not expose a confirmed sample-delivery column in `Account`, `TerritoryStoreReadModel`, or `NabisOrder`; the new filter is wired to the canonical `account.last_sample_delivery_date` field, but current migrated rows are expected to be null until a trusted sample source is connected
-- local `npm run typecheck` and `npm run build` hang in this macOS shell before producing diagnostics, including under Node 22; production Vercel build remains the deployment gate
+- the earlier local `npm run typecheck` / `npm run build` hang was observed in the older Documents checkout, not in the `/Users/brycejohnson/Code/Map-APP` checkout used for the next slice
 - the `pg` SSL-mode warning is still emitted by the legacy Neon connection string and should be cleaned up separately by normalizing the source URL SSL mode
+
+## 2026-04-22 — Supabase-backed account detail runtime slice
+Commands run:
+- `npm run lint`
+- `npm run typecheck`
+- `npm run verify`
+- `SMOKE_BASE_URL=http://127.0.0.1:3000 NEXT_PUBLIC_DEFAULT_ORG_SLUG=picc npm run smoke:runtime`
+- local Chrome browser checks for `/accounts/cb288b2b-9414-4754-a73e-fec77dd1ff45` at desktop and mobile widths
+
+What changed:
+- added a shared runtime REST helper for Supabase-backed server reads
+- added `/api/runtime/organizations/:slug/accounts/:accountId`
+- added `/accounts/:accountId`
+- linked territory pin rows to the account detail page
+- extended smoke verification so the first returned territory pin must resolve to both the account page and account API
+- added runtime read-model migrations for `territory_pin_view`, `territory_runtime_summary_view`, `territory_rep_facet_view`, and `account_detail_view`
+
+What passed:
+- lint passed with zero warnings
+- typecheck passed
+- `npm run verify` passed, including Next production build
+- local smoke verification passed against `http://127.0.0.1:3000`
+- desktop and mobile Chrome checks rendered the new account detail surface and caught/fixed the Source CRM button contrast issue
+
+Why this matters:
+- the first account-detail surface now reads the same local Supabase account row as the territory map/list payload
+- account detail joins local account identities, contacts, activity, and Nabis order records without live Notion reads
+- this directly advances the PICC acceptance requirement that map, list, and detail agree for the same account
+
+## 2026-04-22 — PICC field console parity push
+Commands run:
+- `npm run lint`
+- `npm run typecheck`
+- `npm run verify`
+- `SMOKE_BASE_URL=http://127.0.0.1:3000 NEXT_PUBLIC_DEFAULT_ORG_SLUG=picc npm run smoke:runtime`
+- local Chrome browser checks for `/`, `/territory`, and `/accounts` at desktop and mobile widths
+
+What changed:
+- `/` now opens the working territory console instead of the platform marketing page
+- `/territory` now renders a PICC-oriented field map console backed by Supabase runtime APIs
+- the territory console includes Google Maps, map/list mode, search, rep/status/referral/vendor filters, visible account metrics, route-stop selection, directions links, source CRM links, local account detail, local check-in creation, recent activity, and org-visible territory overlays
+- added org-scoped runtime APIs for territory overlays and map config
+- `/accounts` now provides a Supabase-backed account directory that links to account detail pages
+- smoke verification now covers map config and overlays
+- browser verification found zero client console errors on the new territory console
+
+What passed:
+- lint passed with zero warnings
+- typecheck passed
+- `npm run verify` passed, including Next production build
+- local smoke verification passed against `http://127.0.0.1:3000`
+- `/territory` browser check loaded Google Maps with 691 usable mapped pins and no console errors
+- `/accounts` browser check loaded successfully and no console errors were observed
+
+Known caveats:
+- current migrated account data still contains `0,0` placeholder coordinates; the UI now ignores those for map rendering and viewport fitting, but the source data should be cleaned during the migration/backfill path
+- check-ins save locally to Supabase activity/account runtime state; outbound fanout to Notion is still a separate sync-spine task
+- vendor-day/calendar-specific data models are not yet fully rebuilt in Supabase, so those Neon app workflows are not complete yet
+
+## 2026-04-22 — Runtime operations visibility and audit-backed check-ins
+Commands run:
+- `npm run typecheck`
+- `npm run lint`
+- `npm run verify`
+- `npx playwright install chromium`
+- `SMOKE_BASE_URL=http://127.0.0.1:3000 NEXT_PUBLIC_DEFAULT_ORG_SLUG=picc npm run smoke:runtime`
+- `SMOKE_BASE_URL=http://127.0.0.1:3000 NEXT_PUBLIC_DEFAULT_ORG_SLUG=picc npm run verify:browser`
+
+What changed:
+- added a reusable Supabase audit-event repository and audit-event domain type
+- runtime organization snapshots now include recent audit events and sync-job status counts
+- `/runtime/:slug` now shows integration count, sync queue status, recent sync jobs, and recent audit events
+- `/api/runtime/organizations/:slug/sync-jobs` now returns sync-job status counts alongside recent jobs
+- field check-ins now write a local `account_updated` audit event after updating account activity state
+- runtime smoke verification now asserts audit and sync status fields are present in the organization snapshot
+- browser coverage now includes the runtime operations page when an organization slug is configured
+- the shared Supabase REST helper now retries transient 429/5xx/network failures before failing a runtime read
+- added runtime operations indexes for recent sync-job and audit-event reads
+
+What passed:
+- typecheck passed
+- lint passed with zero warnings
+- `npm run verify` passed, including Next production build
+- production-mode local smoke verification passed against `http://127.0.0.1:3000`
+- Playwright browser verification passed against the production-mode local server
+
+What failed and was fixed:
+- the first browser run could not launch because the local Playwright Chromium binary was missing; `npx playwright install chromium` fixed it
+- stale browser assertions for the account and architecture pages were corrected to match actual accessible headings
+- one transient Supabase DNS `ENOTFOUND` failure was observed under the dev server; the shared runtime REST helper now retries transient provider/network failures
+
+Known caveats:
+- audit recording is now present for local field check-ins, but outbound Notion fanout remains a separate sync-spine task
+- the new runtime operations indexes are included as a migration, but they still need to be pushed to the linked Supabase project before production gets the index benefit

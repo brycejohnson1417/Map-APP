@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { Building2, LayoutDashboard, MapPinned, Network, Settings2 } from "lucide-react";
+import { Building2, MapPinned, Settings2, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const navigation = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/territory", label: "Territory", icon: MapPinned },
-  { href: "/architecture", label: "Architecture", icon: Network },
+  { href: "/accounts", label: "Accounts", icon: Users },
 ];
 
 export function AppFrame({ children }: { children: ReactNode }) {
+  const organizationName = process.env.ORG_NAME?.trim() || process.env.NEXT_PUBLIC_ORG_NAME?.trim() || "PICC";
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
       <div className="mx-auto flex min-h-screen w-full max-w-[1800px] flex-col">
@@ -20,9 +21,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--text-tertiary)]">
-                  Multi-tenant field operations platform
+                  Company field operations
                 </p>
-                <p className="text-base font-semibold tracking-[-0.02em]">Map App Harness</p>
+                <p className="text-base font-semibold tracking-[-0.02em]">{organizationName}</p>
               </div>
             </Link>
             <nav className="hidden items-center gap-2 md:flex">
@@ -42,7 +43,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </nav>
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm text-[var(--text-secondary)]">
               <Settings2 className="h-4 w-4" />
-              Platform foundation
+              Live workspace
             </div>
           </div>
         </header>

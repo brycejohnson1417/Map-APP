@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Filter, Home, MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { ExternalLink, Filter, Home, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import type { TerritoryAccountPin, TerritoryRuntimeDashboard } from "@/lib/domain/runtime";
 
 const currencyFormatter = new Intl.NumberFormat("en-US");
@@ -229,7 +229,10 @@ export function MigratedTerritoryDashboard({ dashboard }: { dashboard: Territory
           {dashboard.pins.slice(0, 24).map((pin) => (
             <div key={pin.id} className="grid gap-4 p-5 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:items-center">
               <div>
-                <p className="font-semibold">{pin.name}</p>
+                <Link href={`/accounts/${pin.id}`} className="inline-flex items-center gap-2 font-semibold hover:text-[var(--accent-primary-strong)]">
+                  {pin.name}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">{[pin.city, pin.state].filter(Boolean).join(", ") || "No location label"}</p>
               </div>
               <div className="flex flex-wrap gap-2">

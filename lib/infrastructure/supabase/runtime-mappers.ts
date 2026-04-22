@@ -1,4 +1,4 @@
-import type { IntegrationInstallation, Organization, SyncJob } from "@/lib/domain/runtime";
+import type { AuditEvent, IntegrationInstallation, Organization, SyncJob } from "@/lib/domain/runtime";
 
 function normalizeJson(value: unknown) {
   return (value ?? {}) as Record<string, unknown>;
@@ -46,5 +46,18 @@ export function mapSyncJobRow(row: Record<string, unknown>): SyncJob {
     finishedAt: row.finished_at ? String(row.finished_at) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapAuditEventRow(row: Record<string, unknown>): AuditEvent {
+  return {
+    id: String(row.id),
+    organizationId: String(row.organization_id),
+    actorMemberId: row.actor_member_id ? String(row.actor_member_id) : null,
+    eventType: row.event_type as AuditEvent["eventType"],
+    entityType: String(row.entity_type),
+    entityId: String(row.entity_id),
+    payload: normalizeJson(row.payload),
+    createdAt: String(row.created_at),
   };
 }

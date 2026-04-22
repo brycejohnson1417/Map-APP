@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { QueueSyncJobInput, SyncJob } from "@/lib/domain/runtime";
+import type { QueueSyncJobInput, SyncJob, SyncJobStatusCount, SyncStatus } from "@/lib/domain/runtime";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { mapSyncJobRow } from "@/lib/infrastructure/supabase/runtime-mappers";
 
@@ -41,5 +41,30 @@ export class SyncJobRepository {
     }
 
     return (data ?? []).map((row: unknown) => mapSyncJobRow(row as Record<string, unknown>));
+  }
+
+  async countByStatusForOrganizationId(organizationId: string): Promise<SyncJobStatusCount[]> {
+    const supabase = getSupabaseAdminClient() as any;
+    const statuses: SyncStatus[] = ["queued", "running", "success", "error", "idle"];
+    const counts = await Promise.all(
+      statuses.map(async (status) => {
+        const { count, error } = await supabase
+          .from("sync_job")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("status", status);
+
+        if (error) {
+          throw error;
+        }
+
+        return {
+          status,
+          count: count ?? 0,
+        };
+      }),
+    );
+
+    return counts.filter((entry) => entry.count > 0);
   }
 }

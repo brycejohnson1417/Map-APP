@@ -29,11 +29,33 @@ async function main() {
 
   if (defaultOrgSlug) {
     await assertOk(`/runtime/${defaultOrgSlug}`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/sync-jobs`);
+    const organizationResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`);
+    const organizationBody = await organizationResponse.json();
+    if (!Array.isArray(organizationBody.snapshot?.recentAuditEvents)) {
+      throw new Error("Runtime organization snapshot did not include recentAuditEvents");
+    }
+    if (!Array.isArray(organizationBody.snapshot?.syncJobStatusCounts)) {
+      throw new Error("Runtime organization snapshot did not include syncJobStatusCounts");
+    }
+
+    const syncJobsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/sync-jobs`);
+    const syncJobsBody = await syncJobsResponse.json();
+    if (!Array.isArray(syncJobsBody.statusCounts)) {
+      throw new Error("Sync jobs response did not include statusCounts");
+    }
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/overlays`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/map-config`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_referral_source`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_sample_delivery`);
+
+    const pinsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
+    const pinsBody = await pinsResponse.json();
+    const firstAccountId = Array.isArray(pinsBody.pins) ? pinsBody.pins[0]?.id : null;
+    if (firstAccountId) {
+      await assertOk(`/accounts/${firstAccountId}`);
+      await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/accounts/${firstAccountId}`);
+    }
   }
 
   console.log(`Smoke verification passed against ${baseUrl}`);

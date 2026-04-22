@@ -12,9 +12,13 @@ This file is the live execution backlog for the platform. It is intentionally bl
 - [ ] Seed the first organization and tenant-scoped integrations
 
 ## Near-term product tasks
+- [x] Add first Supabase-backed account detail API and page that agree with territory pin data
+- [x] Replace report-style territory page with a PICC field map console backed by Supabase runtime APIs
+- [x] Add root app routing into the working territory console
+- [x] Add first Supabase-backed account directory UI
 - [ ] Add Notion webhook ingestion with durable event recording and job enqueueing
-- [ ] Add sync event and audit visibility to the runtime UI
-- [ ] Land the first thin `territory_pin_view` and its API route
+- [x] Add sync event and audit visibility to the runtime UI
+- [x] Land the first thin `territory_pin_view` and its API route
 - [ ] Add Playwright smoke coverage for the core runtime surfaces
 - [ ] Build deterministic account identity services around `licensed_location_id` and `nabis_retailer_id`
 - [ ] Add normalized Nabis retailer and order ingest tables

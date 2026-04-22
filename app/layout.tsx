@@ -13,8 +13,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Map App Harness",
-  description: "A local-first CRM and territory operations platform for field sales teams and brand ambassadors.",
+  title: "PICC New York",
+  description: "PICC field operations workspace.",
 };
 
 export default function RootLayout({

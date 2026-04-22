@@ -9,6 +9,9 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     q: url.searchParams.get("q") ?? undefined,
     flag: url.searchParams.get("flag") ?? undefined,
     rep: url.searchParams.get("rep") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
+    referralSource: url.searchParams.get("referralSource") ?? undefined,
+    vendorDayStatus: url.searchParams.get("vendorDayStatus") ?? undefined,
   });
 
   if (!dashboard) {
@@ -20,6 +23,10 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       ok: true,
       counts: dashboard.counts,
       appliedFilters: dashboard.appliedFilters,
+      repFacets: dashboard.repFacets,
+      statusFacets: dashboard.statusFacets,
+      referralSourceFacets: dashboard.referralSourceFacets,
+      vendorDayFacets: dashboard.vendorDayFacets,
       pins: dashboard.pins,
     },
     {
