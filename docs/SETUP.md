@@ -43,6 +43,7 @@ This file defines the environment contract for local development, verification, 
 - `NOTION_TOKEN`
 - `NOTION_WORKSPACE_ID`
 - `NOTION_DATA_SOURCE_IDS`
+- `NOTION_WEBHOOK_VERIFICATION_TOKEN`
 - `NABIS_API_KEY`
 
 ### Per-organization Google Maps credentials
