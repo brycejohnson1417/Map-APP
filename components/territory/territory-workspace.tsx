@@ -2,23 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CalendarDays,
   Check,
   ChevronDown,
   ExternalLink,
   Filter,
-  Home,
   List,
   Loader2,
   LocateFixed,
   Map as MapIcon,
-  MapPin,
   MessageSquareText,
   Navigation,
   RefreshCw,
   Route,
   Search,
-  Users,
   X,
 } from "lucide-react";
 import type {
@@ -148,6 +144,62 @@ function getStatusColor(status: string | null | undefined) {
   return "#1958d6";
 }
 
+function getOrderColor(lastOrderDate: string | null | undefined) {
+  if (!lastOrderDate) {
+    return "#6b7280";
+  }
+
+  const days = Math.floor((Date.now() - new Date(lastOrderDate).getTime()) / 86_400_000);
+  if (days <= 30) {
+    return "#209365";
+  }
+  if (days <= 90) {
+    return "#1958d6";
+  }
+
+  return "#d53e2a";
+}
+
+function getPinColor(pin: TerritoryAccountPin, mode: ColorMode) {
+  if (mode === "status") {
+    return getStatusColor(pin.status);
+  }
+  if (mode === "orders") {
+    return getOrderColor(pin.lastOrderDate);
+  }
+
+  return pin.salesRepNames[0] ? getRepColor(pin.salesRepNames[0]) : "#6b7280";
+}
+
+function getPinLabel(pin: TerritoryAccountPin, mode: ColorMode) {
+  if (mode === "orders") {
+    return pin.lastOrderDate ? "O" : "N";
+  }
+  if (mode === "status") {
+    return (pin.status ?? "?").trim().slice(0, 1).toUpperCase() || "?";
+  }
+
+  return (pin.salesRepNames[0] ?? "?").trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function buildMarkerIcon(google: GoogleNamespace, pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
+  const color = getPinColor(pin, mode);
+  const size = selected ? 44 : 36;
+  const strokeWidth = selected ? 4 : 2;
+  const svg = `
+    <svg width="${size}" height="${size + 8}" viewBox="0 0 ${size} ${size + 8}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M${size / 2} ${size + 4}C${size / 2} ${size + 4} ${size * 0.18} ${size * 0.58} ${size * 0.18} ${size * 0.36}C${size * 0.18} ${size * 0.16} ${size * 0.33} 4 ${size / 2} 4C${size * 0.67} 4 ${size * 0.82} ${size * 0.16} ${size * 0.82} ${size * 0.36}C${size * 0.82} ${size * 0.58} ${size / 2} ${size + 4} ${size / 2} ${size + 4}Z" fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
+      <circle cx="${size / 2}" cy="${size * 0.36}" r="${selected ? 10 : 8}" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.65)" stroke-width="1"/>
+    </svg>`;
+
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(size, size + 8),
+    anchor: new google.maps.Point(size / 2, size + 4),
+    labelOrigin: new google.maps.Point(size / 2, size * 0.36 + 1),
+  };
+}
+
 function getNotionHref(detail: AccountRuntimeDetail | null) {
   const identity = detail?.identities.find((item) => item.provider === "notion");
   return identity?.externalId ? `https://www.notion.so/${identity.externalId.replaceAll("-", "")}` : null;
@@ -197,6 +249,8 @@ interface Filters {
   flag: "" | "missing_referral_source" | "missing_sample_delivery";
 }
 
+type ColorMode = "rep" | "status" | "orders";
+
 const emptyFilters: Filters = {
   search: "",
   rep: "",
@@ -236,28 +290,18 @@ function SelectFilter({
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof MapPin }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">{label}</p>
-        <Icon className="h-4 w-4 text-[var(--accent-secondary-strong)]" />
-      </div>
-      <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{value}</p>
-    </div>
-  );
-}
-
 function PinRow({
   pin,
   active,
   selected,
+  colorMode,
   onFocus,
   onToggleRoute,
 }: {
   pin: TerritoryAccountPin;
   active: boolean;
   selected: boolean;
+  colorMode: ColorMode;
   onFocus: () => void;
   onToggleRoute: () => void;
 }) {
@@ -272,7 +316,7 @@ function PinRow({
         <div className="flex items-start gap-3">
           <span
             className="mt-1 h-3 w-3 shrink-0 rounded-full"
-            style={{ backgroundColor: pin.salesRepNames[0] ? getRepColor(pin.salesRepNames[0]) : getStatusColor(pin.status) }}
+            style={{ backgroundColor: getPinColor(pin, colorMode) }}
           />
           <span className="min-w-0">
             <span className="block truncate font-semibold">{pin.name}</span>
@@ -306,6 +350,7 @@ function PinRow({
 
 export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorkspaceProps) {
   const [view, setView] = useState<"map" | "list">("map");
+  const [colorMode, setColorMode] = useState<ColorMode>("rep");
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [data, setData] = useState<TerritoryPinsResponse>({
     ok: true,
@@ -335,6 +380,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
   const overlayMarkerRefs = useRef<GoogleMarker[]>([]);
   const routeLineRef = useRef<GooglePolyline | null>(null);
   const directionsRendererRef = useRef<GoogleDirectionsRenderer | null>(null);
+  const lastFitSignatureRef = useRef<string>("");
 
   const pins = data.pins;
   const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
@@ -424,11 +470,14 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
 
         mapRef.current = new google.maps.Map(mapElementRef.current, {
           center: { lat: 40.73, lng: -73.93 },
-          zoom: 11,
-          mapTypeControl: false,
-          fullscreenControl: false,
+          zoom: 10,
+          gestureHandling: "greedy",
+          zoomControl: true,
+          mapTypeControl: true,
+          fullscreenControl: true,
           streetViewControl: false,
           clickableIcons: false,
+          controlSize: 32,
         });
         setMapReady(true);
       })
@@ -446,35 +495,39 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
     markerRefs.current = [];
 
     const bounds = new google.maps.LatLngBounds();
+    const fitSignatureParts: string[] = [];
     for (const pin of pins) {
       if (!hasUsableCoordinates(pin)) {
         continue;
       }
 
-      const color = pin.salesRepNames[0] ? getRepColor(pin.salesRepNames[0]) : getStatusColor(pin.status);
+      const selected = pin.id === selectedId;
       const marker = new google.maps.Marker({
         map,
         position: { lat: pin.latitude, lng: pin.longitude },
         title: pin.name,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          fillColor: color,
-          fillOpacity: pin.id === selectedId ? 1 : 0.88,
-          strokeColor: "#ffffff",
-          strokeWeight: pin.id === selectedId ? 3 : 2,
-          scale: pin.id === selectedId ? 9 : 7,
+        icon: buildMarkerIcon(google, pin, selected, colorMode),
+        label: {
+          text: getPinLabel(pin, colorMode),
+          color: "#ffffff",
+          fontSize: selected ? "12px" : "11px",
+          fontWeight: "800",
         },
+        zIndex: selected ? 1000 : 1,
       });
 
       marker.addListener("click", () => setSelectedId(pin.id));
       markerRefs.current.push(marker);
       bounds.extend(marker.getPosition());
+      fitSignatureParts.push(`${pin.id}:${pin.latitude}:${pin.longitude}`);
     }
 
-    if (!bounds.isEmpty()) {
+    const nextFitSignature = fitSignatureParts.sort().join("|");
+    if (!bounds.isEmpty() && nextFitSignature !== lastFitSignatureRef.current) {
       map.fitBounds(bounds, 48);
+      lastFitSignatureRef.current = nextFitSignature;
     }
-  }, [mapReady, pins, selectedId]);
+  }, [colorMode, mapReady, pins, selectedId]);
 
   useEffect(() => {
     const google = (window as any).google;
@@ -618,6 +671,24 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
     );
   }
 
+  function fitVisiblePins() {
+    const google = (window as any).google;
+    const map = mapRef.current;
+    if (!google?.maps || !map) {
+      return;
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+    for (const pin of pins) {
+      if (hasUsableCoordinates(pin)) {
+        bounds.extend({ lat: pin.latitude, lng: pin.longitude });
+      }
+    }
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 56);
+    }
+  }
+
   async function submitCheckIn() {
     if (!selectedId || !checkInNote.trim()) {
       return;
@@ -655,26 +726,30 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
   const organizationName = initialDashboard.organization.name;
 
   return (
-    <div className="flex min-h-[calc(100dvh-84px)] flex-col bg-[#e8e7e1] text-[var(--text-primary)]">
-      <div className="border-b border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--background)_90%,white)] px-4 py-4 md:px-6">
-        <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4">
-          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent-secondary-strong)]">
-                {organizationName} territory
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] md:text-3xl">Field map console</h1>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:w-[760px]">
-              <Metric label="Accounts" value={formatNumber(data.counts.accounts)} icon={Users} />
-              <Metric label="Map pins" value={formatNumber(data.counts.geocodedPins)} icon={MapPin} />
-              <Metric label="Orders" value={formatNumber(data.counts.orders)} icon={CalendarDays} />
-              <Metric label="Overlays" value={formatNumber(data.counts.territoryBoundaries + data.counts.territoryMarkers)} icon={Home} />
-            </div>
+    <div className="relative h-[calc(100dvh-65px)] min-h-[620px] overflow-hidden bg-[#d9ded6] text-[var(--text-primary)]">
+      <div className="absolute left-3 right-3 top-3 z-20 flex flex-col gap-2 xl:right-[440px]">
+        <div className="flex flex-col gap-2 rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_94%,transparent)] p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
+          <div className="min-w-[210px] px-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-secondary-strong)]">
+              {organizationName} map
+            </p>
+            <h1 className="text-xl font-semibold tracking-[-0.03em]">Field console</h1>
           </div>
-
-          <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 lg:flex-row lg:items-center">
-            <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+            <span className="rounded-lg border border-[var(--border-subtle)] bg-white/75 px-3 py-2 text-xs font-semibold">
+              {formatNumber(data.counts.accounts)} accounts
+            </span>
+            <span className="rounded-lg border border-[var(--border-subtle)] bg-white/75 px-3 py-2 text-xs font-semibold">
+              {formatNumber(data.counts.geocodedPins)} pins
+            </span>
+            <span className="rounded-lg border border-[var(--border-subtle)] bg-white/75 px-3 py-2 text-xs font-semibold">
+              {formatNumber(data.counts.orders)} orders
+            </span>
+            <span className="rounded-lg border border-[var(--border-subtle)] bg-white/75 px-3 py-2 text-xs font-semibold">
+              {formatNumber(data.counts.territoryBoundaries + data.counts.territoryMarkers)} overlays
+            </span>
+          </div>
+          <div className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1">
               <button
                 type="button"
                 onClick={() => setView("map")}
@@ -694,8 +769,18 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                 List
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => void loadPins()}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Refresh
+            </button>
+          </div>
 
-            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_94%,transparent)] p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl lg:flex-row lg:items-center">
+            <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
               <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
               <input
                 value={filters.search}
@@ -704,20 +789,29 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
               />
             </label>
-            <button
-              type="button"
-              onClick={() => void loadPins()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
             <SelectFilter label="Rep" value={filters.rep} options={data.repFacets} onChange={(value) => updateFilter("rep", value)} />
             <SelectFilter label="Status" value={filters.status} options={data.statusFacets} onChange={(value) => updateFilter("status", value)} />
             <SelectFilter label="Referral" value={filters.referralSource} options={data.referralSourceFacets} onChange={(value) => updateFilter("referralSource", value)} />
+            <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1">
+              {[
+                ["rep", "Rep"],
+                ["status", "Status"],
+                ["orders", "Orders"],
+              ].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setColorMode(mode as ColorMode)}
+                  className={classNames(
+                    "rounded-lg px-3 py-2 text-sm font-semibold",
+                    colorMode === mode ? "bg-[var(--text-primary)] text-white" : "text-[var(--text-secondary)]",
+                  )}
+                  style={colorMode === mode ? { color: "#fff" } : undefined}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => updateFilter("flag", filters.flag === "missing_referral_source" ? "" : "missing_referral_source")}
@@ -740,26 +834,25 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
               Clear {activeFilterCount ? `(${activeFilterCount})` : ""}
             </button>
           </div>
-        </div>
       </div>
 
-      <div className="mx-auto grid w-full max-w-[1800px] flex-1 gap-0 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <main className="relative min-h-[560px]">
+      <div className="grid h-full w-full gap-0 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <main className="relative min-h-[560px] xl:min-h-0">
           {view === "map" ? (
             <div className="absolute inset-0">
               {mapConfig === null ? (
-                <div className="flex h-full min-h-[560px] items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm font-semibold text-[var(--text-secondary)]">
+                <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm font-semibold text-[var(--text-secondary)]">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Loading map
                 </div>
               ) : mapConfig.configured ? (
-                <div ref={mapElementRef} className="h-full min-h-[560px] w-full" />
+                <div ref={mapElementRef} className="h-full w-full" />
               ) : (
-                <div className="flex h-full min-h-[560px] items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm text-[var(--text-secondary)]">
+                <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm text-[var(--text-secondary)]">
                   Google Maps is not configured for this organization.
                 </div>
               )}
-              <div className="pointer-events-none absolute left-4 top-4 flex flex-wrap gap-2">
+              <div className="pointer-events-none absolute bottom-4 left-4 flex flex-wrap gap-2">
                 <div className="pointer-events-auto rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold shadow-[var(--shadow-soft)]">
                   Showing {formatNumber(mappablePinCount)} mapped pins
                 </div>
@@ -771,6 +864,14 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                   <LocateFixed className="h-4 w-4" />
                   Locate
                 </button>
+                <button
+                  type="button"
+                  onClick={fitVisiblePins}
+                  className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold shadow-[var(--shadow-soft)]"
+                >
+                  <MapIcon className="h-4 w-4" />
+                  Fit
+                </button>
               </div>
             </div>
           ) : (
@@ -781,6 +882,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                   pin={pin}
                   active={pin.id === selectedId}
                   selected={routeStopIds.includes(pin.id)}
+                  colorMode={colorMode}
                   onFocus={() => focusPin(pin)}
                   onToggleRoute={() => toggleRouteStop(pin.id)}
                 />
@@ -790,8 +892,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
           )}
         </main>
 
-        <aside className="border-l border-[var(--border-subtle)] bg-[var(--surface-card)]">
-          <div className="sticky top-[84px] max-h-[calc(100dvh-84px)] overflow-auto">
+        <aside className="z-10 hidden border-l border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_96%,transparent)] shadow-[var(--shadow-soft)] backdrop-blur-xl xl:block">
+          <div className="h-full overflow-auto">
             <div className="border-b border-[var(--border-subtle)] p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>

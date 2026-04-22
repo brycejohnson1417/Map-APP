@@ -16,6 +16,7 @@ This file is the live execution backlog for the platform. It is intentionally bl
 - [x] Replace report-style territory page with a PICC field map console backed by Supabase runtime APIs
 - [x] Add root app routing into the working territory console
 - [x] Add first Supabase-backed account directory UI
+- [x] Add first PICC live sync command for Notion companies, Notion contacts, and Nabis orders
 - [ ] Add Notion webhook ingestion with durable event recording and job enqueueing
 - [x] Add sync event and audit visibility to the runtime UI
 - [x] Land the first thin `territory_pin_view` and its API route
@@ -46,6 +47,7 @@ This file is the live execution backlog for the platform. It is intentionally bl
 - [ ] Add route and service tests for sync orchestration
 - [ ] Add structured logging and correlation ids
 - [ ] Add retry/backoff semantics for sync jobs
+- [ ] Batch live contact and order upserts so full sync runs are fast enough for scheduled operation
 - [ ] Add migration validation queries and parity checks backed by real customer data
 
 ## Strategic non-goals for the current slice

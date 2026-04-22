@@ -59,6 +59,7 @@ loadLocalEnv();
 function usage() {
   console.log(`Usage:
   node scripts/mapapp.mjs health check <org>
+  node scripts/mapapp.mjs sync live <org> [--dry-run] [--companies] [--contacts] [--orders] [--limit=100] [--from=YYYY-MM-DD]
   node scripts/mapapp.mjs migration apply <org>
   node scripts/mapapp.mjs migration dry-run <org>
   node scripts/mapapp.mjs migration validate <org>`);
@@ -932,7 +933,7 @@ async function runMigrationDryRun(org) {
 }
 
 async function main() {
-  const [scope, action, org] = process.argv.slice(2);
+  const [scope, action, org, ...args] = process.argv.slice(2);
 
   if (!scope || !action) {
     usage();
@@ -947,6 +948,17 @@ async function main() {
     const checks = [...envChecks, ...fileChecks, ...runtimeChecks];
     printResults(`Health check for ${targetOrg}`, checks);
     exitFromChecks(checks);
+  }
+
+  if (scope === "sync" && action === "live") {
+    if (!org) {
+      console.error("Organization slug is required for live sync");
+      process.exit(1);
+    }
+
+    const { runLiveSync } = await import("./live-sync.mjs");
+    await runLiveSync(org, args);
+    process.exit(0);
   }
 
   if (scope === "migration" && (action === "apply" || action === "dry-run" || action === "validate")) {

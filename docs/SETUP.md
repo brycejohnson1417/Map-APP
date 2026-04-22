@@ -43,8 +43,16 @@ This file defines the environment contract for local development, verification, 
 - `NOTION_TOKEN`
 - `NOTION_WORKSPACE_ID`
 - `NOTION_DATA_SOURCE_IDS`
+- `NOTION_COMPANIES_DATA_SOURCE_ID`
+- `NOTION_CONTACTS_DATA_SOURCE_ID`
 - `NOTION_WEBHOOK_VERIFICATION_TOKEN`
+- `NABIS_API_BASE_URL`
+- `NABIS_ORDERS_PATH`
 - `NABIS_API_KEY`
+
+`NOTION_DATA_SOURCE_IDS` remains supported as a bootstrap list. For live sync, prefer the explicit
+company/contact variables so PICC's Dispensary Master List CRM and Contacts Database cannot be
+accidentally swapped.
 
 ### Per-organization Google Maps credentials
 - `GOOGLE_MAPS_BROWSER_API_KEY`
@@ -58,3 +66,18 @@ This file defines the environment contract for local development, verification, 
 - Do not put tenant secrets into committed files.
 - Browser-safe Google Maps keys are still tenant-scoped configuration and should not be shared across organizations.
 - Server-side maps keys, Notion tokens, and Nabis credentials are treated as secrets.
+
+## Live Sync Command
+
+Use the CLI when validating a tenant sync locally or from an operator shell:
+
+```bash
+npm run mapapp -- sync live picc --dry-run --limit=25
+npm run mapapp -- sync live picc
+```
+
+The command reads Notion companies/contacts and Nabis orders, then writes normalized rows into
+Supabase `account`, `contact`, `account_identity`, `order_record`, `sync_cursor`, `sync_job`, and
+`audit_event`. It does not write back to Notion.
+
+For PICC NY, `NABIS_ORDERS_PATH` should point at the NY orders endpoint: `/ny/order`.

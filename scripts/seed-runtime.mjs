@@ -198,12 +198,19 @@ async function main() {
   const integrations = {};
 
   if (process.env.NOTION_TOKEN?.trim()) {
+    const notionDataSourceIds = optionalJsonArray(process.env.NOTION_DATA_SOURCE_IDS);
     integrations.notion = await upsertIntegration(supabase, organization.id, {
       provider: "notion",
       displayName: "Notion CRM",
       externalAccountId: process.env.NOTION_WORKSPACE_ID?.trim() || null,
       config: {
-        dataSourceIds: optionalJsonArray(process.env.NOTION_DATA_SOURCE_IDS),
+        dataSourceIds: notionDataSourceIds,
+        companyDataSourceId:
+          process.env.NOTION_COMPANIES_DATA_SOURCE_ID?.trim() ||
+          process.env.NOTION_MASTER_LIST_DATA_SOURCE_ID?.trim() ||
+          notionDataSourceIds[0] ||
+          null,
+        contactDataSourceId: process.env.NOTION_CONTACTS_DATA_SOURCE_ID?.trim() || notionDataSourceIds[1] || null,
       },
       secrets: {
         token: process.env.NOTION_TOKEN,
@@ -215,7 +222,10 @@ async function main() {
     integrations.nabis = await upsertIntegration(supabase, organization.id, {
       provider: "nabis",
       displayName: "Nabis Orders",
-      config: {},
+      config: {
+        apiBaseUrl: process.env.NABIS_API_BASE_URL?.trim() || "https://platform-api.nabis.pro/v2",
+        ordersPath: process.env.NABIS_ORDERS_PATH?.trim() || "/ny/order",
+      },
       secrets: {
         apiKey: process.env.NABIS_API_KEY,
       },
