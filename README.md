@@ -42,6 +42,7 @@ The product is intentionally multi-tenant and adapter-driven.
 
 ## Key docs
 
+- [docs/WORKTREE_WORKFLOW.md](docs/WORKTREE_WORKFLOW.md)
 - [docs/STRATEGY.md](docs/STRATEGY.md)
 - [docs/PLATFORM_SPEC.md](docs/PLATFORM_SPEC.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
