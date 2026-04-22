@@ -218,3 +218,51 @@ What passed:
 Remaining blockers:
 - dry-run still does not transform or write rows
 - next migration slice must add staging writes plus parity validation for accounts, identities, orders, territory boundaries, and markers
+
+## 2026-04-22 — Row-level Supabase runtime migration and territory read surface
+Commands run:
+- `supabase db push --yes`
+- `npm run mapapp -- migration apply picc`
+- `npm run mapapp -- migration dry-run picc`
+- `npm run mapapp -- migration validate picc`
+- `npm run lint`
+- `vercel deploy --prod -y`
+- `APP_URL=https://map-app-supabase.vercel.app npm run mapapp -- health check picc`
+- `SMOKE_BASE_URL=https://map-app-supabase.vercel.app NEXT_PUBLIC_DEFAULT_ORG_SLUG=picc npm run smoke:runtime`
+- `curl https://map-app-supabase.vercel.app/api/runtime/organizations/picc/territory/pins?flag=missing_referral_source`
+
+What changed:
+- added canonical `order_record` runtime storage for migrated Nabis orders
+- normalized stale territory runtime tables from an earlier partial schema so current `organization_id` scoping is authoritative
+- `migration apply picc` now clears and reloads migrated runtime rows from the legacy Neon source into Supabase
+- migrated runtime rows now include accounts, account identities, contacts, activities, orders, territory boundaries, and territory markers
+- account order aggregates now update local `last_order_date` and `customer_since_date` from normalized order records
+- `/territory` now reads migrated Supabase runtime data and exposes search plus `No Referral Source` and `No Last Sample Delivery Date` filters
+- `/api/runtime/organizations/:slug/territory/pins` now returns a small pin payload for agent/browser smoke verification
+
+What passed:
+- migration apply loaded:
+  - 793 accounts
+  - 4,629 account identities
+  - 30 contacts
+  - 79 activities
+  - 1,386 orders
+  - 1 territory boundary
+  - 1 territory marker
+- read-only dry-run confirmed source/target connectivity after the apply
+- migration validator passed all file, environment, TODO, and evidence checks
+- lint passed with zero warnings
+- Vercel production build passed on Node 22 and was aliased to `https://map-app-supabase.vercel.app`
+- production health check passed
+- production smoke test passed for `/`, `/architecture`, `/territory`, runtime org APIs, sync jobs API, and both territory filter APIs
+- production territory pin API returned:
+  - 793 accounts
+  - 772 geocoded pins
+  - 1,386 orders
+  - 428 accounts with no referral source
+  - 793 accounts with no last sample delivery date
+
+Known caveats:
+- the legacy source does not expose a confirmed sample-delivery column in `Account`, `TerritoryStoreReadModel`, or `NabisOrder`; the new filter is wired to the canonical `account.last_sample_delivery_date` field, but current migrated rows are expected to be null until a trusted sample source is connected
+- local `npm run typecheck` and `npm run build` hang in this macOS shell before producing diagnostics, including under Node 22; production Vercel build remains the deployment gate
+- the `pg` SSL-mode warning is still emitted by the legacy Neon connection string and should be cleaned up separately by normalizing the source URL SSL mode

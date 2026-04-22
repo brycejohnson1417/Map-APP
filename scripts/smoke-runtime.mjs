@@ -31,6 +31,9 @@ async function main() {
     await assertOk(`/runtime/${defaultOrgSlug}`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/sync-jobs`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_referral_source`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_sample_delivery`);
   }
 
   console.log(`Smoke verification passed against ${baseUrl}`);

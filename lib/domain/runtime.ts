@@ -86,3 +86,43 @@ export interface QueueSyncJobInput {
   dedupeKey?: string | null;
   payload?: Record<string, unknown>;
 }
+
+export type TerritoryFilterFlag = "missing_referral_source" | "missing_sample_delivery";
+
+export interface TerritoryAccountPin {
+  id: string;
+  name: string;
+  status: string | null;
+  leadStatus: string | null;
+  referralSource: string | null;
+  city: string | null;
+  state: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  salesRepNames: string[];
+  lastContactedAt: string | null;
+  lastOrderDate: string | null;
+  lastSampleDeliveryDate: string | null;
+  daysOverdue: number | null;
+}
+
+export interface TerritoryRuntimeDashboard {
+  organization: Organization;
+  counts: {
+    accounts: number;
+    geocodedPins: number;
+    orders: number;
+    contacts: number;
+    territoryBoundaries: number;
+    territoryMarkers: number;
+    noReferralSource: number;
+    noLastSampleDeliveryDate: number;
+  };
+  repFacets: Array<{ name: string; count: number }>;
+  pins: TerritoryAccountPin[];
+  appliedFilters: {
+    search: string | null;
+    flag: TerritoryFilterFlag | null;
+    rep: string | null;
+  };
+}

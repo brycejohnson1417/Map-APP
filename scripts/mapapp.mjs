@@ -59,6 +59,7 @@ loadLocalEnv();
 function usage() {
   console.log(`Usage:
   node scripts/mapapp.mjs health check <org>
+  node scripts/mapapp.mjs migration apply <org>
   node scripts/mapapp.mjs migration dry-run <org>
   node scripts/mapapp.mjs migration validate <org>`);
 }
@@ -309,6 +310,7 @@ async function collectSupabaseRuntimeCounts() {
     "account_identity",
     "contact",
     "activity",
+    "order_record",
     "territory_boundary",
     "territory_marker",
     "sync_cursor",
@@ -327,6 +329,586 @@ async function collectSupabaseRuntimeCounts() {
   }
 
   return counts;
+}
+
+function compactObject(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined && entry !== ""));
+}
+
+function toDateOnly(value) {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function toIso(value) {
+  if (!value) {
+    return null;
+  }
+
+  return new Date(value).toISOString();
+}
+
+function normalizeArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+}
+
+function normalizeIdentity(value) {
+  return String(value ?? "").trim();
+}
+
+function providerForIdentityType(identityType) {
+  if (identityType === "NOTION_PAGE_ID") {
+    return "notion";
+  }
+
+  if (identityType === "NABIS_RETAILER_ID") {
+    return "nabis";
+  }
+
+  return "csv_import";
+}
+
+function chunkArray(values, size = 400) {
+  const chunks = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+async function insertChunks(supabase, table, rows, options = {}) {
+  if (!rows.length) {
+    return [];
+  }
+
+  const inserted = [];
+  for (const chunk of chunkArray(rows, options.size ?? 400)) {
+    let request = supabase.from(table).insert(chunk);
+    if (options.select) {
+      request = request.select(options.select);
+    }
+
+    const { data, error } = await request;
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+
+    if (data) {
+      inserted.push(...data);
+    }
+  }
+
+  return inserted;
+}
+
+async function getLegacyClient() {
+  const { Client } = await import("pg");
+  const client = new Client({
+    connectionString: process.env.NEON_SOURCE_DATABASE_URL,
+    connectionTimeoutMillis: 15_000,
+    query_timeout: 60_000,
+  });
+
+  await client.connect();
+  return client;
+}
+
+async function getSupabaseAdmin() {
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      fetch: (input, init = {}) =>
+        fetch(input, {
+          ...init,
+          signal: init.signal ?? AbortSignal.timeout(60_000),
+        }),
+    },
+  });
+}
+
+async function fetchLegacyRows(client) {
+  const accounts = await client.query('select * from public."Account" order by "createdAt"');
+  const contacts = await client.query('select * from public."Contact" order by "createdAt"');
+  const activities = await client.query('select * from public."ActivityLog" order by "createdAt"');
+  const orders = await client.query('select * from public."NabisOrder" order by "createdAt"');
+  const identities = await client.query('select * from public."AccountIdentityMapping" where "active" = true order by "createdAt"');
+  const territories = await client.query('select * from public."Territory" order by "createdAt"');
+  const markers = await client.query('select * from public."TerritoryMarker" order by "createdAt"');
+  const territoryPins = await client.query('select * from public."TerritoryStoreReadModel" order by "name"');
+
+  return {
+    accounts: accounts.rows,
+    contacts: contacts.rows,
+    activities: activities.rows,
+    orders: orders.rows,
+    identities: identities.rows,
+    territories: territories.rows,
+    markers: markers.rows,
+    territoryPins: territoryPins.rows,
+  };
+}
+
+async function getOrganizationOrThrow(supabase, orgSlug) {
+  const { data, error } = await supabase.from("organization").select("*").eq("slug", orgSlug).single();
+  if (error) {
+    throw new Error(`organization:${orgSlug}: ${error.message}`);
+  }
+
+  return data;
+}
+
+async function clearMigratedRuntime(supabase, organizationId) {
+  const tables = [
+    "order_record",
+    "activity",
+    "contact",
+    "account_identity",
+    "territory_marker",
+    "territory_boundary",
+    "account",
+  ];
+
+  for (const table of tables) {
+    const { error } = await supabase.from(table).delete().eq("organization_id", organizationId);
+    if (error) {
+      throw new Error(`clear:${table}: ${error.message}`);
+    }
+  }
+}
+
+function buildReadModelLookups(territoryPins) {
+  const byNotionPageId = new Map();
+  const byLicenseNumber = new Map();
+
+  for (const pin of territoryPins) {
+    if (pin.notionPageId) {
+      byNotionPageId.set(pin.notionPageId, pin);
+    }
+
+    if (pin.licenseNumber) {
+      byLicenseNumber.set(pin.licenseNumber, pin);
+    }
+  }
+
+  return { byNotionPageId, byLicenseNumber };
+}
+
+function mapAccountRow(organizationId, account, readModel) {
+  return {
+    organization_id: organizationId,
+    name: account.name,
+    display_name: account.name,
+    account_status: String(account.status ?? readModel?.statusKey ?? readModel?.status ?? "unknown"),
+    lead_status: readModel?.pinKind ?? null,
+    referral_source: readModel?.referralSource ?? null,
+    vendor_day_status: account.vendorDaySuppressed ? "suppressed" : null,
+    licensed_location_id: account.licensedLocationId ?? null,
+    license_number: account.licenseNumber ?? readModel?.licenseNumber ?? null,
+    address_line_1: account.address1 ?? readModel?.locationAddress ?? null,
+    address_line_2: account.address2 ?? null,
+    city: account.city ?? readModel?.city ?? null,
+    state: account.state ?? readModel?.state ?? null,
+    postal_code: account.zipcode ?? null,
+    latitude: account.geoLat ?? readModel?.lat ?? null,
+    longitude: account.geoLng ?? readModel?.lng ?? null,
+    sales_rep_names: normalizeArray(readModel?.repNames),
+    last_contacted_at: toDateOnly(account.lastContactedAt ?? readModel?.lastCheckIn),
+    crm_updated_at: toIso(account.updatedAt ?? readModel?.lastEditedTime),
+    external_updated_at: toIso(readModel?.lastEditedTime ?? account.updatedAt),
+    custom_fields: compactObject({
+      legacyAccountId: account.id,
+      legacyOrgId: account.orgId,
+      nabisRetailerId: account.nabisRetailerId,
+      notionPageId: account.notionPageId,
+      phone: account.phone ?? readModel?.phoneNumber,
+      email: readModel?.email,
+      daysOverdue: readModel?.daysOverdue,
+      followUpDate: toDateOnly(readModel?.followUpDate),
+      notes: readModel?.notes,
+      locationSource: readModel?.locationSource,
+      locationPrecision: readModel?.locationPrecision,
+      vendorDaySuppressionReason: account.vendorDaySuppressionReason,
+    }),
+    source_payload: {
+      source: "legacy.account",
+      legacy: compactObject({
+        id: account.id,
+        orgId: account.orgId,
+        status: account.status,
+      }),
+    },
+  };
+}
+
+function mapPinOnlyAccountRow(organizationId, pin) {
+  return {
+    organization_id: organizationId,
+    name: pin.name,
+    display_name: pin.name,
+    account_status: String(pin.statusKey ?? pin.status ?? "territory_pin"),
+    lead_status: pin.pinKind ?? null,
+    referral_source: pin.referralSource ?? null,
+    licensed_location_id: null,
+    license_number: pin.licenseNumber ?? null,
+    city: pin.city ?? null,
+    state: pin.state ?? null,
+    latitude: pin.lat,
+    longitude: pin.lng,
+    sales_rep_names: normalizeArray(pin.repNames),
+    last_contacted_at: toDateOnly(pin.lastCheckIn),
+    crm_updated_at: toIso(pin.lastEditedTime),
+    external_updated_at: toIso(pin.lastEditedTime),
+    custom_fields: compactObject({
+      legacyTerritoryReadModelId: pin.id,
+      legacyOrgId: pin.orgId,
+      notionPageId: pin.notionPageId,
+      phone: pin.phoneNumber,
+      email: pin.email,
+      daysOverdue: pin.daysOverdue,
+      followUpDate: toDateOnly(pin.followUpDate),
+      notes: pin.notes,
+      locationLabel: pin.locationLabel,
+      locationAddress: pin.locationAddress,
+      locationSource: pin.locationSource,
+      locationPrecision: pin.locationPrecision,
+      isApproximate: pin.isApproximate,
+    }),
+    source_payload: {
+      source: "legacy.territory_read_model",
+      legacy: compactObject({
+        id: pin.id,
+        orgId: pin.orgId,
+        status: pin.status,
+      }),
+    },
+  };
+}
+
+function buildIdentityRows(organizationId, accountsByLegacyId, rows) {
+  const identities = new Map();
+
+  function add(accountId, provider, externalId, metadata = {}) {
+    const normalized = normalizeIdentity(externalId);
+    if (!accountId || !normalized) {
+      return;
+    }
+
+    const key = `${provider}|account|${normalized}`;
+    if (!identities.has(key)) {
+      identities.set(key, {
+        organization_id: organizationId,
+        account_id: accountId,
+        provider,
+        external_entity_type: "account",
+        external_id: normalized,
+        match_method: "deterministic",
+        match_confidence: 1,
+        metadata,
+      });
+    }
+  }
+
+  for (const [legacyId, account] of accountsByLegacyId.entries()) {
+    add(account.id, "csv_import", `legacy-account:${legacyId}`, { identityType: "LEGACY_ACCOUNT_ID" });
+    add(account.id, "notion", account.custom_fields?.notionPageId, { identityType: "NOTION_PAGE_ID" });
+    add(account.id, "nabis", account.custom_fields?.nabisRetailerId, { identityType: "NABIS_RETAILER_ID" });
+    add(account.id, "csv_import", account.licensed_location_id, { identityType: "LICENSED_LOCATION_ID" });
+    add(account.id, "csv_import", account.license_number, { identityType: "LICENSE_NUMBER" });
+  }
+
+  for (const row of rows) {
+    const account = row.accountId ? accountsByLegacyId.get(row.accountId) : null;
+    const provider = providerForIdentityType(row.identityType);
+    add(account?.id, provider, row.identityValue, {
+      identityType: row.identityType,
+      normalizedValue: row.normalizedValue,
+      source: row.source,
+      legacyIdentityId: row.id,
+      isOverride: row.isOverride,
+    });
+  }
+
+  return [...identities.values()];
+}
+
+function toDateValue(value) {
+  const iso = toIso(value);
+  return iso ? iso.slice(0, 10) : null;
+}
+
+function updateAggregate(current, next, compare) {
+  if (!next) {
+    return current;
+  }
+
+  if (!current || compare(next, current)) {
+    return next;
+  }
+
+  return current;
+}
+
+function buildOrderAggregateUpdates(organizationId, orderRows) {
+  const byAccountId = new Map();
+
+  for (const order of orderRows) {
+    if (!order.account_id) {
+      continue;
+    }
+
+    const aggregate = byAccountId.get(order.account_id) ?? {
+      organization_id: organizationId,
+      account_id: order.account_id,
+      last_order_date: null,
+      customer_since_date: null,
+    };
+    const orderDate = toDateValue(order.order_created_at);
+    const deliveryDate = order.delivery_date ?? null;
+    const candidate = deliveryDate ?? orderDate;
+
+    aggregate.last_order_date = updateAggregate(aggregate.last_order_date, candidate, (next, current) => next > current);
+    aggregate.customer_since_date = updateAggregate(aggregate.customer_since_date, orderDate, (next, current) => next < current);
+    byAccountId.set(order.account_id, aggregate);
+  }
+
+  return [...byAccountId.values()];
+}
+
+async function runMigrationApply(org) {
+  const legacy = await getLegacyClient();
+  const supabase = await getSupabaseAdmin();
+
+  try {
+    const organization = await getOrganizationOrThrow(supabase, org);
+    const rows = await fetchLegacyRows(legacy);
+    const readModels = buildReadModelLookups(rows.territoryPins);
+
+    await clearMigratedRuntime(supabase, organization.id);
+
+    const seenNotionPageIds = new Set(rows.accounts.map((account) => account.notionPageId).filter(Boolean));
+    const seenLicenseNumbers = new Set(rows.accounts.map((account) => account.licenseNumber).filter(Boolean));
+    const accountRows = rows.accounts.map((account) =>
+      mapAccountRow(
+        organization.id,
+        account,
+        account.notionPageId
+          ? readModels.byNotionPageId.get(account.notionPageId)
+          : readModels.byLicenseNumber.get(account.licenseNumber),
+      ),
+    );
+
+    for (const pin of rows.territoryPins) {
+      if ((pin.notionPageId && seenNotionPageIds.has(pin.notionPageId)) || (pin.licenseNumber && seenLicenseNumbers.has(pin.licenseNumber))) {
+        continue;
+      }
+
+      accountRows.push(mapPinOnlyAccountRow(organization.id, pin));
+    }
+
+    const insertedAccounts = await insertChunks(supabase, "account", accountRows, {
+      select: "id,licensed_location_id,license_number,custom_fields",
+    });
+    const accountsByLegacyId = new Map();
+    const accountsByLegacyAccountId = new Map();
+    const accountsByLicensedLocationId = new Map();
+    const accountsByNabisRetailerId = new Map();
+
+    for (const account of insertedAccounts) {
+      const legacyAccountId = account.custom_fields?.legacyAccountId;
+      if (legacyAccountId) {
+        accountsByLegacyId.set(legacyAccountId, account);
+        accountsByLegacyAccountId.set(legacyAccountId, account);
+      }
+
+      if (account.licensed_location_id) {
+        accountsByLicensedLocationId.set(account.licensed_location_id, account);
+      }
+
+      if (account.custom_fields?.nabisRetailerId) {
+        accountsByNabisRetailerId.set(account.custom_fields.nabisRetailerId, account);
+      }
+    }
+
+    const identityRows = buildIdentityRows(organization.id, accountsByLegacyId, rows.identities);
+    const insertedIdentities = await insertChunks(supabase, "account_identity", identityRows, {
+      select: "id",
+    });
+
+    const contactRows = rows.contacts
+      .map((contact) => {
+        const account = contact.accountId ? accountsByLegacyAccountId.get(contact.accountId) : null;
+        const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim() || "Unknown Contact";
+        return {
+          organization_id: organization.id,
+          account_id: account?.id ?? null,
+          full_name: fullName,
+          title: contact.roleTitle ?? null,
+          email: contact.email ?? null,
+          phone: contact.phone ?? null,
+          role: contact.roleTitle ?? null,
+          custom_fields: compactObject({
+            legacyContactId: contact.id,
+            legacyOrgId: contact.orgId,
+            status: contact.status,
+          }),
+          source_payload: {
+            source: "legacy.contact",
+            legacy: compactObject({
+              id: contact.id,
+              accountId: contact.accountId,
+            }),
+          },
+        };
+      });
+    const insertedContacts = await insertChunks(supabase, "contact", contactRows, { select: "id,custom_fields" });
+    const contactsByLegacyId = new Map(
+      insertedContacts
+        .map((contact) => [contact.custom_fields?.legacyContactId, contact])
+        .filter(([legacyId]) => Boolean(legacyId)),
+    );
+
+    const activityRows = rows.activities
+      .map((activity) => {
+        const account = activity.accountId ? accountsByLegacyAccountId.get(activity.accountId) : null;
+        const contact = activity.contactId ? contactsByLegacyId.get(activity.contactId) : null;
+        return {
+          organization_id: organization.id,
+          account_id: account?.id ?? null,
+          contact_id: contact?.id ?? null,
+          activity_type: String(activity.type ?? "legacy_activity"),
+          summary: activity.title ?? "Legacy activity",
+          occurred_at: toIso(activity.createdAt) ?? new Date().toISOString(),
+          metadata: compactObject({
+            legacyActivityId: activity.id,
+            legacyOrgId: activity.orgId,
+            description: activity.description,
+            channel: activity.channel,
+            actorClerkUserId: activity.actorClerkUserId,
+            metadata: activity.metadata,
+          }),
+        };
+      });
+    const insertedActivities = await insertChunks(supabase, "activity", activityRows, { select: "id" });
+
+    const orderRows = rows.orders.map((order) => {
+      const account =
+        (order.accountId ? accountsByLegacyAccountId.get(order.accountId) : null) ||
+        (order.licensedLocationId ? accountsByLicensedLocationId.get(order.licensedLocationId) : null) ||
+        (order.nabisRetailerId ? accountsByNabisRetailerId.get(order.nabisRetailerId) : null);
+
+      return {
+        organization_id: organization.id,
+        account_id: account?.id ?? null,
+        provider: "nabis",
+        external_order_id: order.externalOrderId,
+        order_number: order.orderNumber ?? null,
+        licensed_location_id: order.licensedLocationId ?? null,
+        nabis_retailer_id: order.nabisRetailerId ?? null,
+        licensed_location_name: order.licensedLocationName ?? null,
+        status: order.status ?? null,
+        payment_status: order.paymentStatus ?? null,
+        order_total: order.orderTotal ?? null,
+        order_created_at: toIso(order.orderCreatedDate ?? order.createdAt),
+        delivery_date: toDateOnly(order.deliveryDate),
+        sales_rep_name: order.salesRep ?? null,
+        is_internal_transfer: Boolean(order.isInternalTransfer),
+        source_payload: {
+          source: "legacy.nabis_order",
+          legacy: compactObject({
+            id: order.id,
+            orgId: order.orgId,
+            poSoNumber: order.poSoNumber,
+          }),
+        },
+      };
+    });
+    const insertedOrders = await insertChunks(supabase, "order_record", orderRows, { select: "id" });
+    const aggregateUpdates = buildOrderAggregateUpdates(organization.id, orderRows);
+    for (const aggregate of aggregateUpdates) {
+      const { error } = await supabase
+        .from("account")
+        .update({
+          last_order_date: aggregate.last_order_date,
+          customer_since_date: aggregate.customer_since_date,
+        })
+        .eq("organization_id", aggregate.organization_id)
+        .eq("id", aggregate.account_id);
+
+      if (error) {
+        throw new Error(`account:order-aggregate:${aggregate.account_id}: ${error.message}`);
+      }
+    }
+
+    const boundaryRows = rows.territories.map((territory) => ({
+      organization_id: organization.id,
+      name: territory.name,
+      description: territory.description ?? null,
+      color: territory.color ?? "#ef4444",
+      border_width: territory.borderWidth ?? 2,
+      is_visible_by_default: territory.isVisibleByDefault ?? true,
+      geojson: territory.geojson ?? {},
+      custom_fields: compactObject({
+        legacyTerritoryId: territory.id,
+        legacyOrgId: territory.orgId,
+        createdByEmail: territory.createdByEmail,
+        updatedByEmail: territory.updatedByEmail,
+      }),
+    }));
+    const insertedBoundaries = await insertChunks(supabase, "territory_boundary", boundaryRows, { select: "id" });
+
+    const markerRows = rows.markers.map((marker) => ({
+      organization_id: organization.id,
+      name: marker.name,
+      description: marker.description ?? null,
+      marker_type: marker.kind ?? "custom",
+      address: marker.address ?? null,
+      latitude: marker.lat,
+      longitude: marker.lng,
+      color: marker.color ?? "#0f172a",
+      icon: marker.kind === "home" ? "home" : "marker",
+      is_visible_by_default: marker.isVisibleByDefault ?? true,
+      custom_fields: compactObject({
+        legacyMarkerId: marker.id,
+        legacyOrgId: marker.orgId,
+        createdByEmail: marker.createdByEmail,
+        updatedByEmail: marker.updatedByEmail,
+      }),
+    }));
+    const insertedMarkers = await insertChunks(supabase, "territory_marker", markerRows, { select: "id" });
+
+    const runtimeCounts = await collectSupabaseRuntimeCounts();
+
+    console.log(
+      JSON.stringify(
+        {
+          org,
+          mode: "apply",
+          inserted: {
+            accounts: insertedAccounts.length,
+            identities: insertedIdentities.length,
+            contacts: insertedContacts.length,
+            activities: insertedActivities.length,
+            orders: insertedOrders.length,
+            territoryBoundaries: insertedBoundaries.length,
+            territoryMarkers: insertedMarkers.length,
+          },
+          runtimeCounts,
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    await legacy.end();
+  }
 }
 
 async function runMigrationDryRun(org) {
@@ -367,7 +949,7 @@ async function main() {
     exitFromChecks(checks);
   }
 
-  if (scope === "migration" && (action === "dry-run" || action === "validate")) {
+  if (scope === "migration" && (action === "apply" || action === "dry-run" || action === "validate")) {
     if (!org) {
       console.error("Organization slug is required for migration commands");
       process.exit(1);
@@ -383,6 +965,16 @@ async function main() {
       const allChecks = [...checks, ...todoChecks, ...evidenceChecks];
       printResults(`Migration validate for ${org}`, allChecks);
       exitFromChecks(allChecks);
+    }
+
+    if (action === "apply") {
+      printResults(`Migration apply preflight for ${org}`, checks);
+      if (!checks.every((check) => check.ok)) {
+        process.exit(1);
+      }
+
+      await runMigrationApply(org);
+      process.exit(0);
     }
 
     printResults(`Migration dry-run for ${org}`, checks);
