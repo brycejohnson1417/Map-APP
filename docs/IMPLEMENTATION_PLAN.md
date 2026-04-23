@@ -1,202 +1,146 @@
 # Implementation Plan
 
-## Planning Standard
-Every phase in this file needs:
-- clear scope
-- acceptance criteria
-- verification path
-- known risks
+## Planning rule
 
-If a change does not improve one of those, it is probably not the next thing to build.
+This plan is not time-boxed by month count. It is outcome-driven.
 
-## Phase 0 — Foundation Alignment
-Status: in progress
+The target is to architect for scale and self-serve onboarding while still shipping meaningful value quickly for current tenants.
 
-### Scope
-- tenant-first schema
-- shared-first topology with dedicated escape hatch
-- encrypted connector model
-- connector/plugin contract direction
-- strong global schema with controlled custom-field extension points
-- architecture docs and ADRs
-- runtime status routes
-- seed/bootstrap path
-- verification scripts
-- strategy and migration-pack scaffolding
+Every slice should satisfy both:
+
+- it improves life for a current tenant now
+- it leaves the platform more reusable for tenant #10 later
+
+## Track A: Current tenant delivery
+
+This track exists so the platform does not become an abstract architecture project.
+
+### Immediate expectations
+- keep PICC operational and advancing
+- keep FraterniTees operational and advancing
+- ship tenant improvements when the business case is clear
+- implement those improvements so they leave behind cleaner runtime, package, or config boundaries
 
 ### Acceptance criteria
-- runtime schema exists in Supabase migrations
-- repo contains spec, roadmap, backlog, and verification docs
-- local verification commands are defined and runnable
-- org bootstrap path can create the first tenant and integrations
-- repo can explain platform-vs-customer migration responsibilities without chat history
+- current tenants can actively use the product
+- requested features land without uncontrolled shared-code sprawl
+- each tenant slice produces either a documented primitive candidate, package extraction, or reusable runtime contract
 
-### Verification
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- `npm run verify`
+## Track B: Platform extraction
 
-### Risks
-- Supabase project not linked yet
-- missing tenant secrets or env values can block runtime seed work
+This track turns tenant-specific behavior into durable platform structure.
 
-## Phase 1 — Control Plane Skeleton and Connector Contracts
+### Slice 1 — Document the platform truth
+Status: active
+
+Scope:
+- repo-level philosophy and product direction
+- current-state documentation
+- primitive catalog v1
+- workspace/package model v1
+- updated roadmap and backlog
+
+Acceptance:
+- a fresh engineer or AI can explain what the platform is, what exists, and what comes next from the repo alone
+
+### Slice 2 — Freeze the core contracts
 Status: next
 
-### Scope
-- strategy and setup docs
-- tenant bootstrap and connector install surface
-- field mapping config model and machine-readable tenant mapping files
-- connector contract hardening for CRM, orders, and calendar adapters
-- per-organization Google Maps credential model
-- first CLI-oriented service contracts for bootstrap, migration preflight, and health
+Scope:
+- canonical entity definitions
+- adapter contract boundaries
+- package manifest definition
+- workspace definition contract
+- read-model output contracts for territory/accounts/detail
 
-### Acceptance criteria
-- a tenant can be described through repo docs plus machine-readable config
-- CLI commands exist for migration preflight, validation, and health checks
-- setup docs define the environment contract for a fresh thread
-- control-plane responsibilities are no longer deferred to the end of the roadmap
+Acceptance:
+- new tenant work can reference stable platform contracts instead of implicit repo conventions
 
-### Verification
-- `npm run verify`
-- command-level checks for migration preflight and health
-- fresh-thread self-test documented in the tenant migration log
-
-### Risks
-- platform contracts may still be too loose for a second tenant
-- fake or incomplete migration docs create a false sense of readiness
-
-## Phase 2 — Sync Spine
+### Slice 3 — Extract tenant behavior
 Status: next
 
-### Scope
-- Notion webhook ingestion
-- sync event recording and dedupe
-- sync job queue behavior
-- incremental fallback polling contract
-- sync health visibility
+Scope:
+- move current tenant scoring/filter/module behavior toward config/package boundaries
+- reduce shared component branching
+- standardize registry-style filter/sort/module definitions
 
-### Acceptance criteria
-- webhook route accepts valid provider events
-- dirty page sync jobs are deduped and auditable
-- failed webhook processing does not silently lose events
-- per-org recent sync activity is inspectable from the app
+Acceptance:
+- FraterniTees and PICC behavior become more declarative and less bespoke
 
-### Verification
-- unit tests around payload validation and dedupe logic
-- smoke test hitting runtime APIs
-- local replay of a webhook payload into queued work
-
-### Risks
-- webhook signature verification details differ by provider and version
-- replay/idempotency bugs can duplicate or drop work
-
-## Phase 3 — Identity and Orders Core
+### Slice 4 — Read-model compilation
 Status: planned
 
-### Scope
-- normalized Nabis retailer/order ingest
-- deterministic account identity model
-- reconciliation queue for ambiguous matches
-- local order aggregates
+Scope:
+- compile tenant-facing summaries from canonical data and workspace config
+- formalize score outputs, trend outputs, filter facets, and document inputs
 
-### Acceptance criteria
-- `licensed_location_id` and `nabis_retailer_id` are explicit identities
-- orders feed local account aggregates without reading Notion rollups
-- ambiguous matches are reviewable instead of auto-merged
+Acceptance:
+- tenant behavior changes affect compiled outputs more than shared React branching
 
-### Verification
-- deterministic test fixtures for matching logic
-- aggregate calculation tests
-- reconciliation queue integration tests
-
-### Risks
-- historical CRM data may be inconsistent
-- provider identifiers may not be universally present
-
-## Phase 4 — Territory Runtime
+### Slice 5 — Self-serve onboarding
 Status: planned
 
-### Scope
-- territory pin read model
-- territory boundary and marker APIs
-- shared visibility semantics
-- small pin payload and filter facets
-- Google Maps runtime integration
+Scope:
+- template selection
+- adapter install flow
+- connection tests
+- initial sync bootstrap
+- generated first workspace
 
-### Acceptance criteria
-- map pins come from a small local view
-- shared boundaries and markers are org-visible
-- role-gated edits are enforced
-- filters read local runtime fields only
+Acceptance:
+- a new tenant can reach a useful workspace without code changes
 
-### Verification
-- view-level SQL checks
-- route smoke tests
-- browser verification of map load and shared layer visibility
-
-### Risks
-- map polish can hide data model mistakes if verification is weak
-- broad payload creep can undo egress savings
-
-## Phase 5 — Unified Account Detail
+### Slice 6 — Change system
 Status: planned
 
-### Scope
-- account detail read model
-- contacts and activity
-- audit-backed mutations
-- local CRM freshness signals
+Scope:
+- in-app request capture
+- structured request schema
+- config/package/core classification
+- preview and policy checks
+- maintainer queue
 
-### Acceptance criteria
-- account detail never needs a live provider read to become correct
-- activity and changes are auditable
-- detail surface reads the same account truth as the map
+Acceptance:
+- safe tenant requests can be handled without bespoke founder implementation
 
-### Verification
-- service-layer tests
-- API route tests
-- browser smoke path from pin -> detail
-
-## Phase 6 — Calendar and Ops
+### Slice 7 — Package and template distribution
 Status: planned
 
-### Scope
-- local calendar event model
-- Google Calendar adapter
-- vendor day and follow-up workflow parity
-- operational views
+Scope:
+- package registry
+- template export/import
+- versioning and upgrades
+- forkable workspace definitions
 
-### Acceptance criteria
-- event surfaces operate on local models
-- role-aware event visibility is enforced
-- outbound calendar sync rules are explicit
+Acceptance:
+- one tenant’s solved shape can become another tenant’s starting point
 
-### Verification
-- adapter tests
-- integration tests for event merge logic
-- browser checks for calendar views
+## Verification standard
 
-## Phase 7 — Customer Migration Tooling and Productization
-Status: planned
+Every implementation slice should include:
 
-### Scope
-- migration dry-run and validation workflows
-- shadow-mode and parity tooling
-- tenant admin UI on top of the existing control-plane model
-- field mapping UI
-- connector setup UI
-- sandbox tenant
-- onboarding flow for a second customer
+- updated docs
+- local verification
+- explicit statement of what became more reusable
 
-### Acceptance criteria
-- a customer migration can be prepared and validated without relying on hidden knowledge
-- a new tenant can be created without code changes
-- a new provider mapping can be configured from the product
-- sandbox/demo environment is usable for showcasing the platform
+Baseline verification:
 
-### Verification
-- onboarding smoke test
-- config-driven adapter bootstrap test
-- docs reviewed for external developer handoff
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run verify
+```
+
+When browser-facing changes land, add runtime or Playwright checks as appropriate.
+
+## Definition of progress
+
+Progress is not "more code."
+
+Progress is:
+
+- more tenant value shipped
+- fewer hidden assumptions
+- more behavior expressed through shared contracts
+- a clearer path for tenant #10 to onboard without you

@@ -10,9 +10,15 @@ interface FraterniteesLeadQualificationModuleProps {
   query: string;
   gradeFilter: string;
   dncFilter: boolean;
+  sortBy: string;
 }
 
-const gradeOptions = ["All Grades", "A", "B", "C", "D", "Unscored"] as const;
+const gradeOptions = ["All Grades", "A+", "A", "B", "C", "D", "F", "Unscored"] as const;
+const sortOptions = [
+  { value: "score", label: "Top score" },
+  { value: "close_rate", label: "Highest close rate" },
+  { value: "order_count", label: "Most orders" },
+] as const;
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -32,13 +38,20 @@ function normalizeGradeFilter(value: string) {
   return gradeOptions.includes(value as (typeof gradeOptions)[number]) ? value : "All Grades";
 }
 
-function accountsFilterHref(input: { orgSlug: string; query?: string; grade?: string; dnc?: boolean }) {
+function normalizeSortOption(value: string) {
+  return sortOptions.some((option) => option.value === value) ? value : "score";
+}
+
+function accountsFilterHref(input: { orgSlug: string; query?: string; grade?: string; dnc?: boolean; sort?: string }) {
   const params = new URLSearchParams({ org: input.orgSlug });
   if (input.query?.trim()) {
     params.set("q", input.query.trim());
   }
   if (input.grade && input.grade !== "All Grades") {
     params.set("grade", input.grade);
+  }
+  if (input.sort && input.sort !== "score") {
+    params.set("sort", input.sort);
   }
   if (input.dnc) {
     params.set("dnc", "1");
@@ -54,12 +67,27 @@ function accountScore(account: TerritoryAccountPin) {
   return account.fraterniteesLeadScore?.score ?? null;
 }
 
+function accountCloseRate(account: TerritoryAccountPin) {
+  return account.fraterniteesLeadScore?.closeRate ?? null;
+}
+
+function accountTotalOrders(account: TerritoryAccountPin) {
+  const score = account.fraterniteesLeadScore;
+  if (!score) {
+    return 0;
+  }
+  return score.totalOrders ?? score.closedOrders + score.lostOrders + score.openOrders;
+}
+
 function isDncFlagged(account: TerritoryAccountPin) {
   const score = account.fraterniteesLeadScore;
   return (score?.lostOrders ?? 0) >= 3;
 }
 
 function gradeClass(grade: string) {
+  if (grade === "A+") {
+    return "bg-emerald-100 text-emerald-800 ring-emerald-300";
+  }
   if (grade === "A") {
     return "bg-emerald-50 text-emerald-700 ring-emerald-200";
   }
@@ -71,6 +99,9 @@ function gradeClass(grade: string) {
   }
   if (grade === "D") {
     return "bg-red-50 text-red-700 ring-red-200";
+  }
+  if (grade === "F") {
+    return "bg-rose-100 text-rose-700 ring-rose-300";
   }
 
   return "bg-slate-100 text-slate-600 ring-slate-200";
@@ -103,9 +134,33 @@ export function FraterniteesLeadQualificationModule({
   query,
   gradeFilter,
   dncFilter,
+  sortBy,
 }: FraterniteesLeadQualificationModuleProps) {
   const selectedGrade = normalizeGradeFilter(gradeFilter);
+  const selectedSort = normalizeSortOption(sortBy);
   const orderedAccounts = [...accounts].sort((left, right) => {
+    if (selectedSort === "close_rate") {
+      const closeRateDiff = (accountCloseRate(right) ?? -1) - (accountCloseRate(left) ?? -1);
+      if (closeRateDiff !== 0) {
+        return closeRateDiff;
+      }
+      const orderCountDiff = accountTotalOrders(right) - accountTotalOrders(left);
+      if (orderCountDiff !== 0) {
+        return orderCountDiff;
+      }
+    }
+
+    if (selectedSort === "order_count") {
+      const orderCountDiff = accountTotalOrders(right) - accountTotalOrders(left);
+      if (orderCountDiff !== 0) {
+        return orderCountDiff;
+      }
+      const closeRateDiff = (accountCloseRate(right) ?? -1) - (accountCloseRate(left) ?? -1);
+      if (closeRateDiff !== 0) {
+        return closeRateDiff;
+      }
+    }
+
     const rightScore = accountScore(right) ?? -1;
     const leftScore = accountScore(left) ?? -1;
     return rightScore - leftScore || left.name.localeCompare(right.name);
@@ -135,7 +190,7 @@ export function FraterniteesLeadQualificationModule({
             </p>
           </div>
           <Link
-            href={accountsFilterHref({ orgSlug, query, dnc: true })}
+            href={accountsFilterHref({ orgSlug, query, sort: selectedSort, dnc: true })}
             className="border-l-4 border-red-500 bg-white px-4 py-3 transition hover:bg-red-50"
           >
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">DNC list count</p>
@@ -165,7 +220,7 @@ export function FraterniteesLeadQualificationModule({
         </Link>
       </div>
 
-      <form action="/accounts" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+      <form action="/accounts" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-center">
         <input type="hidden" name="org" value={orgSlug} />
         {dncFilter ? <input type="hidden" name="dnc" value="1" /> : null}
         <label className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
@@ -191,6 +246,20 @@ export function FraterniteesLeadQualificationModule({
             ))}
           </select>
         </label>
+        <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 sm:grid-cols-[auto_1fr] sm:items-center">
+          Sort
+          <select
+            name="sort"
+            defaultValue={selectedSort}
+            className="min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold normal-case tracking-normal text-slate-900 outline-none"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="submit"
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
@@ -204,7 +273,10 @@ export function FraterniteesLeadQualificationModule({
       {dncFilter ? (
         <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 sm:flex-row sm:items-center sm:justify-between">
           <span>Showing {visibleAccounts.length} DNC flagged accounts.</span>
-          <Link href={accountsFilterHref({ orgSlug, query, grade: selectedGrade })} className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-red-700 ring-1 ring-red-200">
+          <Link
+            href={accountsFilterHref({ orgSlug, query, grade: selectedGrade, sort: selectedSort })}
+            className="inline-flex items-center justify-center rounded-lg bg-white px-3 py-2 text-red-700 ring-1 ring-red-200"
+          >
             Show all accounts
           </Link>
         </div>
@@ -223,6 +295,7 @@ export function FraterniteesLeadQualificationModule({
             const score = account.fraterniteesLeadScore;
             const grade = accountGrade(account);
             const aov = score?.averageClosedOrderValue ?? score?.medianClosedOrderValue ?? null;
+            const totalOrders = accountTotalOrders(account);
 
             return (
               <Link
@@ -245,7 +318,7 @@ export function FraterniteesLeadQualificationModule({
                 </div>
                 <div className="text-sm font-semibold text-slate-600">
                   <p>
-                    {score?.closedOrders ?? 0} closed / {score?.lostOrders ?? 0} lost
+                    {totalOrders} total / {score?.closedOrders ?? 0} closed / {score?.lostOrders ?? 0} lost
                   </p>
                   <p className="mt-1 font-bold text-emerald-600">{formatPercent(score?.closeRate)}</p>
                 </div>
@@ -255,7 +328,7 @@ export function FraterniteesLeadQualificationModule({
             );
           })}
           {!visibleAccounts.length ? (
-            <div className="p-6 text-sm font-semibold text-slate-500">No FraterniTees accounts matched this search and grade filter.</div>
+            <div className="p-6 text-sm font-semibold text-slate-500">No FraterniTees accounts matched this search, grade, and sort selection.</div>
           ) : null}
         </div>
       </div>

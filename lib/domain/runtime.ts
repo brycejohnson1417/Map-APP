@@ -152,17 +152,24 @@ export type TerritoryFilterFlag =
   | "no_address_available"
   | "dnc_flagged";
 
+export type FraterniteesLeadGrade = "A+" | "A" | "B" | "C" | "D" | "F" | "Unscored";
+
 export interface FraterniteesLeadScoreSummary {
   score: number | null;
-  grade: "A" | "B" | "C" | "D" | "Unscored";
+  grade: FraterniteesLeadGrade;
   priority: string | null;
   closeRate: number | null;
   closedOrders: number;
   lostOrders: number;
   openOrders: number;
+  totalOrders: number;
+  totalOpportunities: number;
+  closedRevenue: number | null;
   medianClosedOrderValue: number | null;
   averageClosedOrderValue: number | null;
   maxOrderValue: number | null;
+  monthsWithClosedOrdersLast12: number;
+  averageMonthlyClosedRevenueLast12: number | null;
   ghostOrHardLosses: number;
   highTicketVolatility: boolean;
   dncRecommendedUntil: string | null;
@@ -216,7 +223,7 @@ export interface TerritoryRuntimeDashboard {
     status: string | null;
     referralSource: string | null;
     vendorDayStatus: string | null;
-    leadGrade: FraterniteesLeadScoreSummary["grade"] | null;
+    leadGrade: FraterniteesLeadGrade | null;
   };
 }
 

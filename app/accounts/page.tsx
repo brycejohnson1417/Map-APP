@@ -22,6 +22,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
   const query = firstParamValue(resolvedSearchParams.q) ?? "";
   const gradeFilter = firstParamValue(resolvedSearchParams.grade) ?? "All Grades";
   const dncFilter = firstParamValue(resolvedSearchParams.dnc) === "1";
+  const sortBy = firstParamValue(resolvedSearchParams.sort) ?? "score";
   const organizationName = dashboard?.organization.name ?? process.env.ORG_NAME?.trim() ?? "PICC";
 
   return (
@@ -54,6 +55,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
               query={query}
               gradeFilter={gradeFilter}
               dncFilter={dncFilter}
+              sortBy={sortBy}
             />
           ) : (
             <>

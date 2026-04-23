@@ -1,248 +1,179 @@
-# Map App Harness Architecture
+# Architecture
 
-## Product Thesis
-Map App is a multi-tenant revenue operations platform for field sales teams. The system must support additional companies bringing their own CRM, order, calendar, and directory providers without changing the domain model.
+## Architectural thesis
 
-## Architectural Shape
-The product is intentionally split into:
-- `runtime plane`: tenant data, read models, sync jobs, and user-facing workflows
-- `control plane`: tenant setup, connector installation state, feature flags, and platform operations
+Map App Harness should behave like a multi-tenant operational runtime on the inside and a set of opinionated vertical workspaces on the outside.
 
-The first implementation can keep both in one repo and one deployment if that is the fastest path, but the architecture should preserve the separation so the control plane can grow independently later.
+The platform must support:
 
-## Core Runtime Decisions
-- `Supabase Postgres` is the operational source of truth.
-- `Clerk` remains the authentication layer.
-- `Google Maps Platform` is the rendering, geocoding, and routing provider.
-- `Notion`, `Nabis`, and future systems are external integrations, not runtime databases.
-- User-facing reads come from local Postgres tables and read models only.
-- The core runtime schema stays strongly typed and shared across tenants.
+- fast shipping for current tenants
+- clean extraction of tenant behavior into primitives, packages, and workspace definitions
+- a future change system that can safely adapt a tenant without rewriting the shared app
 
-## Non-Negotiable Rules
-1. No sync-on-read for normal UI surfaces.
-2. Every business row is scoped by `organization_id`.
-3. Connector configuration is tenant-scoped and encrypted.
-4. Matching is deterministic first, queued for review when ambiguous.
-5. The map, accounts, calendar, and activity all read the same account system.
-6. Customer-specific fields are mapped into a generic runtime model instead of hardcoded throughout the app.
+## Four-plane model
 
-## Tenant Model
-The platform starts shared multi-tenant by default and reserves an escape hatch for later single-tenant isolation.
+The target architecture is easiest to reason about in four planes.
 
-### Shared Multi-Tenant Default
-- one codebase
-- one Supabase project
-- one shared Postgres cluster
-- strict `organization_id` scoping
-- Row Level Security on exposed tables
-- tenant-scoped integration credentials and sync state
+### 1. Control plane
+Owns:
+- organizations and memberships
+- provider credentials and installs
+- package installs and versions
+- feature/plugin settings
+- change requests
+- policy decisions
+- audit and release history
 
-### Single-Tenant Escape Hatch
-Some customers will later need:
-- dedicated database
-- dedicated project
-- dedicated region
-- stricter isolation for compliance, procurement, or performance
-
-The application domain should not care whether a tenant is hosted in a shared or dedicated environment. That is an infrastructure concern, not a domain concern.
-
-## Layered Architecture
-
-### `domain/`
-Business concepts and invariants.
-- accounts
-- contacts
-- orders
-- activities
-- territories
+### 2. Data plane
+Owns:
+- canonical tenant data
 - external identities
-- sync state
+- sync cursors and sync jobs
+- raw source payload preservation
+- normalized aggregates
 
-### `application/`
-Use-cases and orchestration.
-- account reconciliation
-- territory boundary updates
-- marker management
-- sync job scheduling
-- calendar aggregation
-- outbound CRM updates
+### 3. Runtime plane
+Owns:
+- map/list/detail shell
+- dashboards
+- account surfaces
+- tenant-visible workflows
+- read models and runtime payloads
 
-### `infrastructure/`
-Database, queue, and provider adapters.
-- Supabase repositories
-- Notion adapter
-- Nabis adapter
-- Google Maps adapter
-- Google Calendar adapter
-- encryption and secret storage
+### 4. Execution plane
+Owns:
+- connector sync work
+- geocoding
+- preview generation
+- read-model refresh
+- future request translation and change application workers
 
-### `presentation/`
-Interfaces over the same use-cases.
-- Next.js route handlers
-- server components
-- client components
-- CLI commands
-- webhooks
+The current repo can keep these in one codebase and one deployment. The separation is architectural, not necessarily deployment-level yet.
 
-The CLI is a first-class part of the product harness, not an afterthought.
+## Core architectural layers
 
-## Canonical Entity Model
+### Canonical entity layer
+This is the most durable layer in the product.
 
-### Core entities
-- `organization`
-- `organization_member`
-- `account`
-- `account_identity`
-- `contact`
-- `activity`
-- `territory_boundary`
-- `territory_marker`
-- `calendar_event`
-- `sync_cursor`
-- `sync_job`
-- `audit_event`
+Core concepts:
+- organization
+- organization_member
+- account
+- account_identity
+- contact
+- order_record
+- activity
+- territory_boundary
+- territory_marker
+- sync_job
+- sync_cursor
+- audit_event
 
-### Extension points
-- `custom_fields jsonb` on core entities
-- tenant-scoped `field_mapping`
-- tenant-scoped `integration_installation`
-- encrypted tenant connector secrets
+Tenant differences should not redefine these. They should map into them.
 
-The design goal is a strong global schema with controlled tenant extension points, not per-tenant schema drift.
+### Primitive layer
+Primitives are reusable units of business behavior that can be installed or configured without tenant forks.
 
-### Generic external identity model
-Every provider-specific object link is stored explicitly.
-- provider
-- external type
-- external id
-- internal entity id
-- match method
-- confidence
-- metadata
+Examples already emerging in the repo:
+- lead scoring
+- DNC rules
+- map pins and map filters
+- account detail sections
+- order-derived summary cards
+- PDF generators
+- sync connectors
 
-## Connector Architecture
-Each external system plugs into a connector contract, not the core domain.
+### Package layer
+Packages are reusable bundles of tenant behavior assembled from primitives and configuration.
 
-### Contracts
-- `crm_adapter`
-- `orders_adapter`
-- `calendar_adapter`
-- `directory_adapter`
+Examples the repo is moving toward:
+- territory map kit
+- lead scoring kit
+- FraterniTees sales kit
+- PICC pricing/proposal kit
 
-### Connector responsibilities
-- credential handling
-- incremental sync
-- field mapping
-- retries and backoff
-- sync health reporting
-- outbound updates when supported
+### Workspace definition layer
+Each tenant should move toward a portable, text-native workspace definition that declares:
+- installed packages
+- enabled modules
+- scoring models
+- filter registries
+- sync mappings
+- document templates
 
-### Google Maps credential model
-Google Maps remains a single-provider standard, but credentials are organization-scoped.
+### Read-model/compiler layer
+Canonical data should stay stable. Tenant runtime behavior should increasingly compile into:
+- small list payloads
+- pin payloads
+- detail payloads
+- score summaries
+- trend summaries
+- document inputs
 
-- each organization brings its own Google Cloud project
-- browser map rendering uses that organization's restricted browser key
-- geocoding and routing use that organization's encrypted server key
-- no global Google Maps client singleton is allowed across organizations
+### Change system
+Tenant requests should eventually route through a governed system that produces:
+- config changes
+- package changes
+- primitive proposals
+- core-platform queue items
 
-### Plugin future
-Connectors should be designed as first-party plugin contracts. The platform should later support:
-- first-party adapters
-- tenant-private adapters
-- marketplace adapters
+## Current repo truth
 
-That means contract stability matters more than short-term provider-specific convenience.
+The repo already has shared runtime and tenant-specific surfaces, but it is not fully extracted yet.
 
-### Connector configuration
-Tenant connector credentials and config live in encrypted storage and are always keyed by `organization_id`.
+Current strengths:
+- shared runtime APIs for territory, accounts, sync, and geocoding
+- working tenant-specific flows for PICC and FraterniTees
+- runtime data mapped into shared types
+- tenant-scoped settings and connector state
 
-## Data Flow
+Current weakness:
+- some tenant behavior still lives directly in shared UI/service code instead of package/config boundaries
 
-### Notion-first updates
-- Notion webhook receives change
-- write dirty record / enqueue sync work
-- worker fetches only changed page ids
-- normalized account rows update
-- read models refresh
-- UI revalidates local data
+That is the main extraction work now.
 
-Target freshness is seconds to a few minutes, with a scheduled incremental fallback every 1-2 minutes if webhook delivery fails.
+## Read-model rule
 
-### Order data
-- provider ingest lands raw data
-- normalization produces stable retailer/order records
-- local aggregates compute `last_order_date`, `last_sample_order_date`, customer flags, and related analytics
-- CRM sync writes display fields outward when needed
+User-facing surfaces should read purpose-built payloads, not giant catch-all joins or live provider data.
 
-## Read Models
-The UI never uses one giant catch-all endpoint.
+Current examples:
+- `territory` dashboard payload
+- `account` detail payload
 
-- `territory_pin_view`: tiny map payload only
-- `account_detail_view`: richer detail payload
-- `calendar_event_view`: merged local event feed
-- `territory_boundary_view`: collaborative layers
-- `territory_marker_view`: rep homes and shared markers
-- `account_filter_facet_view`: filter counts and facet values
+Next direction:
+- extract tenant-specific scoring/trend outputs into stable runtime shapes
+- reduce ad hoc interpretation of `custom_fields`
+- move toward clearer compiled summaries per tenant surface
 
-## Performance Rules
-- `territory_pin_view` payload target: under 200 KB compressed for 5,000 pins and the minimum fields needed to paint/filter the map
-- hot map endpoints: under 500 ms P95 from local read models before browser/network overhead
-- Notion-to-runtime freshness target: under 60 seconds P95 after webhook delivery, under 3 minutes with incremental fallback polling
-- separate detail payloads
-- webhook/event-driven invalidation before polling
-- no broad refetches on every screen
-- background sync into local tables, not external reads in user flows
-- use PostGIS for spatial intelligence and Google APIs for UX-quality maps/routes
+## Tenant boundary rules
 
-## BYO APIs
-The platform should support customers bringing their own providers.
+1. Keep the core domain generic.
+2. Keep provider-specific assumptions in adapters or mapping layers.
+3. Keep tenant-specific business behavior moving toward package/config space.
+4. If a second tenant needs a behavior, it is probably a primitive candidate.
+5. If a tenant request can only be solved with more shared branching, stop and reconsider the model.
 
-Examples:
-- CRM: Notion, HubSpot, Salesforce, Airtable
-- Orders: Nabis, LeafLink, Dutchie, CSV/SFTP import
-- Calendar: Google Calendar, Microsoft 365
+## AI boundary rules
 
-This is achieved through adapters plus tenant field mappings, not forks of the application.
+AI is useful in this system, but it should be constrained.
 
-The platform should also support agentic engineers and automation workflows connecting or managing these adapters through the CLI and stable service-layer contracts.
+Use AI for:
+- request translation
+- spec drafting
+- config/package generation
+- primitive proposals
+- maintainer-reviewed core work
 
-## Observability
-Operational visibility matters as much as the feature surface.
+Do not make unrestricted tenant-specific production code generation the primary customization mechanism.
 
-- structured logs with correlation ids
-- per-tenant sync metrics
-- payload size and latency tracking on hot endpoints
-- connector error rates
-- dead-letter queues for failed sync jobs
-- audit history for every important mutation
+## Topology stance
 
-## Deployment Topology
+Today:
+- shared multi-tenant runtime
+- one codebase
+- one shared database project
 
-### Default
-- shared multi-tenant Supabase project
-- strict tenant scoping with RLS
+Future:
+- dedicated tenant infrastructure remains an escape hatch
 
-### Later
-- dedicated database/project/region for larger customers
-
-This is an infrastructure concern. The application layer should not need to know whether a tenant is shared or isolated.
-
-## Security
-- Row Level Security on exposed tenant tables
-- encrypted tenant connector secrets
-- no provider secrets in browser-exposed configuration
-- explicit admin/member/guest roles per organization
-- complete mutation audit trail
-
-## Control Plane Priority
-The control plane is not a late polish layer.
-
-The first implementation must include enough control-plane surface to:
-- bootstrap an organization
-- install connector credentials
-- apply field mappings
-- expose sync health
-- support a first-customer migration without code forks
-
-## Product Strategy
-The product architecture, schema, and adapters should be generic enough that a new tenant can onboard without code forks.
+But the more immediate concern is not database topology. It is making tenant behavior portable and governable.

@@ -1,81 +1,106 @@
-# Map App Harness Strategy
+# Strategy
 
-## Purpose
-This document explains the two missions this repo must support without mixing them together:
+## The point of this repo
 
-1. build Map App Harness as an original multi-tenant product
-2. migrate customer organizations from legacy systems onto that product safely
+This repo exists to build a multi-tenant business-operations harness that can serve many vertical workspaces from one product foundation.
 
-The platform is the product. Customer migrations validate the platform, but they do not define it.
+The immediate product is not a generic no-code builder. It is a set of strong, opinionated tenant workspaces that solve painful operational jobs now while extracting reusable platform primitives underneath.
 
-## Product vs Customer Migration
+## The governing test
 
-### Platform mission
-Map App Harness is a field-sales and brand-ambassador operations harness.
+Every material architecture and product decision should be judged against this question:
 
-It provides:
-- a unified account runtime
-- geospatial territory planning
-- activities and operational state
-- connector-driven CRM, orders, and calendar ingest
-- a control plane for credentials, mappings, sync health, and onboarding
-- a CLI surface that agents and humans can operate without relying on browser-only workflows
+> Does this make tenant #10 more likely to onboard, configure, and keep moving without founder involvement?
 
-### Customer migration mission
-Each customer migration is a separate operational project.
+This is the discipline that matters most.
 
-Customer migration artifacts must live under `docs/tenants/<org>/` and describe:
-- what system the customer is leaving
-- what data sources they use today
-- how field mappings work for that customer
-- how cutover, validation, and rollback work for that customer
+It means:
 
-The core platform docs should never absorb customer-specific behavior.
+- current tenants still need to ship fast
+- tenant-specific shortcuts are acceptable only when they leave behind a cleaner extraction path
+- abstractions are justified when they reduce future founder dependence, not when they merely sound elegant
 
-## Strategic Rule
-If a customer requirement cannot be expressed through:
-- tenant configuration
-- field mappings
-- connector installation state
-- custom fields
-- documented platform contracts
+## External story vs internal architecture
 
-then the problem is probably in the platform design, not in the customer.
+Externally, tenants buy a vertical workspace:
 
-## What the platform must optimize for
-- local-first runtime reads
-- deterministic external identity matching
-- cheap and auditable sync semantics
-- organization-scoped credentials and configuration
-- control plane and runtime plane separation
-- CLI-first operability for human operators and coding agents
-- shared multi-tenant by default with a dedicated-tenant escape hatch later
+- cannabis wholesale territory ops
+- fraternity sales and lead scoring
+- future vertical operational workspaces
 
-## What customer migrations must optimize for
-- measurable improvement over the legacy system
-- safe shadow-mode and validation before cutover
-- documented rollback criteria
-- truthful mapping from legacy facts to platform facts
-- no hidden dependencies on chat history or outside memory
+Internally, the platform is being designed as a harness that can compose those workspaces from:
 
-## Platform Validation Standard
-The platform is proven when:
-- a customer can be onboarded through configuration and documented connector setup
-- a customer migration can be executed from the repo docs and commands
-- a fresh coding agent can continue work from repo state alone
+- canonical entities
+- reusable primitives
+- installable packages
+- tenant workspace definitions
+- compiled read models
+- a governed change system
 
-## Scope Discipline
-The platform should start with the smallest strong set of primitives that are already justified:
-- organizations and memberships
-- accounts
-- contacts
-- activities
-- orders and aggregates
-- territories and markers
-- external identities
-- sync jobs and cursors
-- audit events
-- custom fields and field mappings
-- connector installations and secrets
+Do not confuse the internal architecture with the customer-facing story.
 
-Do not invent speculative core primitives until a second customer forces the abstraction.
+## What we are optimizing for
+
+### Product outcomes
+- a tenant can sign in and reach a useful workspace quickly
+- a tenant can bring its own systems through adapters
+- a tenant can request meaningful changes without waiting on bespoke founder work every time
+- the platform can widen to new verticals without code forks
+
+### Engineering outcomes
+- one strong canonical runtime model
+- local-first reads with small, purpose-built payloads
+- tenant behavior expressed through config, packages, and read-model compilation
+- clear platform-vs-tenant boundaries in code and docs
+- enough documentation that a fresh human or AI can continue from repo state alone
+
+## Product rules
+
+1. The platform is the product. PICC and FraterniTees are tenants.
+2. A tenant request should become one of:
+   - workspace config
+   - package behavior
+   - a new primitive proposal
+   - a core-platform change
+3. Tenant-specific logic should not accumulate indefinitely in shared components.
+4. AI should primarily translate intent into config/package changes and primitive proposals, not generate ad hoc tenant production code.
+5. Every tenant workspace should move toward a portable, text-native definition.
+6. The platform should ship dense, useful vertical value before chasing abstract generality.
+
+## What current tenants have already taught us
+
+### PICC
+- map/account/runtime parity matters
+- local order-derived workflows matter
+- tenant-specific documents and pricing logic exist and need package boundaries
+
+### FraterniTees
+- the same shell can support a different vertical if the data model is generic enough
+- scoring, filters, DNC rules, and trend logic should become reusable primitives
+- connector ingestion and account runtime can stay shared while tenant behavior diverges
+
+These are not edge cases. They are the first proof that the product must extract behavior out of shared code.
+
+## Current strategic gap
+
+The repo already has working multi-tenant product value. The main gap is not "do more features." The main gap is:
+
+- document the platform truth clearly
+- define the primitive and workspace model explicitly
+- keep shipping tenant value while converting tenant-specific behavior into reusable platform structure
+
+## Non-goals for the current stage
+
+- building a generic no-code app builder
+- letting AI freely edit production tenant code
+- replacing every third-party service with custom infrastructure
+- over-optimizing for enterprise isolation before the workspace/package model is real
+
+## Success condition
+
+This repo is on the right path when:
+
+- tenant #3 adds less shared-code branching than tenant #2 did
+- tenant-specific changes increasingly land as config/package changes
+- new engineers or agents can explain the architecture from the docs alone
+- onboarding becomes more template/package driven and less founder-driven

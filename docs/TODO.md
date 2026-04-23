@@ -1,61 +1,61 @@
 # Running To-Do List
 
-This file is the live execution backlog for the platform. It is intentionally blunt. If a task matters to the next slice, it belongs here.
+This is the live execution backlog. It should reflect what the repo actually needs next, not a stale foundation checklist.
 
 ## Current focus
-- [ ] Add strategy doc and finish the platform-vs-customer migration split
-- [ ] Add ADRs for sync semantics, RLS, secrets, Google Maps tenant keys, migration/backfill, and multi-tenant schema migrations
-- [ ] Add the full PICC migration pack with explicit TODO markers where real facts are still missing
-- [ ] Add `.env.example`, setup docs, and a fresh-thread migration playbook
-- [ ] Define the first real CLI commands for migration dry-run, validation, and health checks
-- [ ] Apply Supabase migrations to project `qreegfarlwbzyeliirtw`
-- [ ] Seed the first organization and tenant-scoped integrations
 
-## Near-term product tasks
-- [x] Add first Supabase-backed account detail API and page that agree with territory pin data
-- [x] Replace report-style territory page with a PICC field map console backed by Supabase runtime APIs
-- [x] Add root app routing into the working territory console
-- [x] Add first Supabase-backed account directory UI
-- [x] Add first PICC live sync command for Notion companies, Notion contacts, and Nabis orders
-- [ ] Add Notion webhook ingestion with durable event recording and job enqueueing
-- [x] Add sync event and audit visibility to the runtime UI
-- [x] Land the first thin `territory_pin_view` and its API route
-- [ ] Add Playwright smoke coverage for the core runtime surfaces
-- [ ] Build deterministic account identity services around `licensed_location_id` and `nabis_retailer_id`
-- [ ] Add normalized Nabis retailer and order ingest tables
-- [ ] Compute local order aggregates instead of relying on Notion rollups
-- [ ] Build boundary and marker APIs with org-scoped permissions
-- [ ] Build the first shared map shell on top of Supabase runtime data
-- [ ] Add tenant admin integration status and field mapping views
-- [ ] Harden the global schema and review where tenant-specific data should stay in `custom_fields`
+- [ ] Finish the repo documentation rewrite so a fresh human or AI can understand the platform direction without chat history
+- [ ] Define the first stable primitive catalog from real PICC + FraterniTees behavior
+- [ ] Define the first workspace/package manifest shape
+- [ ] Extract current tenant scoring/filter/module behavior away from shared branching
+- [ ] Add compiled FraterniTees score/trend summaries that can be reused across accounts and territory surfaces
+- [ ] Keep current tenant workflows shipping while tightening platform contracts
 
-## Documentation and process tasks
-- [x] Establish architecture docs and ADRs
-- [x] Add platform spec
-- [x] Add implementation plan
-- [x] Add verification strategy
-- [x] Add autonomous execution protocol
-- [ ] Add migration-ready tenant packs for the first customer
-- [ ] Add baseline and acceptance docs that a fresh migration thread can use without chat history
-- [ ] Keep the roadmap aligned with real repo status after each major slice
-- [ ] Record adversarial review findings after each major slice
-- [ ] Make the next real implementation slices runnable from both web and CLI service surfaces
+## Current tenant delivery
 
-## Technical debt to eliminate early
-- [ ] Remove `as any` Supabase repository calls by introducing generated DB types
-- [ ] Replace placeholder runtime/territory preview pages with real data-backed surfaces
-- [ ] Add route and service tests for sync orchestration
-- [ ] Add structured logging and correlation ids
-- [ ] Add retry/backoff semantics for sync jobs
-- [ ] Batch live contact and order upserts so full sync runs are fast enough for scheduled operation
-- [ ] Add migration validation queries and parity checks backed by real customer data
+### PICC
+- [ ] move PPP savings and mock proposal behavior toward clearer package/module boundaries
+- [ ] reduce PICC-specific assumptions in shared runtime/presentation code
 
-## Strategic non-goals for the current slice
-- [ ] Do not turn the platform docs into a customer-specific rewrite plan
-- [ ] Do not re-create a tenant’s old application inside this repo
-- [ ] Do not support pluggable map providers in year one
+### FraterniTees
+- [x] update grading to weight order volume, close rate, and revenue more explicitly
+- [x] add sort controls for close rate and order count
+- [x] add 2-year trend view on account detail
+- [ ] capture the scoring/trend logic as a reusable primitive candidate
 
-## Tactical anti-patterns to avoid
-- [ ] Do not hardcode tenant-specific CRM field names into the core domain
-- [ ] Do not add another giant catch-all stores endpoint
-- [ ] Do not claim migration readiness while required facts are still placeholders
+## Platform extraction
+
+- [ ] define package manifest schema
+- [ ] define workspace definition schema
+- [ ] define module registry contract for account detail sections
+- [ ] define filter/sort registry contract for account and territory surfaces
+- [ ] define score-summary and trend-summary runtime contracts
+- [ ] reduce direct interpretation of tenant-specific `custom_fields` in shared components
+
+## Control plane and onboarding
+
+- [ ] make tenant login/setup flow clearly template-driven
+- [ ] expose connector install state cleanly for each tenant
+- [ ] document the adapter credential and setup contract for fresh tenant onboarding
+- [ ] make the root product flow clearer for non-PICC tenants
+
+## Change system
+
+- [ ] define `change_requests` data model
+- [ ] define request classification model: config vs package vs primitive proposal vs core
+- [ ] define preview/policy requirements for safe changes
+- [ ] define maintainer queue flow for escalated work
+
+## Verification and quality
+
+- [ ] add targeted tests around FraterniTees scoring and trend logic
+- [ ] add browser/runtime verification for tenant-specific account list flows
+- [ ] keep the docs and backlog aligned after every major slice
+- [ ] record what each tenant slice made more reusable
+
+## Anti-patterns to avoid
+
+- [ ] do not keep solving tenant requests by adding more shared-code branching
+- [ ] do not treat current tenant velocity and platform extraction as separate concerns
+- [ ] do not let AI-generated tenant code become the default customization path
+- [ ] do not let docs drift behind the actual platform direction again

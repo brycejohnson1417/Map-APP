@@ -8,6 +8,7 @@ import type {
   AccountRuntimeDetail,
   FraterniteesLeadScoreSummary,
 } from "@/lib/domain/runtime";
+import { gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { AuditEventRepository } from "@/lib/infrastructure/supabase/audit-event-repository";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -111,25 +112,14 @@ function readBooleanField(fields: Record<string, unknown> | null, key: string) {
   return fields?.[key] === true;
 }
 
-function gradeForScore(score: number | null): FraterniteesLeadScoreSummary["grade"] {
-  if (score === null) {
-    return "Unscored";
-  }
-  if (score >= 85) {
-    return "A";
-  }
-  if (score >= 70) {
-    return "B";
-  }
-  if (score >= 55) {
-    return "C";
-  }
-
-  return "D";
-}
-
 function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
   const score = toNumber(fields?.leadScore as number | string | null | undefined);
+  const closedOrders = toNumber(fields?.closedOrders as number | string | null | undefined) ?? 0;
+  const lostOrders = toNumber(fields?.lostOrders as number | string | null | undefined) ?? 0;
+  const openOrders = toNumber(fields?.openOrders as number | string | null | undefined) ?? 0;
+  const closedRevenue = toNumber(fields?.closedRevenue as number | string | null | undefined);
+  const monthsWithClosedOrdersLast12 =
+    toNumber(fields?.monthsWithClosedOrdersLast12 as number | string | null | undefined) ?? 0;
   const hasFraterniteesScore =
     score !== null ||
     readStringField(fields, "leadPriority") !== null ||
@@ -142,15 +132,31 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
 
   return {
     score,
-    grade: gradeForScore(score),
+    grade: gradeFraterniteesLead({
+      score,
+      closeRate: toNumber(fields?.closeRate as number | string | null | undefined),
+      closedOrders,
+      lostOrders,
+      openOrders,
+      closedRevenue: closedRevenue ?? 0,
+      monthsWithClosedOrdersLast12,
+    }),
     priority: readStringField(fields, "leadPriority"),
     closeRate: toNumber(fields?.closeRate as number | string | null | undefined),
-    closedOrders: toNumber(fields?.closedOrders as number | string | null | undefined) ?? 0,
-    lostOrders: toNumber(fields?.lostOrders as number | string | null | undefined) ?? 0,
-    openOrders: toNumber(fields?.openOrders as number | string | null | undefined) ?? 0,
+    closedOrders,
+    lostOrders,
+    openOrders,
+    totalOrders: toNumber(fields?.totalOrders as number | string | null | undefined) ?? closedOrders + lostOrders + openOrders,
+    totalOpportunities:
+      toNumber(fields?.totalOpportunities as number | string | null | undefined) ?? closedOrders + lostOrders,
+    closedRevenue,
     medianClosedOrderValue: toNumber(fields?.medianClosedOrderValue as number | string | null | undefined),
     averageClosedOrderValue: toNumber(fields?.averageClosedOrderValue as number | string | null | undefined),
     maxOrderValue: toNumber(fields?.maxOrderValue as number | string | null | undefined),
+    monthsWithClosedOrdersLast12,
+    averageMonthlyClosedRevenueLast12: toNumber(
+      fields?.averageMonthlyClosedRevenueLast12 as number | string | null | undefined,
+    ),
     ghostOrHardLosses: toNumber(fields?.ghostOrHardLosses as number | string | null | undefined) ?? 0,
     highTicketVolatility: readBooleanField(fields, "highTicketVolatility"),
     dncRecommendedUntil: readStringField(fields, "dncRecommendedUntil"),

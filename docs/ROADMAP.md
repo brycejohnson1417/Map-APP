@@ -1,78 +1,64 @@
-# Platform Roadmap
+# Roadmap
 
-This file is the concise execution view. The detailed acceptance criteria live in [docs/IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), and the live backlog lives in [docs/TODO.md](TODO.md).
+This file is the concise execution view. The detailed reasoning lives in [docs/IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). The live backlog lives in [docs/TODO.md](TODO.md).
 
 ## Current status
 
-### Complete or substantially landed
-- tenant-first Supabase schema
-- organization and membership runtime foundation
-- encrypted connector model
-- architecture docs and ADRs
-- seed/bootstrap workflow
-- baseline verification scripts
+### Landed
+- shared tenant-aware runtime foundation
+- territory and account runtime surfaces
+- tenant login routing
+- PICC runtime workflows for PPP savings and mock proposals
+- FraterniTees runtime onboarding, Printavo sync, and lead-scoring surfaces
+- geocoding flow with open-source default and Google upgrade path
+- sync status, runtime APIs, and base verification loops
 
 ### In progress
-- runtime documentation and handoff discipline
-- self-verification loop
-- control-plane and migration-pack design
+- platform documentation rewrite around the harness/package/workspace model
+- extraction of tenant behavior into clearer reusable contracts
+- FraterniTees scoring/filter/trend refinement
 
-### Next
-- strategy doc and migration-pack completion
-- per-organization Google Maps credential model
-- first CLI migration preflight/validation commands
-- Notion webhook ingestion and sync event recording
-- first thin territory pin read model
-- generated database typing for repositories
+### Next critical outcomes
+- primitive catalog v1
+- workspace/package model v1
+- tenant behavior extraction from shared code
+- compiled score/trend/read-model outputs
+- self-serve onboarding path
+- change-request queue and policy model
 
-## Phase sequence
+## Sequence
 
-### Phase 0 — Foundation alignment
-- schema
-- bootstrap
-- docs
-- verification
+### 1. Clarify the platform in the repo
+- status
+- strategy
+- architecture
+- workspace model
+- primitive catalog
 
-### Phase 1 — Control plane skeleton
-- tenant setup and bootstrap
-- connector installs
-- field mappings
-- migration preflight
-- tenant-scoped Google Maps keys
+### 2. Extract current tenant behavior
+- FraterniTees lead scoring/filtering/trends
+- PICC tenant-specific modules
+- registry-style filters and modules
 
-### Phase 2 — Sync spine
-- webhook ingestion
-- sync cursors
-- retryable jobs
-- sync health visibility
+### 3. Harden platform contracts
+- canonical runtime contracts
+- package/workspace manifests
+- adapter boundaries
+- read-model outputs
 
-### Phase 3 — Identity and orders core
-- Nabis ingest
-- deterministic matching
-- reconciliation queue
-- local order aggregates
+### 4. Build self-serve tenant setup
+- templates
+- provider installs
+- initial sync
+- workspace bootstrap
 
-### Phase 4 — Unified territory runtime
-- pin read model
-- shared boundaries and markers
-- filter facets
-- Google Maps runtime
+### 5. Build governed tenant adaptation
+- request capture
+- classifier/policy
+- previewable config/package changes
+- maintainer queue for new primitives/core work
 
-### Phase 5 — Unified account detail
-- local account detail view
-- contacts
-- activity
-- audit-backed mutations
-
-### Phase 6 — Calendar and operations
-- local calendar model
-- Google Calendar adapter
-- vendor day and follow-up workflows
-
-### Phase 7 — Customer migration and productization
-- migration dry-run and validation tooling
-- parity/shadow-mode tooling
-- tenant admin UI
-- field mapping UI
-- onboarding
-- sandbox/demo tenant
+### 6. Turn solved tenant shapes into reusable templates/packages
+- template export/import
+- package registry
+- upgrade/versioning path

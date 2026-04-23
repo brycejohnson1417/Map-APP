@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  FraterniteesLeadGrade,
   FraterniteesLeadScoreSummary,
   TerritoryAccountPin,
   TerritoryBoundaryRuntime,
@@ -9,6 +10,7 @@ import type {
   TerritoryOverlayRuntime,
   TerritoryRuntimeDashboard,
 } from "@/lib/domain/runtime";
+import { gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
 const DASHBOARD_ACCOUNT_PAGE_SIZE = 1_000;
@@ -111,14 +113,16 @@ function normalizeFacet(value: string | string[] | undefined) {
   return normalized ? normalized.slice(0, 120) : null;
 }
 
-function normalizeLeadGrade(value: string | string[] | undefined): FraterniteesLeadScoreSummary["grade"] | null {
+function normalizeLeadGrade(value: string | string[] | undefined): FraterniteesLeadGrade | null {
   const raw = Array.isArray(value) ? value[0] : value;
   const normalized = raw?.trim();
   if (
+    normalized === "A+" ||
     normalized === "A" ||
     normalized === "B" ||
     normalized === "C" ||
     normalized === "D" ||
+    normalized === "F" ||
     normalized === "Unscored"
   ) {
     return normalized;
@@ -176,25 +180,13 @@ function readBooleanField(fields: Record<string, unknown> | null, key: string) {
   return fields?.[key] === true;
 }
 
-function gradeForScore(score: number | null): FraterniteesLeadScoreSummary["grade"] {
-  if (score === null) {
-    return "Unscored";
-  }
-  if (score >= 85) {
-    return "A";
-  }
-  if (score >= 70) {
-    return "B";
-  }
-  if (score >= 55) {
-    return "C";
-  }
-
-  return "D";
-}
-
 function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
   const score = readNumberField(fields, "leadScore");
+  const closedOrders = readNumberField(fields, "closedOrders") ?? 0;
+  const lostOrders = readNumberField(fields, "lostOrders") ?? 0;
+  const openOrders = readNumberField(fields, "openOrders") ?? 0;
+  const closedRevenue = readNumberField(fields, "closedRevenue");
+  const monthsWithClosedOrdersLast12 = readNumberField(fields, "monthsWithClosedOrdersLast12") ?? 0;
   const hasFraterniteesScore =
     score !== null ||
     readStringField(fields, "leadPriority") !== null ||
@@ -207,15 +199,28 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
 
   return {
     score,
-    grade: gradeForScore(score),
+    grade: gradeFraterniteesLead({
+      score,
+      closeRate: readNumberField(fields, "closeRate"),
+      closedOrders,
+      lostOrders,
+      openOrders,
+      closedRevenue: closedRevenue ?? 0,
+      monthsWithClosedOrdersLast12,
+    }),
     priority: readStringField(fields, "leadPriority"),
     closeRate: readNumberField(fields, "closeRate"),
-    closedOrders: readNumberField(fields, "closedOrders") ?? 0,
-    lostOrders: readNumberField(fields, "lostOrders") ?? 0,
-    openOrders: readNumberField(fields, "openOrders") ?? 0,
+    closedOrders,
+    lostOrders,
+    openOrders,
+    totalOrders: readNumberField(fields, "totalOrders") ?? closedOrders + lostOrders + openOrders,
+    totalOpportunities: readNumberField(fields, "totalOpportunities") ?? closedOrders + lostOrders,
+    closedRevenue,
     medianClosedOrderValue: readNumberField(fields, "medianClosedOrderValue"),
     averageClosedOrderValue: readNumberField(fields, "averageClosedOrderValue"),
     maxOrderValue: readNumberField(fields, "maxOrderValue"),
+    monthsWithClosedOrdersLast12,
+    averageMonthlyClosedRevenueLast12: readNumberField(fields, "averageMonthlyClosedRevenueLast12"),
     ghostOrHardLosses: readNumberField(fields, "ghostOrHardLosses") ?? 0,
     highTicketVolatility: readBooleanField(fields, "highTicketVolatility"),
     dncRecommendedUntil: readStringField(fields, "dncRecommendedUntil"),
@@ -224,7 +229,7 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
   };
 }
 
-function leadGradeForRow(row: AccountRow): FraterniteesLeadScoreSummary["grade"] {
+function leadGradeForRow(row: AccountRow): FraterniteesLeadGrade {
   return mapFraterniteesLeadScore(row.custom_fields)?.grade ?? "Unscored";
 }
 
@@ -232,7 +237,7 @@ function isDncFlagged(row: AccountRow) {
   return (mapFraterniteesLeadScore(row.custom_fields)?.lostOrders ?? 0) >= 3;
 }
 
-function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadScoreSummary["grade"] | null) {
+function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadGrade | null) {
   return !leadGrade || leadGradeForRow(row) === leadGrade;
 }
 

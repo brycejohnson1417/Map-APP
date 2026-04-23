@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck, CalendarDays, ClipboardList, ExternalLink, MapPin, Package, Users } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarDays, ClipboardList, ExternalLink, MapPin, Minus, Package, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { AppFrame } from "@/components/layout/app-frame";
 import { MockOrderProposalPanel } from "@/components/accounts/mock-order-proposal-panel";
 import { PppSavingsPanel } from "@/components/accounts/ppp-savings-panel";
+import { buildFraterniteesLeadTrendSummary } from "@/lib/application/fraternitees/lead-scoring";
 import { getAccountRuntimeDetail } from "@/lib/application/runtime/account-service";
 import type { AccountRuntimeDetail } from "@/lib/domain/runtime";
 import { orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
@@ -31,6 +32,14 @@ function formatDate(value: string | null) {
 
 function formatMoney(value: number) {
   return currencyFormatter.format(value);
+}
+
+function formatOptionalMoney(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "None";
+  }
+
+  return formatMoney(value);
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -83,6 +92,38 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function trendBadge(summary: ReturnType<typeof buildFraterniteesLeadTrendSummary>) {
+  if (summary.direction === "up") {
+    return {
+      label: summary.delta === null ? "Trending up" : `Trending up (${summary.delta > 0 ? "+" : ""}${summary.delta})`,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      icon: TrendingUp,
+    };
+  }
+
+  if (summary.direction === "down") {
+    return {
+      label: summary.delta === null ? "Trending down" : `Trending down (${summary.delta})`,
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+      icon: TrendingDown,
+    };
+  }
+
+  if (summary.direction === "flat") {
+    return {
+      label: summary.delta === null ? "Flat" : `Flat (${summary.delta > 0 ? "+" : ""}${summary.delta})`,
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+      icon: Minus,
+    };
+  }
+
+  return {
+    label: "Insufficient history",
+    className: "border-slate-200 bg-slate-50 text-slate-700",
+    icon: Minus,
+  };
+}
+
 export default async function AccountPage({ params, searchParams }: AccountPageProps) {
   const { accountId } = await Promise.resolve(params);
   const resolvedSearchParams = searchParams ? await searchParams : {};
@@ -95,6 +136,20 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
 
   const isFraternitees = orgSlug === "fraternitees";
   const leadScore = detail.account.fraterniteesLeadScore;
+  const fraterniteesTrend = isFraternitees
+    ? buildFraterniteesLeadTrendSummary(
+        detail.recentOrders.map((order) => ({
+          customerName: detail.account.name,
+          status: order.status,
+          total: order.orderTotal,
+          orderDate: order.orderCreatedAt,
+          externalOrderId: order.externalOrderId,
+          orderNumber: order.orderNumber,
+        })),
+      )
+    : null;
+  const trendMeta = fraterniteesTrend ? trendBadge(fraterniteesTrend) : null;
+  const TrendIcon = trendMeta?.icon;
   const sourceCrmHref = getSourceCrmHref(detail);
   const address = [
     detail.account.addressLine1,
@@ -170,8 +225,10 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                   <DetailRow label="Lead score" value={`${fieldValue(leadScore?.score)} / ${leadScore?.grade ?? "Unscored"}`} />
                   <DetailRow label="Lead priority" value={fieldValue(leadScore?.priority ?? detail.account.status)} />
                   <DetailRow label="Close rate" value={formatPercent(leadScore?.closeRate)} />
+                  <DetailRow label="Total orders" value={fieldValue(leadScore?.totalOrders)} />
                   <DetailRow label="Closed orders" value={fieldValue(leadScore?.closedOrders)} />
                   <DetailRow label="Cancelled orders" value={fieldValue(leadScore?.lostOrders)} />
+                  <DetailRow label="Closed revenue" value={formatOptionalMoney(leadScore?.closedRevenue)} />
                   <DetailRow label="Last order" value={formatDate(detail.account.lastOrderDate)} />
                 </>
               ) : (
@@ -217,6 +274,66 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
             </div>
           </div>
         </section>
+
+        {isFraternitees && fraterniteesTrend && trendMeta ? (
+          <section className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Trend</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Last 2 years score trend</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
+                  Compare the current 12 months against the previous 12 months using the same FraterniTees score model.
+                </p>
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${trendMeta.className}`}>
+                {TrendIcon ? <TrendIcon className="h-4 w-4" /> : null}
+                {trendMeta.label}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              {[fraterniteesTrend.current, fraterniteesTrend.previous].map((period) => (
+                <div
+                  key={period.label}
+                  className="rounded-[1.5rem] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">{period.label}</p>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                        {period.startDate} to {period.endDate}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-semibold tracking-[-0.03em]">{period.score ?? "-"}</p>
+                      <p className="text-sm font-semibold text-[var(--text-secondary)]">{period.grade}</p>
+                    </div>
+                  </div>
+                  <dl className="mt-5 space-y-2 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--text-tertiary)]">Close rate</dt>
+                      <dd className="font-semibold">{formatPercent(period.closeRate)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--text-tertiary)]">Orders</dt>
+                      <dd className="font-semibold">{period.totalOrders}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--text-tertiary)]">Closed / lost</dt>
+                      <dd className="font-semibold">
+                        {period.closedOrders} / {period.lostOrders}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--text-tertiary)]">Revenue</dt>
+                      <dd className="font-semibold">{formatMoney(period.closedRevenue)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">

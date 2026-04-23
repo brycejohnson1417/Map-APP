@@ -100,6 +100,8 @@ export type FraterniteesStatusBucket =
   | "risk"
   | "open";
 
+export type FraterniteesLeadGrade = "A+" | "A" | "B" | "C" | "D" | "F" | "Unscored";
+
 export interface FraterniteesLeadOrder {
   customerName: string;
   status: string | null;
@@ -130,11 +132,13 @@ export interface FraterniteesLeadOrder {
 export interface FraterniteesLeadScore {
   customerName: string;
   score: number;
+  grade: FraterniteesLeadGrade;
   priority: "Priority" | "Nurture" | "Watch" | "Do Not Contact review";
   closeRate: number | null;
   closedOrders: number;
   lostOrders: number;
   openOrders: number;
+  totalOrders: number;
   totalOpportunities: number;
   closedRevenue: number;
   averageClosedOrderValue: number;
@@ -149,6 +153,36 @@ export interface FraterniteesLeadScore {
   statusMix: Array<{ status: string; count: number; bucket: FraterniteesStatusBucket }>;
   reasons: string[];
   orders: FraterniteesLeadOrder[];
+}
+
+export interface FraterniteesLeadTrendPeriod {
+  label: string;
+  startDate: string;
+  endDate: string;
+  score: number | null;
+  grade: FraterniteesLeadGrade;
+  closeRate: number | null;
+  closedOrders: number;
+  lostOrders: number;
+  totalOrders: number;
+  closedRevenue: number;
+}
+
+export interface FraterniteesLeadTrendSummary {
+  direction: "up" | "down" | "flat" | "insufficient_data";
+  delta: number | null;
+  current: FraterniteesLeadTrendPeriod;
+  previous: FraterniteesLeadTrendPeriod;
+}
+
+interface FraterniteesGradeInput {
+  score: number | null;
+  closeRate: number | null;
+  closedOrders: number;
+  lostOrders: number;
+  openOrders: number;
+  closedRevenue: number;
+  monthsWithClosedOrdersLast12: number;
 }
 
 const closedStatusSet = new Set(FRATERNITEES_POSITIVE_STATUSES.map(normalizeStatus));
@@ -197,6 +231,16 @@ function addYears(date: Date, years: number) {
   const next = new Date(date);
   next.setFullYear(next.getFullYear() + years);
   return next;
+}
+
+function shiftUtcYears(date: Date, years: number) {
+  const next = new Date(date);
+  next.setUTCFullYear(next.getUTCFullYear() + years);
+  return next;
+}
+
+function toDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10);
 }
 
 export function classifyFraterniteesStatus(status: string | null | undefined): FraterniteesStatusBucket {
@@ -282,6 +326,53 @@ function summarizeStatusMix(orders: FraterniteesLeadOrder[]) {
     .sort((a, b) => b.count - a.count || a.status.localeCompare(b.status));
 }
 
+export function gradeFraterniteesLead(input: FraterniteesGradeInput): FraterniteesLeadGrade {
+  if (input.score === null) {
+    return "Unscored";
+  }
+
+  const totalOrders = input.closedOrders + input.lostOrders + input.openOrders;
+  const normalizedCloseRate = input.closeRate ?? 0;
+
+  if ((totalOrders <= 2 && input.lostOrders >= 2) || (input.lostOrders >= 4 && normalizedCloseRate < 0.4)) {
+    return "F";
+  }
+
+  if (
+    input.score >= 92 &&
+    normalizedCloseRate >= 0.8 &&
+    input.closedOrders >= 6 &&
+    input.closedRevenue >= 12_000 &&
+    input.monthsWithClosedOrdersLast12 >= 4 &&
+    input.lostOrders <= 1
+  ) {
+    return "A+";
+  }
+
+  if (
+    input.score >= 84 &&
+    normalizedCloseRate >= 0.65 &&
+    input.closedOrders >= 3 &&
+    input.closedRevenue >= 4_000
+  ) {
+    return "A";
+  }
+
+  if (input.score >= 72) {
+    return "B";
+  }
+
+  if (input.score >= 60) {
+    return "C";
+  }
+
+  if (input.score >= 46) {
+    return "D";
+  }
+
+  return "F";
+}
+
 function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: Date): FraterniteesLeadScore {
   const sortedOrders = [...orders].sort((a, b) => {
     const aDate = parseDate(a.orderDate)?.getTime() ?? 0;
@@ -291,6 +382,7 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
   const closedOrders = sortedOrders.filter((order) => classifyFraterniteesStatus(order.status) === "closed");
   const lostOrders = sortedOrders.filter((order) => classifyFraterniteesStatus(order.status) === "lost");
   const openOrders = sortedOrders.length - closedOrders.length - lostOrders.length;
+  const totalOrders = sortedOrders.length;
   const totalOpportunities = closedOrders.length + lostOrders.length;
   const closeRate = totalOpportunities ? closedOrders.length / totalOpportunities : null;
   const closedValues = closedOrders.map((order) => order.total ?? 0).filter((value) => value > 0);
@@ -299,8 +391,7 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
   const averageClosedOrderValue = closedValues.length ? closedRevenue / closedValues.length : 0;
   const medianClosedOrderValue = median(closedValues);
   const lastOrderDate = sortedOrders.map((order) => parseDate(order.orderDate)).find((date): date is Date => Boolean(date)) ?? null;
-  const last12Cutoff = new Date(now);
-  last12Cutoff.setUTCFullYear(last12Cutoff.getUTCFullYear() - 1);
+  const last12Cutoff = shiftUtcYears(now, -1);
 
   const closedMonthsLast12 = new Set<string>();
   let closedRevenueLast12 = 0;
@@ -329,21 +420,43 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
     (closedOrders.length <= 1 || hardLossesAfterHighTicket >= 3 || (closeRate !== null && closeRate < 0.35));
 
   const recencyDays = lastOrderDate ? Math.max(0, Math.floor((now.getTime() - lastOrderDate.getTime()) / 86_400_000)) : 999;
-  const recencyScore = recencyDays <= 45 ? 15 : recencyDays <= 120 ? 10 : recencyDays <= 240 ? 5 : 0;
-  const closeRateScore = closeRate === null ? 12 : closeRate * 45;
-  const consistencyScore = clamp(closedMonthsLast12.size / 6, 0, 1) * 25;
-  const orderValueScore = clamp(medianClosedOrderValue / 1500, 0, 1) * 15;
-  const penalty = (highTicketVolatility ? 18 : 0) + Math.min(ghostOrHardLosses * 4, 16);
-  const rawScore = closeRateScore + consistencyScore + orderValueScore + recencyScore - penalty;
+  const closeRateScore = closeRate === null ? 10 : clamp(closeRate, 0, 1) * 36;
+  const orderCountScore = clamp(closedOrders.length / 12, 0, 1) * 18;
+  const consistencyScore = clamp(closedMonthsLast12.size / 8, 0, 1) * 12;
+  const revenueScore = clamp(closedRevenue / 12_000, 0, 1) * 18;
+  const recentRevenueScore = clamp(closedRevenueLast12 / 12_000, 0, 1) * 8;
+  const recencyScore = recencyDays <= 60 ? 8 : recencyDays <= 120 ? 5 : recencyDays <= 240 ? 2 : 0;
+  const lostOrdersPenalty = Math.min(lostOrders.length * 6, 24);
+  const hardLossPenalty = Math.min(ghostOrHardLosses * 4, 12);
+  const volatilityPenalty = highTicketVolatility ? 8 : 0;
+  const rawScore =
+    closeRateScore +
+    orderCountScore +
+    consistencyScore +
+    revenueScore +
+    recentRevenueScore +
+    recencyScore -
+    lostOrdersPenalty -
+    hardLossPenalty -
+    volatilityPenalty;
   const score = Math.round(clamp(rawScore, 0, 100));
+  const grade = gradeFraterniteesLead({
+    score,
+    closeRate,
+    closedOrders: closedOrders.length,
+    lostOrders: lostOrders.length,
+    openOrders,
+    closedRevenue,
+    monthsWithClosedOrdersLast12: closedMonthsLast12.size,
+  });
   const dncRecommendedUntil = lostOrders.length >= 3 ? addYears(now, 2).toISOString().slice(0, 10) : null;
 
   let priority: FraterniteesLeadScore["priority"] = "Nurture";
   if (lostOrders.length >= 3) {
     priority = "Do Not Contact review";
-  } else if ((closeRate ?? 0) >= 0.8 && medianClosedOrderValue >= 1500 && closedMonthsLast12.size >= 3) {
+  } else if (grade === "A+" || grade === "A") {
     priority = "Priority";
-  } else if ((closeRate ?? 0) < 0.5 && totalOpportunities >= 3) {
+  } else if (grade === "D" || grade === "F" || highTicketVolatility) {
     priority = "Watch";
   }
 
@@ -353,8 +466,12 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
   } else {
     reasons.push("No terminal closed/lost outcome yet");
   }
+  reasons.push(`${totalOrders} total order${totalOrders === 1 ? "" : "s"} on record`);
   if (closedMonthsLast12.size) {
     reasons.push(`${closedMonthsLast12.size} ordering month${closedMonthsLast12.size === 1 ? "" : "s"} in the last 12 months`);
+  }
+  if (closedRevenue > 0) {
+    reasons.push(`$${Math.round(closedRevenue).toLocaleString("en-US")} closed revenue lifetime`);
   }
   if (medianClosedOrderValue >= 1500) {
     reasons.push(`Median closed order is $${Math.round(medianClosedOrderValue).toLocaleString("en-US")}`);
@@ -372,11 +489,13 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
   return {
     customerName,
     score,
+    grade,
     priority,
     closeRate,
     closedOrders: closedOrders.length,
     lostOrders: lostOrders.length,
     openOrders,
+    totalOrders,
     totalOpportunities,
     closedRevenue: roundCurrency(closedRevenue),
     averageClosedOrderValue: roundCurrency(averageClosedOrderValue),
@@ -421,4 +540,80 @@ export function scoreFraterniteesLeads(
     .map(([customerName, groupOrders]) => scoreGroup(customerName, groupOrders, now))
     .sort((a, b) => b.score - a.score || b.closedRevenue - a.closedRevenue || a.customerName.localeCompare(b.customerName))
     .slice(0, options.limit ?? 100);
+}
+
+function buildTrendPeriod(
+  label: string,
+  orders: FraterniteesLeadOrder[],
+  startDate: Date,
+  endDate: Date,
+  scoreAsOf: Date,
+): FraterniteesLeadTrendPeriod {
+  const scopedOrders = orders.filter((order) => {
+    const orderDate = parseDate(order.orderDate);
+    return Boolean(orderDate && orderDate >= startDate && orderDate < endDate);
+  });
+
+  if (!scopedOrders.length) {
+    return {
+      label,
+      startDate: toDateOnly(startDate),
+      endDate: toDateOnly(endDate),
+      score: null,
+      grade: "Unscored",
+      closeRate: null,
+      closedOrders: 0,
+      lostOrders: 0,
+      totalOrders: 0,
+      closedRevenue: 0,
+    };
+  }
+
+  const summary = scoreGroup(scopedOrders[0]?.customerName ?? "Account", scopedOrders, scoreAsOf);
+
+  return {
+    label,
+    startDate: toDateOnly(startDate),
+    endDate: toDateOnly(endDate),
+    score: summary.score,
+    grade: summary.grade,
+    closeRate: summary.closeRate,
+    closedOrders: summary.closedOrders,
+    lostOrders: summary.lostOrders,
+    totalOrders: summary.totalOrders,
+    closedRevenue: summary.closedRevenue,
+  };
+}
+
+export function buildFraterniteesLeadTrendSummary(
+  orders: FraterniteesLeadOrder[],
+  options: { now?: Date } = {},
+): FraterniteesLeadTrendSummary {
+  const now = options.now ?? new Date();
+  const currentStart = shiftUtcYears(now, -1);
+  const previousStart = shiftUtcYears(currentStart, -1);
+
+  const previous = buildTrendPeriod("Previous 12 months", orders, previousStart, currentStart, currentStart);
+  const current = buildTrendPeriod("Current 12 months", orders, currentStart, now, now);
+
+  let direction: FraterniteesLeadTrendSummary["direction"] = "insufficient_data";
+  let delta: number | null = null;
+
+  if (current.score !== null && previous.score !== null) {
+    delta = current.score - previous.score;
+    direction = delta >= 5 ? "up" : delta <= -5 ? "down" : "flat";
+  } else if (current.totalOrders > 0 && previous.totalOrders === 0) {
+    direction = "up";
+  } else if (current.totalOrders === 0 && previous.totalOrders > 0) {
+    direction = "down";
+  } else if (current.totalOrders > 0 || previous.totalOrders > 0) {
+    direction = "flat";
+  }
+
+  return {
+    direction,
+    delta,
+    current,
+    previous,
+  };
 }
