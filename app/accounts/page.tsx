@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, MapPin, Search, Users } from "lucide-react";
+import { FraterniteesLeadQualificationModule } from "@/components/accounts/fraternitees-lead-qualification-module";
 import { AppFrame } from "@/components/layout/app-frame";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
+import { defaultOrgSlug, firstParamValue, orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
 export const dynamic = "force-dynamic";
 
@@ -13,19 +15,17 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-function firstValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "picc";
+  const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
   const dashboard = await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
-  const query = firstValue(resolvedSearchParams.q) ?? "";
+  const query = firstParamValue(resolvedSearchParams.q) ?? "";
+  const gradeFilter = firstParamValue(resolvedSearchParams.grade) ?? "All Grades";
+  const dncFilter = firstParamValue(resolvedSearchParams.dnc) === "1";
   const organizationName = dashboard?.organization.name ?? process.env.ORG_NAME?.trim() ?? "PICC";
 
   return (
-    <AppFrame>
+    <AppFrame organizationName={organizationName} organizationSlug={orgSlug}>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
         <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
@@ -36,7 +36,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
             </p>
           </div>
           <Link
-            href="/territory"
+            href={orgScopedHref("/territory", orgSlug)}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
             style={{ color: "#fff" }}
           >
@@ -45,74 +45,86 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
           </Link>
         </header>
 
-        <form className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 sm:flex-row">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
-            <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Search account, city, state"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
-            />
-          </label>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
-            style={{ color: "#fff" }}
-          >
-            Search
-          </button>
-        </form>
-
         {dashboard ? (
-          <>
-            <section className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Accounts</p>
-                <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.accounts)}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Visible rows</p>
-                <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.pins.length)}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Orders</p>
-                <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.orders)}</p>
-              </div>
-            </section>
+          orgSlug === "fraternitees" ? (
+            <FraterniteesLeadQualificationModule
+              orgSlug={orgSlug}
+              accounts={dashboard.pins}
+              counts={dashboard.counts}
+              query={query}
+              gradeFilter={gradeFilter}
+              dncFilter={dncFilter}
+            />
+          ) : (
+            <>
+              <form className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 sm:flex-row">
+                {orgSlug !== defaultOrgSlug() ? <input type="hidden" name="org" value={orgSlug} /> : null}
+                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
+                  <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
+                  <input
+                    name="q"
+                    defaultValue={query}
+                    placeholder="Search account, city, state"
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
+                  style={{ color: "#fff" }}
+                >
+                  Search
+                </button>
+              </form>
 
-            <section className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
-              <div className="border-b border-[var(--border-subtle)] p-5">
-                <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-[var(--accent-secondary-strong)]" />
-                  <h2 className="text-xl font-semibold tracking-[-0.03em]">Accounts</h2>
+              <section className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Accounts</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.accounts)}</p>
                 </div>
-              </div>
-              <div className="divide-y divide-[var(--border-subtle)]">
-                {dashboard.pins.map((pin) => (
-                  <Link
-                    key={pin.id}
-                    href={`/accounts/${pin.id}`}
-                    className="grid gap-4 p-5 transition hover:bg-[var(--surface-elevated)] md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center"
-                  >
-                    <div>
-                      <p className="font-semibold">{pin.name}</p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {[pin.city, pin.state].filter(Boolean).join(", ") || "No location"}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold text-[var(--text-secondary)]">{pin.salesRepNames.join(", ") || "No rep"}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">{pin.referralSource || "No referral source"}</p>
-                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary-strong)]">
-                      Open
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
-                  </Link>
-                ))}
-                {!dashboard.pins.length ? <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div> : null}
-              </div>
-            </section>
-          </>
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Visible rows</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.pins.length)}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Orders</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.orders)}</p>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
+                <div className="border-b border-[var(--border-subtle)] p-5">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-5 w-5 text-[var(--accent-secondary-strong)]" />
+                    <h2 className="text-xl font-semibold tracking-[-0.03em]">Accounts</h2>
+                  </div>
+                </div>
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  {dashboard.pins.map((pin) => (
+                    <Link
+                      key={pin.id}
+                      href={orgScopedHref(`/accounts/${pin.id}`, orgSlug)}
+                      className="grid gap-4 p-5 transition hover:bg-[var(--surface-elevated)] md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center"
+                    >
+                      <div>
+                        <p className="font-semibold">{pin.name}</p>
+                        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                          {[pin.city, pin.state].filter(Boolean).join(", ") || "No location"}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-[var(--text-secondary)]">{pin.salesRepNames.join(", ") || "No rep"}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{pin.referralSource || "No referral source"}</p>
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary-strong)]">
+                        Open
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  ))}
+                  {!dashboard.pins.length ? <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div> : null}
+                </div>
+              </section>
+            </>
+          )
         ) : (
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)]">
             No company workspace was found for {orgSlug}.

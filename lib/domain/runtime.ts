@@ -3,6 +3,8 @@ export type MembershipRole = "owner" | "admin" | "manager" | "member" | "guest";
 export type ExternalProvider =
   | "notion"
   | "nabis"
+  | "printavo"
+  | "google_sheets"
   | "google_calendar"
   | "google_maps"
   | "hubspot"
@@ -87,6 +89,21 @@ export interface SyncJob {
   updatedAt: string;
 }
 
+export interface SyncCursor {
+  id: string;
+  organizationId: string;
+  installationId: string | null;
+  provider: ExternalProvider;
+  scope: string;
+  cursorPayload: Record<string, unknown>;
+  status: SyncStatus;
+  lastSuccessfulSyncAt: string | null;
+  lastAttemptedSyncAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuditEvent {
   id: string;
   organizationId: string;
@@ -107,6 +124,7 @@ export interface OrganizationRuntimeSnapshot {
   organization: Organization;
   integrations: IntegrationInstallation[];
   recentSyncJobs: SyncJob[];
+  syncCursors: SyncCursor[];
   syncJobStatusCounts: SyncJobStatusCount[];
   recentAuditEvents: AuditEvent[];
 }
@@ -128,7 +146,29 @@ export interface RecordAuditEventInput {
   payload?: Record<string, unknown>;
 }
 
-export type TerritoryFilterFlag = "missing_referral_source" | "missing_sample_delivery";
+export type TerritoryFilterFlag =
+  | "missing_referral_source"
+  | "missing_sample_delivery"
+  | "no_address_available"
+  | "dnc_flagged";
+
+export interface FraterniteesLeadScoreSummary {
+  score: number | null;
+  grade: "A" | "B" | "C" | "D" | "Unscored";
+  priority: string | null;
+  closeRate: number | null;
+  closedOrders: number;
+  lostOrders: number;
+  openOrders: number;
+  medianClosedOrderValue: number | null;
+  averageClosedOrderValue: number | null;
+  maxOrderValue: number | null;
+  ghostOrHardLosses: number;
+  highTicketVolatility: boolean;
+  dncRecommendedUntil: string | null;
+  primaryContactName: string | null;
+  primaryContactEmail: string | null;
+}
 
 export interface TerritoryAccountPin {
   id: string;
@@ -146,6 +186,7 @@ export interface TerritoryAccountPin {
   lastOrderDate: string | null;
   lastSampleDeliveryDate: string | null;
   daysOverdue: number | null;
+  fraterniteesLeadScore: FraterniteesLeadScoreSummary | null;
 }
 
 export interface TerritoryRuntimeDashboard {
@@ -159,11 +200,14 @@ export interface TerritoryRuntimeDashboard {
     territoryMarkers: number;
     noReferralSource: number;
     noLastSampleDeliveryDate: number;
+    noAddressAvailable: number;
+    dncFlagged: number;
   };
   repFacets: Array<{ name: string; count: number }>;
   statusFacets: Array<{ name: string; count: number }>;
   referralSourceFacets: Array<{ name: string; count: number }>;
   vendorDayFacets: Array<{ name: string; count: number }>;
+  leadGradeFacets: Array<{ name: string; count: number }>;
   pins: TerritoryAccountPin[];
   appliedFilters: {
     search: string | null;
@@ -172,6 +216,7 @@ export interface TerritoryRuntimeDashboard {
     status: string | null;
     referralSource: string | null;
     vendorDayStatus: string | null;
+    leadGrade: FraterniteesLeadScoreSummary["grade"] | null;
   };
 }
 

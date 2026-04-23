@@ -1,4 +1,4 @@
-import type { AuditEvent, IntegrationInstallation, Organization, SyncJob } from "@/lib/domain/runtime";
+import type { AuditEvent, IntegrationInstallation, Organization, SyncCursor, SyncJob } from "@/lib/domain/runtime";
 
 function normalizeJson(value: unknown) {
   return (value ?? {}) as Record<string, unknown>;
@@ -44,6 +44,23 @@ export function mapSyncJobRow(row: Record<string, unknown>): SyncJob {
     availableAt: String(row.available_at),
     startedAt: row.started_at ? String(row.started_at) : null,
     finishedAt: row.finished_at ? String(row.finished_at) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapSyncCursorRow(row: Record<string, unknown>): SyncCursor {
+  return {
+    id: String(row.id),
+    organizationId: String(row.organization_id),
+    installationId: row.installation_id ? String(row.installation_id) : null,
+    provider: row.provider as SyncCursor["provider"],
+    scope: String(row.scope),
+    cursorPayload: normalizeJson(row.cursor_payload),
+    status: row.status as SyncCursor["status"],
+    lastSuccessfulSyncAt: row.last_successful_sync_at ? String(row.last_successful_sync_at) : null,
+    lastAttemptedSyncAt: row.last_attempted_sync_at ? String(row.last_attempted_sync_at) : null,
+    lastError: row.last_error ? String(row.last_error) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };

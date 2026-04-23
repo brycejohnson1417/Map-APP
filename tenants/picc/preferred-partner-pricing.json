@@ -1,0 +1,99 @@
+{
+  "programName": "PICC Preferred Partners Program",
+  "currency": "USD",
+  "discountDescription": "20% off standard wholesale pricing",
+  "source": "Preferred Parnter Wholesale Pricing Reference - Sheet1.csv",
+  "items": [
+    {
+      "brand": "Chopsticks",
+      "size": "2 (.5g)",
+      "weight": "1g",
+      "standardWholesale": 5,
+      "preferredWholesale": 4
+    },
+    {
+      "brand": "Ichi-Roll",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 5,
+      "preferredWholesale": 4
+    },
+    {
+      "brand": "Ichi-Roll",
+      "size": "4-Pack",
+      "weight": "4g",
+      "standardWholesale": 16,
+      "preferredWholesale": 12.8
+    },
+    {
+      "brand": "#Juan-Roll",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 5,
+      "preferredWholesale": 4
+    },
+    {
+      "brand": "#Juan-Roll",
+      "size": "4-Pack",
+      "weight": "4g",
+      "standardWholesale": 16,
+      "preferredWholesale": 12.8
+    },
+    {
+      "brand": "Smack.",
+      "size": "Mini",
+      "weight": "0.5g",
+      "standardWholesale": 4.25,
+      "preferredWholesale": 3.4
+    },
+    {
+      "brand": "Smack.",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 6.25,
+      "preferredWholesale": 5
+    },
+    {
+      "brand": "O-Yeah",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 7.5,
+      "preferredWholesale": 6
+    },
+    {
+      "brand": "O-Yeah",
+      "size": "5-Pack",
+      "weight": "2.5g",
+      "standardWholesale": 17.5,
+      "preferredWholesale": 14
+    },
+    {
+      "brand": "State of Mind",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 10,
+      "preferredWholesale": 8
+    },
+    {
+      "brand": "State of Mind",
+      "size": "5-Pack",
+      "weight": "2.5g",
+      "standardWholesale": 25,
+      "preferredWholesale": 20
+    },
+    {
+      "brand": "Sushi Hash",
+      "size": "Single",
+      "weight": "1g",
+      "standardWholesale": 12.5,
+      "preferredWholesale": 10
+    },
+    {
+      "brand": "Sushi Hash",
+      "size": "5-Pack",
+      "weight": "2.5g",
+      "standardWholesale": 32.5,
+      "preferredWholesale": 26
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { AppFrame } from "@/components/layout/app-frame";
 import { TerritoryWorkspace } from "@/components/territory/territory-workspace";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
+import { orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +11,11 @@ interface TerritoryPageProps {
 
 export default async function TerritoryPage({ searchParams }: TerritoryPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "picc";
+  const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
   const dashboard = await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
 
   return (
-    <AppFrame>
+    <AppFrame organizationName={dashboard?.organization.name} organizationSlug={orgSlug}>
       {dashboard ? (
         <TerritoryWorkspace orgSlug={orgSlug} initialDashboard={dashboard} />
       ) : (

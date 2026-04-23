@@ -1080,6 +1080,69 @@ async function writeAccount(supabase, company, existing, dryRun) {
   return data;
 }
 
+async function findContactAfterUniqueConflict(supabase, contact) {
+  const accountId = contact.row.account_id ?? null;
+  const email = normalizeEmail(contact.row.email);
+  const name = normalizeName(contact.row.full_name);
+
+  if (!email && !name) {
+    return null;
+  }
+
+  let query = supabase
+    .from("contact")
+    .select("id,account_id,full_name,email,phone,custom_fields")
+    .eq("organization_id", contact.row.organization_id);
+
+  query = accountId ? query.eq("account_id", accountId) : query.is("account_id", null);
+  query = email ? query.not("email", "is", null) : query.is("email", null);
+
+  const { data, error } = await query.limit(100);
+  if (error) {
+    throw new Error(`contact:conflict-lookup:${contact.notionPageId ?? contact.embeddedKey}:${error.message}`);
+  }
+
+  return (data ?? []).find((row) => {
+    if (email) {
+      return normalizeEmail(row.email) === email;
+    }
+
+    return normalizeName(row.full_name) === name;
+  }) ?? null;
+}
+
+async function updateExistingContact(supabase, contact, existing) {
+  const now = new Date().toISOString();
+  const mergedCustomFields = compactObject({
+    ...existing.custom_fields,
+    ...contact.row.custom_fields,
+  });
+  const { data, error } = await supabase
+    .from("contact")
+    .update({ ...contact.row, custom_fields: mergedCustomFields, updated_at: now })
+    .eq("organization_id", contact.row.organization_id)
+    .eq("id", existing.id)
+    .select("id,account_id,full_name,email,phone,custom_fields")
+    .single();
+
+  if (error) {
+    throw new Error(`contact:update:${contact.notionPageId ?? contact.embeddedKey}:${error.message}`);
+  }
+
+  return data;
+}
+
+async function insertContact(supabase, contact) {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("contact")
+    .insert({ ...contact.row, created_at: now, updated_at: now })
+    .select("id,account_id,full_name,email,phone,custom_fields")
+    .single();
+
+  return { data, error };
+}
+
 async function writeContact(supabase, contact, existing, dryRun) {
   if (dryRun) {
     return {
@@ -1089,32 +1152,17 @@ async function writeContact(supabase, contact, existing, dryRun) {
     };
   }
 
-  const now = new Date().toISOString();
   if (existing) {
-    const mergedCustomFields = compactObject({
-      ...existing.custom_fields,
-      ...contact.row.custom_fields,
-    });
-    const { data, error } = await supabase
-      .from("contact")
-      .update({ ...contact.row, custom_fields: mergedCustomFields, updated_at: now })
-      .eq("organization_id", contact.row.organization_id)
-      .eq("id", existing.id)
-      .select("id,account_id,full_name,email,phone,custom_fields")
-      .single();
-
-    if (error) {
-      throw new Error(`contact:update:${contact.notionPageId ?? contact.embeddedKey}:${error.message}`);
-    }
-
-    return data;
+    return updateExistingContact(supabase, contact, existing);
   }
 
-  const { data, error } = await supabase
-    .from("contact")
-    .insert({ ...contact.row, created_at: now, updated_at: now })
-    .select("id,account_id,full_name,email,phone,custom_fields")
-    .single();
+  const { data, error } = await insertContact(supabase, contact);
+  if (error?.code === "23505") {
+    const conflictExisting = await findContactAfterUniqueConflict(supabase, contact);
+    if (conflictExisting) {
+      return updateExistingContact(supabase, contact, conflictExisting);
+    }
+  }
 
   if (error) {
     throw new Error(`contact:insert:${contact.notionPageId ?? contact.embeddedKey}:${error.message}`);
@@ -1179,9 +1227,24 @@ function collapseNabisOrderRows(rows) {
               compactObject({
                 lineItemId: row.lineItemId,
                 skuCode: row.skuCode,
+                skuName: row.skuName,
+                skuDisplayName: row.skuDisplayName,
+                brandName: row.brandName,
                 strain: row.strain,
+                sample: row.sample,
+                isSampleDemo: row.isSampleDemo,
+                lineItemIsSample: row.lineItemIsSample,
                 units: row.units,
+                pricePerUnit: row.pricePerUnit,
+                lineItemPricePerUnitAfterDiscount: row.lineItemPricePerUnitAfterDiscount,
+                skuPricePerUnit: row.skuPricePerUnit,
                 lineItemSubtotal: row.lineItemSubtotal,
+                lineItemSubtotalAfterDiscount: row.lineItemSubtotalAfterDiscount,
+                taxInclusiveLineItemSubtotal: row.taxInclusiveLineItemSubtotal,
+                skuTotalPrice: row.skuTotalPrice,
+                wholesaleValue: row.wholesaleValue,
+                lineItemWholesaleValue: row.lineItemWholesaleValue,
+                standardPricePerUnit: row.standardPricePerUnit,
               }),
             ),
           },

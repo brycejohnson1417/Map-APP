@@ -43,6 +43,25 @@ export class OrganizationRepository {
     return mapOrganizationRow(data as Record<string, unknown>);
   }
 
+  async updateSettings(organizationId: string, settings: Record<string, unknown>): Promise<Organization> {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("organization")
+      .update({
+        settings,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", organizationId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return mapOrganizationRow(data as Record<string, unknown>);
+  }
+
   async listActive(limit = 25): Promise<Organization[]> {
     const supabase = getSupabaseAdminClient() as any;
     const { data, error } = await supabase

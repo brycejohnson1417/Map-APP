@@ -6,6 +6,7 @@ import type {
   AccountIdentity,
   AccountOrder,
   AccountRuntimeDetail,
+  FraterniteesLeadScoreSummary,
 } from "@/lib/domain/runtime";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { AuditEventRepository } from "@/lib/infrastructure/supabase/audit-event-repository";
@@ -101,6 +102,63 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function readStringField(fields: Record<string, unknown> | null, key: string) {
+  const value = fields?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readBooleanField(fields: Record<string, unknown> | null, key: string) {
+  return fields?.[key] === true;
+}
+
+function gradeForScore(score: number | null): FraterniteesLeadScoreSummary["grade"] {
+  if (score === null) {
+    return "Unscored";
+  }
+  if (score >= 85) {
+    return "A";
+  }
+  if (score >= 70) {
+    return "B";
+  }
+  if (score >= 55) {
+    return "C";
+  }
+
+  return "D";
+}
+
+function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
+  const score = toNumber(fields?.leadScore as number | string | null | undefined);
+  const hasFraterniteesScore =
+    score !== null ||
+    readStringField(fields, "leadPriority") !== null ||
+    toNumber(fields?.closedOrders as number | string | null | undefined) !== null ||
+    toNumber(fields?.lostOrders as number | string | null | undefined) !== null;
+
+  if (!hasFraterniteesScore) {
+    return null;
+  }
+
+  return {
+    score,
+    grade: gradeForScore(score),
+    priority: readStringField(fields, "leadPriority"),
+    closeRate: toNumber(fields?.closeRate as number | string | null | undefined),
+    closedOrders: toNumber(fields?.closedOrders as number | string | null | undefined) ?? 0,
+    lostOrders: toNumber(fields?.lostOrders as number | string | null | undefined) ?? 0,
+    openOrders: toNumber(fields?.openOrders as number | string | null | undefined) ?? 0,
+    medianClosedOrderValue: toNumber(fields?.medianClosedOrderValue as number | string | null | undefined),
+    averageClosedOrderValue: toNumber(fields?.averageClosedOrderValue as number | string | null | undefined),
+    maxOrderValue: toNumber(fields?.maxOrderValue as number | string | null | undefined),
+    ghostOrHardLosses: toNumber(fields?.ghostOrHardLosses as number | string | null | undefined) ?? 0,
+    highTicketVolatility: readBooleanField(fields, "highTicketVolatility"),
+    dncRecommendedUntil: readStringField(fields, "dncRecommendedUntil"),
+    primaryContactName: readStringField(fields, "primaryContactName"),
+    primaryContactEmail: readStringField(fields, "primaryContactEmail"),
+  };
+}
+
 function mapIdentity(row: IdentityRow): AccountIdentity {
   return {
     id: row.id,
@@ -189,6 +247,7 @@ function mapAccount(row: AccountRow): AccountRuntimeDetail["account"] {
     externalUpdatedAt: row.external_updated_at,
     customFields: row.custom_fields ?? {},
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
+    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields),
   };
 }
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ExternalProvider, IntegrationInstallation } from "@/lib/domain/runtime";
-import { encryptJson } from "@/lib/infrastructure/security/encryption";
+import { decryptJson, encryptJson } from "@/lib/infrastructure/security/encryption";
 import { mapIntegrationRow } from "@/lib/infrastructure/supabase/runtime-mappers";
 
 interface UpsertIntegrationInput {
@@ -98,5 +98,25 @@ export class IntegrationRepository {
     if (error) {
       throw error;
     }
+  }
+
+  async readSecret<T>(organizationId: string, installationId: string, keyName: string): Promise<T | null> {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("integration_secret")
+      .select("ciphertext")
+      .eq("organization_id", organizationId)
+      .eq("installation_id", installationId)
+      .eq("key_name", keyName)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+    if (!data?.ciphertext) {
+      return null;
+    }
+
+    return decryptJson<T>(String(data.ciphertext));
   }
 }

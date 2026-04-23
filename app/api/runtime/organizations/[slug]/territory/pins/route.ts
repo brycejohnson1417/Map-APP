@@ -12,6 +12,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     status: url.searchParams.get("status") ?? undefined,
     referralSource: url.searchParams.get("referralSource") ?? undefined,
     vendorDayStatus: url.searchParams.get("vendorDayStatus") ?? undefined,
+    leadGrade: url.searchParams.get("leadGrade") ?? undefined,
   });
 
   if (!dashboard) {
@@ -27,6 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       statusFacets: dashboard.statusFacets,
       referralSourceFacets: dashboard.referralSourceFacets,
       vendorDayFacets: dashboard.vendorDayFacets,
+      leadGradeFacets: dashboard.leadGradeFacets,
       pins: dashboard.pins,
     },
     {

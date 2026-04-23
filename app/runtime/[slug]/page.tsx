@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Activity, AlertTriangle, CheckCircle2, Clock3, DatabaseZap, RefreshCw, ShieldCheck } from "lucide-react";
 import { AppFrame } from "@/components/layout/app-frame";
 import { getOrganizationRuntimeSnapshot } from "@/lib/application/runtime/organization-service";
-import type { AuditEvent, SyncJob, SyncStatus } from "@/lib/domain/runtime";
+import type { AuditEvent, SyncCursor, SyncJob, SyncStatus } from "@/lib/domain/runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +87,30 @@ function SyncJobRow({ job }: { job: SyncJob }) {
   );
 }
 
+function SyncCursorRow({ cursor }: { cursor: SyncCursor }) {
+  const lastEvent = cursor.lastAttemptedSyncAt ?? cursor.lastSuccessfulSyncAt;
+
+  return (
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate font-semibold">
+            {cursor.provider} / {cursor.scope}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+            Last success: {formatDateTime(cursor.lastSuccessfulSyncAt)}
+          </p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${syncStatusClass(cursor.status)}`}>
+          {cursor.status}
+        </span>
+      </div>
+      {cursor.lastError ? <p className="mt-3 text-sm text-[var(--accent-danger)]">{cursor.lastError}</p> : null}
+      <p className="mt-3 text-xs text-[var(--text-tertiary)]">Last attempt: {formatDateTime(lastEvent)}</p>
+    </div>
+  );
+}
+
 function AuditEventRow({ event }: { event: AuditEvent }) {
   return (
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
@@ -116,10 +140,12 @@ export default async function RuntimePage({ params }: RuntimePageProps) {
   const openSyncJobs = snapshot.syncJobStatusCounts
     .filter((entry) => entry.status === "queued" || entry.status === "running")
     .reduce((sum, entry) => sum + entry.count, 0);
-  const syncErrors = snapshot.syncJobStatusCounts.find((entry) => entry.status === "error")?.count ?? 0;
+  const historicalSyncErrors = snapshot.syncJobStatusCounts.find((entry) => entry.status === "error")?.count ?? 0;
+  const currentSyncErrors = snapshot.syncCursors.filter((cursor) => cursor.status === "error").length;
+  const currentSyncHealth = snapshot.syncCursors.length === 0 ? "No cursors" : currentSyncErrors ? `${currentSyncErrors} error${currentSyncErrors === 1 ? "" : "s"}` : "Healthy";
 
   return (
-    <AppFrame>
+    <AppFrame organizationName={snapshot.organization.name} organizationSlug={snapshot.organization.slug}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
         <header className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent-secondary-strong)]">
@@ -133,17 +159,24 @@ export default async function RuntimePage({ params }: RuntimePageProps) {
           </p>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-5">
           <MetricCard label="Integrations" value={String(snapshot.integrations.length)} icon={DatabaseZap} />
           <MetricCard label="Sync jobs" value={String(syncJobTotal)} icon={RefreshCw} />
+          <MetricCard label="Sync health" value={currentSyncHealth} icon={CheckCircle2} />
           <MetricCard label="Open queue" value={String(openSyncJobs)} icon={Clock3} />
           <MetricCard label="Audit events" value={String(snapshot.recentAuditEvents.length)} icon={ShieldCheck} />
         </section>
 
-        {syncErrors ? (
+        {currentSyncErrors ? (
           <div className="flex items-center gap-3 rounded-2xl border border-[rgba(213,62,42,0.22)] bg-[rgba(213,62,42,0.08)] p-4 text-sm font-semibold text-[var(--accent-danger)]">
             <AlertTriangle className="h-4 w-4" />
-            {syncErrors} sync job{syncErrors === 1 ? "" : "s"} currently marked error.
+            {currentSyncErrors} sync source{currentSyncErrors === 1 ? "" : "s"} currently reporting an error.
+          </div>
+        ) : null}
+        {!currentSyncErrors && historicalSyncErrors && snapshot.syncCursors.length ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 text-sm font-semibold text-[var(--text-secondary)]">
+            <CheckCircle2 className="h-4 w-4 text-[var(--accent-success)]" />
+            {historicalSyncErrors} historical sync job{historicalSyncErrors === 1 ? "" : "s"} failed earlier, but the latest sync cursors are healthy.
           </div>
         ) : null}
 
@@ -175,6 +208,20 @@ export default async function RuntimePage({ params }: RuntimePageProps) {
                   </div>
                 ))
               )}
+            </div>
+
+            <div className="mt-6 border-t border-[var(--border-subtle)] pt-5">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-[var(--accent-success)]" />
+                <h2 className="text-lg font-semibold">Current sync health</h2>
+              </div>
+              <div className="mt-4 space-y-3 text-sm">
+                {snapshot.syncCursors.length === 0 ? (
+                  <p className="text-[var(--text-tertiary)]">No sync cursors recorded yet.</p>
+                ) : (
+                  snapshot.syncCursors.map((cursor) => <SyncCursorRow key={cursor.id} cursor={cursor} />)
+                )}
+              </div>
             </div>
           </div>
 

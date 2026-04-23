@@ -1,0 +1,37 @@
+{
+  "tenant": {
+    "slug": "fraternitees",
+    "name": "FraterniTees",
+    "crm": "printavo",
+    "orders": "printavo"
+  },
+  "printavo": {
+    "endpoint": "https://www.printavo.com/api/v2",
+    "auth": "email_token_headers",
+    "pagination": "relay_cursor",
+    "primaryQueries": ["statuses", "orders", "customers"],
+    "accountFields": [
+      "contact.customer.id",
+      "contact.customer.companyName",
+      "contact.fullName",
+      "contact.email",
+      "shippingAddress.companyName",
+      "shippingAddress.city",
+      "shippingAddress.state",
+      "shippingAddress.zipCode"
+    ],
+    "orderFields": [
+      "id",
+      "visualId",
+      "nickname",
+      "status.name",
+      "total",
+      "subtotal",
+      "totalQuantity",
+      "invoiceAt",
+      "startAt",
+      "dueAt"
+    ]
+  }
+}
+

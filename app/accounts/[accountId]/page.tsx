@@ -2,13 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BadgeCheck, CalendarDays, ClipboardList, ExternalLink, MapPin, Package, Users } from "lucide-react";
 import { AppFrame } from "@/components/layout/app-frame";
+import { MockOrderProposalPanel } from "@/components/accounts/mock-order-proposal-panel";
+import { PppSavingsPanel } from "@/components/accounts/ppp-savings-panel";
 import { getAccountRuntimeDetail } from "@/lib/application/runtime/account-service";
 import type { AccountRuntimeDetail } from "@/lib/domain/runtime";
+import { orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
 export const dynamic = "force-dynamic";
 
 interface AccountPageProps {
   params: Promise<{ accountId: string }> | { accountId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -27,6 +31,14 @@ function formatDate(value: string | null) {
 
 function formatMoney(value: number) {
   return currencyFormatter.format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "None";
+  }
+
+  return `${Math.round(value * 100)}%`;
 }
 
 function formatList(values: string[]) {
@@ -71,15 +83,18 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function AccountPage({ params }: AccountPageProps) {
+export default async function AccountPage({ params, searchParams }: AccountPageProps) {
   const { accountId } = await Promise.resolve(params);
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "picc";
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
   const detail = await getAccountRuntimeDetail(orgSlug, accountId);
 
   if (!detail) {
     notFound();
   }
 
+  const isFraternitees = orgSlug === "fraternitees";
+  const leadScore = detail.account.fraterniteesLeadScore;
   const sourceCrmHref = getSourceCrmHref(detail);
   const address = [
     detail.account.addressLine1,
@@ -92,11 +107,11 @@ export default async function AccountPage({ params }: AccountPageProps) {
     .join(", ");
 
   return (
-    <AppFrame>
+    <AppFrame organizationName={detail.organization.name} organizationSlug={orgSlug}>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
         <div className="flex flex-col gap-5">
           <Link
-            href="/territory"
+            href={orgScopedHref("/territory", orgSlug)}
             className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -109,7 +124,9 @@ export default async function AccountPage({ params }: AccountPageProps) {
               </p>
               <h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">{detail.account.name}</h1>
               <p className="mt-3 max-w-3xl text-base leading-8 text-[var(--text-secondary)]">
-                This page shows the same account, rep, referral, order, contact, and activity data used by the territory map.
+                {isFraternitees
+                  ? "This page shows the same Printavo organization, lead score, order, contact, and activity data used by the territory map."
+                  : "This page shows the same account, rep, referral, order, contact, and activity data used by the territory map."}
               </p>
             </div>
             {sourceCrmHref ? (
@@ -134,6 +151,13 @@ export default async function AccountPage({ params }: AccountPageProps) {
           <MetricCard label="Last order" value={formatDate(detail.orderSummary.lastOrderDate)} icon={CalendarDays} />
         </section>
 
+        {orgSlug === "picc" ? (
+          <>
+            <PppSavingsPanel orgSlug={orgSlug} accountId={detail.account.id} />
+            <MockOrderProposalPanel orgSlug={orgSlug} accountId={detail.account.id} />
+          </>
+        ) : null}
+
         <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
             <div className="flex items-center gap-3">
@@ -141,13 +165,26 @@ export default async function AccountPage({ params }: AccountPageProps) {
               <h2 className="text-xl font-semibold tracking-[-0.03em]">Map agreement</h2>
             </div>
             <dl className="mt-5">
-              <DetailRow label="Sales rep" value={formatList(detail.account.salesRepNames)} />
-              <DetailRow label="Account manager" value={formatList(detail.account.accountManagerNames)} />
-              <DetailRow label="Account status" value={fieldValue(detail.account.status)} />
-              <DetailRow label="Lead status" value={fieldValue(detail.account.leadStatus)} />
-              <DetailRow label="Referral source" value={fieldValue(detail.account.referralSource)} />
-              <DetailRow label="Last contacted" value={formatDate(detail.account.lastContactedAt)} />
-              <DetailRow label="Sample delivery" value={formatDate(detail.account.lastSampleDeliveryDate)} />
+              {isFraternitees ? (
+                <>
+                  <DetailRow label="Lead score" value={`${fieldValue(leadScore?.score)} / ${leadScore?.grade ?? "Unscored"}`} />
+                  <DetailRow label="Lead priority" value={fieldValue(leadScore?.priority ?? detail.account.status)} />
+                  <DetailRow label="Close rate" value={formatPercent(leadScore?.closeRate)} />
+                  <DetailRow label="Closed orders" value={fieldValue(leadScore?.closedOrders)} />
+                  <DetailRow label="Cancelled orders" value={fieldValue(leadScore?.lostOrders)} />
+                  <DetailRow label="Last order" value={formatDate(detail.account.lastOrderDate)} />
+                </>
+              ) : (
+                <>
+                  <DetailRow label="Sales rep" value={formatList(detail.account.salesRepNames)} />
+                  <DetailRow label="Account manager" value={formatList(detail.account.accountManagerNames)} />
+                  <DetailRow label="Account status" value={fieldValue(detail.account.status)} />
+                  <DetailRow label="Lead status" value={fieldValue(detail.account.leadStatus)} />
+                  <DetailRow label="Referral source" value={fieldValue(detail.account.referralSource)} />
+                  <DetailRow label="Last contacted" value={formatDate(detail.account.lastContactedAt)} />
+                  <DetailRow label="Sample delivery" value={formatDate(detail.account.lastSampleDeliveryDate)} />
+                </>
+              )}
             </dl>
           </div>
 
@@ -157,12 +194,16 @@ export default async function AccountPage({ params }: AccountPageProps) {
               <h2 className="text-xl font-semibold tracking-[-0.03em]">Identity and location</h2>
             </div>
             <dl className="mt-5">
-              <DetailRow label="Licensed location ID" value={fieldValue(detail.account.licensedLocationId)} />
-              <DetailRow label="License number" value={fieldValue(detail.account.licenseNumber)} />
+              {!isFraternitees ? (
+                <>
+                  <DetailRow label="Licensed location ID" value={fieldValue(detail.account.licensedLocationId)} />
+                  <DetailRow label="License number" value={fieldValue(detail.account.licenseNumber)} />
+                </>
+              ) : null}
               <DetailRow label="Address" value={address || "None"} />
               <DetailRow label="Coordinates" value={`${fieldValue(detail.account.latitude)}, ${fieldValue(detail.account.longitude)}`} />
               <DetailRow label="Customer since" value={formatDate(detail.account.customerSinceDate)} />
-              <DetailRow label="CRM updated" value={formatDate(detail.account.crmUpdatedAt)} />
+              <DetailRow label={isFraternitees ? "Printavo updated" : "CRM updated"} value={formatDate(detail.account.crmUpdatedAt)} />
             </dl>
             <div className="mt-5 flex flex-wrap gap-2">
               {detail.identities.map((identity) => (
@@ -180,7 +221,9 @@ export default async function AccountPage({ params }: AccountPageProps) {
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
             <div className="border-b border-[var(--border-subtle)] p-6">
-              <h2 className="text-xl font-semibold tracking-[-0.03em]">Recent Nabis orders</h2>
+              <h2 className="text-xl font-semibold tracking-[-0.03em]">
+                Recent {orgSlug === "fraternitees" ? "Printavo" : "Nabis"} orders
+              </h2>
             </div>
             <div className="divide-y divide-[var(--border-subtle)]">
               {detail.recentOrders.length ? (

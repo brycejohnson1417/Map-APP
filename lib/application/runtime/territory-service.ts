@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  FraterniteesLeadScoreSummary,
   TerritoryAccountPin,
   TerritoryBoundaryRuntime,
   TerritoryFilterFlag,
@@ -10,8 +11,8 @@ import type {
 } from "@/lib/domain/runtime";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
-const MAX_PIN_ROWS = 2_000;
-const DISPLAY_PIN_ROWS = 1_000;
+const DASHBOARD_ACCOUNT_PAGE_SIZE = 1_000;
+const MAX_DASHBOARD_ACCOUNT_ROWS = 10_000;
 
 interface AccountRow {
   id: string;
@@ -23,6 +24,8 @@ interface AccountRow {
   vendor_day_status: string | null;
   city: string | null;
   state: string | null;
+  address_line_1: string | null;
+  postal_code: string | null;
   latitude: number | null;
   longitude: number | null;
   sales_rep_names: string[] | null;
@@ -67,17 +70,61 @@ function normalizeSearch(value: string | string[] | undefined) {
 
 function normalizeFlag(value: string | string[] | undefined): TerritoryFilterFlag | null {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === "missing_referral_source" || raw === "missing_sample_delivery") {
+  if (
+    raw === "missing_referral_source" ||
+    raw === "missing_sample_delivery" ||
+    raw === "no_address_available" ||
+    raw === "dnc_flagged"
+  ) {
     return raw;
   }
 
   return null;
 }
 
+function isNoAddressAvailable(row: AccountRow) {
+  if (row.custom_fields?.noAddressAvailable === true) {
+    return true;
+  }
+  if (row.latitude !== null && row.longitude !== null) {
+    return false;
+  }
+  if (row.address_line_1?.trim() || row.postal_code?.trim()) {
+    return false;
+  }
+  return !row.city?.trim() || !row.state?.trim();
+}
+
+function rowMatchesFlag(row: AccountRow, flag: TerritoryFilterFlag | null) {
+  if (flag === "no_address_available") {
+    return isNoAddressAvailable(row);
+  }
+  if (flag === "dnc_flagged") {
+    return isDncFlagged(row);
+  }
+  return true;
+}
+
 function normalizeFacet(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   const normalized = raw?.trim();
   return normalized ? normalized.slice(0, 120) : null;
+}
+
+function normalizeLeadGrade(value: string | string[] | undefined): FraterniteesLeadScoreSummary["grade"] | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const normalized = raw?.trim();
+  if (
+    normalized === "A" ||
+    normalized === "B" ||
+    normalized === "C" ||
+    normalized === "D" ||
+    normalized === "Unscored"
+  ) {
+    return normalized;
+  }
+
+  return null;
 }
 
 function rowMatchesSearch(row: AccountRow, search: string | null) {
@@ -107,6 +154,88 @@ function rowMatchesFacet(value: string | null, selected: string | null) {
   return (value ?? "").toLowerCase() === selected.toLowerCase();
 }
 
+function readNumberField(fields: Record<string, unknown> | null, key: string) {
+  const value = fields?.[key];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function readStringField(fields: Record<string, unknown> | null, key: string) {
+  const value = fields?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readBooleanField(fields: Record<string, unknown> | null, key: string) {
+  return fields?.[key] === true;
+}
+
+function gradeForScore(score: number | null): FraterniteesLeadScoreSummary["grade"] {
+  if (score === null) {
+    return "Unscored";
+  }
+  if (score >= 85) {
+    return "A";
+  }
+  if (score >= 70) {
+    return "B";
+  }
+  if (score >= 55) {
+    return "C";
+  }
+
+  return "D";
+}
+
+function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
+  const score = readNumberField(fields, "leadScore");
+  const hasFraterniteesScore =
+    score !== null ||
+    readStringField(fields, "leadPriority") !== null ||
+    readNumberField(fields, "closedOrders") !== null ||
+    readNumberField(fields, "lostOrders") !== null;
+
+  if (!hasFraterniteesScore) {
+    return null;
+  }
+
+  return {
+    score,
+    grade: gradeForScore(score),
+    priority: readStringField(fields, "leadPriority"),
+    closeRate: readNumberField(fields, "closeRate"),
+    closedOrders: readNumberField(fields, "closedOrders") ?? 0,
+    lostOrders: readNumberField(fields, "lostOrders") ?? 0,
+    openOrders: readNumberField(fields, "openOrders") ?? 0,
+    medianClosedOrderValue: readNumberField(fields, "medianClosedOrderValue"),
+    averageClosedOrderValue: readNumberField(fields, "averageClosedOrderValue"),
+    maxOrderValue: readNumberField(fields, "maxOrderValue"),
+    ghostOrHardLosses: readNumberField(fields, "ghostOrHardLosses") ?? 0,
+    highTicketVolatility: readBooleanField(fields, "highTicketVolatility"),
+    dncRecommendedUntil: readStringField(fields, "dncRecommendedUntil"),
+    primaryContactName: readStringField(fields, "primaryContactName"),
+    primaryContactEmail: readStringField(fields, "primaryContactEmail"),
+  };
+}
+
+function leadGradeForRow(row: AccountRow): FraterniteesLeadScoreSummary["grade"] {
+  return mapFraterniteesLeadScore(row.custom_fields)?.grade ?? "Unscored";
+}
+
+function isDncFlagged(row: AccountRow) {
+  return (mapFraterniteesLeadScore(row.custom_fields)?.lostOrders ?? 0) >= 3;
+}
+
+function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadScoreSummary["grade"] | null) {
+  return !leadGrade || leadGradeForRow(row) === leadGrade;
+}
+
 function mapPinRow(row: AccountRow): TerritoryAccountPin {
   const daysOverdue = row.custom_fields?.daysOverdue;
 
@@ -126,6 +255,7 @@ function mapPinRow(row: AccountRow): TerritoryAccountPin {
     lastOrderDate: row.last_order_date,
     lastSampleDeliveryDate: row.last_sample_delivery_date,
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
+    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields),
   };
 }
 
@@ -162,27 +292,40 @@ function buildSingleValueFacets(rows: AccountRow[], getValue: (row: AccountRow) 
     .slice(0, 18);
 }
 
-async function fetchGeocodedAccounts(organizationId: string, flag: TerritoryFilterFlag | null) {
-  const params = new URLSearchParams({
-    organization_id: `eq.${organizationId}`,
-    latitude: "not.is.null",
-    longitude: "not.is.null",
-    select:
-      "id,name,display_name,account_status,lead_status,referral_source,vendor_day_status,city,state,latitude,longitude,sales_rep_names,last_contacted_at,last_order_date,last_sample_delivery_date,custom_fields",
-    order: "external_updated_at.desc.nullslast",
-    limit: String(MAX_PIN_ROWS),
-  });
+async function fetchDashboardAccounts(organizationId: string, flag: TerritoryFilterFlag | null, includeUnmapped: boolean) {
+  const rows: AccountRow[] = [];
 
-  if (flag === "missing_referral_source") {
-    params.set("referral_source", "is.null");
+  for (let offset = 0; offset < MAX_DASHBOARD_ACCOUNT_ROWS; offset += DASHBOARD_ACCOUNT_PAGE_SIZE) {
+    const params = new URLSearchParams({
+      organization_id: `eq.${organizationId}`,
+      select:
+        "id,name,display_name,account_status,lead_status,referral_source,vendor_day_status,address_line_1,city,state,postal_code,latitude,longitude,sales_rep_names,last_contacted_at,last_order_date,last_sample_delivery_date,custom_fields",
+      order: "external_updated_at.desc.nullslast",
+      limit: String(DASHBOARD_ACCOUNT_PAGE_SIZE),
+      offset: String(offset),
+    });
+
+    if (!includeUnmapped) {
+      params.set("latitude", "not.is.null");
+      params.set("longitude", "not.is.null");
+    }
+
+    if (flag === "missing_referral_source") {
+      params.set("referral_source", "is.null");
+    }
+
+    if (flag === "missing_sample_delivery") {
+      params.set("last_sample_delivery_date", "is.null");
+    }
+
+    const { data } = await runtimeRestRequest<AccountRow[]>("account", params);
+    rows.push(...data);
+    if (data.length < DASHBOARD_ACCOUNT_PAGE_SIZE) {
+      break;
+    }
   }
 
-  if (flag === "missing_sample_delivery") {
-    params.set("last_sample_delivery_date", "is.null");
-  }
-
-  const { data } = await runtimeRestRequest<AccountRow[]>("account", params);
-  return data;
+  return rows;
 }
 
 export async function getTerritoryRuntimeDashboard(
@@ -201,7 +344,9 @@ export async function getTerritoryRuntimeDashboard(
     status: normalizeFacet(params.status),
     referralSource: normalizeFacet(params.referralSource),
     vendorDayStatus: normalizeFacet(params.vendorDayStatus),
+    leadGrade: normalizeLeadGrade(params.leadGrade),
   };
+  const includeUnmappedAccounts = slug === "fraternitees";
 
   const [accounts, geocodedPins, orders, contacts, territoryBoundaries, territoryMarkers, noReferralSource, noLastSampleDeliveryDate] =
     await Promise.all([
@@ -215,13 +360,17 @@ export async function getTerritoryRuntimeDashboard(
       runtimeExactCount("account", organization.id, { last_sample_delivery_date: "is.null" }),
     ]);
 
-  const geocodedRows = await fetchGeocodedAccounts(organization.id, appliedFilters.flag);
-  const visibleRows = geocodedRows
+  const dashboardRows = await fetchDashboardAccounts(organization.id, appliedFilters.flag, includeUnmappedAccounts);
+  const noAddressAvailable = dashboardRows.filter(isNoAddressAvailable).length;
+  const dncFlagged = dashboardRows.filter(isDncFlagged).length;
+  const visibleRows = dashboardRows
+    .filter((row) => rowMatchesFlag(row, appliedFilters.flag))
     .filter((row) => rowMatchesSearch(row, appliedFilters.search))
     .filter((row) => rowMatchesRep(row, appliedFilters.rep))
     .filter((row) => rowMatchesFacet(row.account_status, appliedFilters.status))
     .filter((row) => rowMatchesFacet(row.referral_source, appliedFilters.referralSource))
-    .filter((row) => rowMatchesFacet(row.vendor_day_status, appliedFilters.vendorDayStatus));
+    .filter((row) => rowMatchesFacet(row.vendor_day_status, appliedFilters.vendorDayStatus))
+    .filter((row) => rowMatchesLeadGrade(row, appliedFilters.leadGrade));
 
   return {
     organization,
@@ -234,12 +383,15 @@ export async function getTerritoryRuntimeDashboard(
       territoryMarkers,
       noReferralSource,
       noLastSampleDeliveryDate,
+      noAddressAvailable,
+      dncFlagged,
     },
-    repFacets: buildRepFacets(geocodedRows),
-    statusFacets: buildSingleValueFacets(geocodedRows, (row) => row.account_status),
-    referralSourceFacets: buildSingleValueFacets(geocodedRows, (row) => row.referral_source),
-    vendorDayFacets: buildSingleValueFacets(geocodedRows, (row) => row.vendor_day_status),
-    pins: visibleRows.slice(0, DISPLAY_PIN_ROWS).map(mapPinRow),
+    repFacets: buildRepFacets(dashboardRows),
+    statusFacets: buildSingleValueFacets(dashboardRows, (row) => row.account_status),
+    referralSourceFacets: buildSingleValueFacets(dashboardRows, (row) => row.referral_source),
+    vendorDayFacets: buildSingleValueFacets(dashboardRows, (row) => row.vendor_day_status),
+    leadGradeFacets: buildSingleValueFacets(dashboardRows, leadGradeForRow),
+    pins: visibleRows.map(mapPinRow),
     appliedFilters,
   };
 }

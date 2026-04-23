@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --background: #f3f0e8;
@@ -47,4 +48,9 @@ a {
 
 ::selection {
   background: rgba(215, 67, 20, 0.18);
+}
+
+.runtime-map-pin {
+  background: transparent;
+  border: 0;
 }

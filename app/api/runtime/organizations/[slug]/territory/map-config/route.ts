@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { findRuntimeOrganization, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
+const DEFAULT_OSM_TILE_URL_TEMPLATE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const DEFAULT_OSM_TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
+
 interface GoogleMapsIntegrationRow {
   config: Record<string, unknown> | null;
 }
@@ -9,6 +12,48 @@ interface GoogleMapsIntegrationRow {
 function readBrowserKeyFromConfig(config: Record<string, unknown> | null) {
   const browserApiKey = config?.browserApiKey;
   return typeof browserApiKey === "string" && browserApiKey.trim() ? browserApiKey.trim() : null;
+}
+
+function readBrowserKeyFromEnvironment(slug: string) {
+  const prefix = slug
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+  const scopedBrowserKey =
+    process.env[`NEXT_PUBLIC_${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`]?.trim() ||
+    process.env[`${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`]?.trim() ||
+    null;
+  if (scopedBrowserKey) {
+    return scopedBrowserKey;
+  }
+
+  if (slug === "picc") {
+    return (
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
+      process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
+      null
+    );
+  }
+
+  return null;
+}
+
+function readOpenStreetMapConfig(settings: Record<string, unknown>) {
+  const mapSettings = typeof settings.map === "object" && settings.map !== null ? (settings.map as Record<string, unknown>) : {};
+  const tileUrlTemplate =
+    typeof mapSettings.tileUrlTemplate === "string" && mapSettings.tileUrlTemplate.trim()
+      ? mapSettings.tileUrlTemplate.trim()
+      : process.env.OPENSTREETMAP_TILE_URL_TEMPLATE?.trim() || DEFAULT_OSM_TILE_URL_TEMPLATE;
+  const tileAttribution =
+    typeof mapSettings.tileAttribution === "string" && mapSettings.tileAttribution.trim()
+      ? mapSettings.tileAttribution.trim()
+      : process.env.OPENSTREETMAP_TILE_ATTRIBUTION?.trim() || DEFAULT_OSM_TILE_ATTRIBUTION;
+
+  return {
+    tileUrlTemplate,
+    tileAttribution,
+  };
 }
 
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
@@ -33,16 +78,18 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
 
   const browserApiKey =
     readBrowserKeyFromConfig(data[0]?.config ?? null) ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-    process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-    null;
+    readBrowserKeyFromEnvironment(organization.slug);
+  const openStreetMapConfig = readOpenStreetMapConfig(organization.settings);
 
   return NextResponse.json(
     {
       ok: true,
-      mapProvider: "google_maps",
+      mapProvider: browserApiKey ? "google_maps" : "openstreetmap",
       browserApiKey,
-      configured: Boolean(browserApiKey),
+      tileUrlTemplate: openStreetMapConfig.tileUrlTemplate,
+      tileAttribution: openStreetMapConfig.tileAttribution,
+      configured: true,
+      upgraded: Boolean(browserApiKey),
     },
     {
       headers: {
