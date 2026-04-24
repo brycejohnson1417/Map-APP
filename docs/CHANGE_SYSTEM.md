@@ -28,9 +28,9 @@ The current goal is simple:
 
 ### Tenant-facing capture flow
 - tenant opens `Comment a request`
-- harness captures the visible screen
-- tenant drags over one or more areas
-- tenant adds a plain-language comment for each marked area
+- page enters a full-viewport locked comment mode rendered above the runtime, so normal buttons and links cannot be clicked accidentally
+- tenant clicks directly on one or more points on the live page
+- tenant adds a plain-language comment for each marked point
 - harness submits one request with an annotated screenshot and notes file
 
 ### Normalized internal fields

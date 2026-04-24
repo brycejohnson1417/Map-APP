@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, MessageSquareText, Paperclip, Plus, SendHorizontal, Trash2, X } from "lucide-react";
+import { CheckCircle2, Loader2, MessageSquareText, Paperclip, SendHorizontal, Trash2, X } from "lucide-react";
 import type { ChangeRequestRecord } from "@/lib/domain/change-request";
 import type { WorkspaceDefinition } from "@/lib/domain/workspace";
 import {
@@ -21,26 +22,11 @@ interface CommentAnnotation {
   id: string;
   x: number;
   y: number;
-  width: number;
-  height: number;
   note: string;
-}
-
-interface DraftRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
-}
-
-function nextFrame() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-  });
 }
 
 async function captureVisibleViewport() {
@@ -100,23 +86,28 @@ async function createAnnotatedScreenshotFile(
   comments.forEach((comment, index) => {
     const x = comment.x * capture.width;
     const y = comment.y * capture.height;
-    const width = comment.width * capture.width;
-    const height = comment.height * capture.height;
 
+    context.beginPath();
+    context.fillStyle = "rgba(226, 71, 47, 0.18)";
+    context.arc(x, y, 28, 0, Math.PI * 2);
+    context.fill();
+
+    context.beginPath();
     context.strokeStyle = "#e2472f";
-    context.lineWidth = 6;
-    context.strokeRect(x, y, width, height);
+    context.lineWidth = 5;
+    context.arc(x, y, 18, 0, Math.PI * 2);
+    context.stroke();
 
     context.fillStyle = "#151923";
     context.beginPath();
-    context.arc(x + 20, y + 20, 18, 0, Math.PI * 2);
+    context.arc(x, y, 16, 0, Math.PI * 2);
     context.fill();
 
     context.fillStyle = "#ffffff";
     context.font = "bold 18px system-ui";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText(String(index + 1), x + 20, y + 20);
+    context.fillText(String(index + 1), x, y + 1);
   });
 
   const blob = await new Promise<Blob | null>((resolve) => {
@@ -144,15 +135,9 @@ function createAnnotationNotesFile(input: {
     input.businessContext.trim() ? `Why it matters: ${input.businessContext.trim()}` : null,
     "",
     "Comments:",
-    ...input.comments.map((comment, index) => {
-      const bounds = [
-        `x=${Math.round(comment.x * 100)}%`,
-        `y=${Math.round(comment.y * 100)}%`,
-        `w=${Math.round(comment.width * 100)}%`,
-        `h=${Math.round(comment.height * 100)}%`,
-      ].join(", ");
-      return `${index + 1}. ${comment.note.trim()} (${bounds})`;
-    }),
+    ...input.comments.map(
+      (comment, index) => `${index + 1}. ${comment.note.trim()} (x=${Math.round(comment.x * 100)}%, y=${Math.round(comment.y * 100)}%)`,
+    ),
   ]
     .filter(Boolean)
     .join("\n");
@@ -160,18 +145,28 @@ function createAnnotationNotesFile(input: {
   return new File([lines], "request-notes.txt", { type: "text/plain" });
 }
 
-function annotationStyle(annotation: DraftRect | CommentAnnotation) {
+function commentMarkerStyle(comment: CommentAnnotation) {
   return {
-    left: `${annotation.x * 100}%`,
-    top: `${annotation.y * 100}%`,
-    width: `${annotation.width * 100}%`,
-    height: `${annotation.height * 100}%`,
+    left: `${comment.x * 100}%`,
+    top: `${comment.y * 100}%`,
+    transform: "translate(-50%, -50%)",
   };
 }
 
-function drawPoint(event: React.MouseEvent<HTMLElement>, rect: DOMRect) {
-  const x = Math.max(0, Math.min(event.clientX - rect.left, rect.width));
-  const y = Math.max(0, Math.min(event.clientY - rect.top, rect.height));
+function commentComposerStyle(comment: CommentAnnotation) {
+  const alignRight = comment.x > 0.72;
+  const alignBottom = comment.y > 0.7;
+
+  return {
+    left: `${comment.x * 100}%`,
+    top: `${comment.y * 100}%`,
+    transform: `translate(${alignRight ? "-100%" : "0"}, ${alignBottom ? "-100%" : "0"}) translate(${alignRight ? "-18px" : "18px"}, ${alignBottom ? "-18px" : "18px"})`,
+  };
+}
+
+function normalizePoint(clientX: number, clientY: number, rect: DOMRect) {
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
   return {
     x: rect.width ? x / rect.width : 0,
     y: rect.height ? y / rect.height : 0,
@@ -194,21 +189,28 @@ export function ChangeRequestCaptureLauncher({
   const searchParams = useSearchParams();
   const surfaceContext = useMemo(() => inferChangeRequestSurface(pathname), [pathname]);
 
-  const [capture, setCapture] = useState<CaptureSnapshot | null>(null);
-  const [capturing, setCapturing] = useState(false);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState("");
   const [businessContext, setBusinessContext] = useState("");
   const [comments, setComments] = useState<CommentAnnotation[]>([]);
-  const [draftRect, setDraftRect] = useState<DraftRect | null>(null);
-  const [drawing, setDrawing] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const drawStartRef = useRef<{ x: number; y: number } | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!notice) {
@@ -223,105 +225,43 @@ export function ChangeRequestCaptureLauncher({
     setSummary("");
     setBusinessContext("");
     setComments([]);
-    setDraftRect(null);
-    setDrawing(false);
     setActiveCommentId(null);
     setError(null);
   }, []);
 
-  const openCaptureStudio = useCallback(async () => {
-    setError(null);
+  const openCaptureStudio = useCallback(() => {
     setNotice(null);
-    setCapturing(true);
-    setOpen(false);
+    setError(null);
     resetState();
-
-    try {
-      await nextFrame();
-      await nextFrame();
-      const snapshot = await captureVisibleViewport();
-      setCapture(snapshot);
-      setOpen(true);
-      setDrawing(true);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to capture this page right now.");
-      setCapture(null);
-    } finally {
-      setCapturing(false);
-    }
+    setOpen(true);
   }, [resetState]);
 
   useEffect(() => {
     const handler = () => {
-      void openCaptureStudio();
+      openCaptureStudio();
     };
 
     window.addEventListener(CHANGE_REQUEST_CAPTURE_EVENT, handler);
     return () => window.removeEventListener(CHANGE_REQUEST_CAPTURE_EVENT, handler);
   }, [openCaptureStudio]);
 
-  function closeModal() {
+  function closeMode() {
     setOpen(false);
-    setDraftRect(null);
-    setDrawing(false);
     setError(null);
+    resetState();
   }
 
-  function beginSelection(event: React.MouseEvent<HTMLDivElement>) {
-    if (event.button !== 0 || !drawing || !imageRef.current) {
+  function addCommentAt(clientX: number, clientY: number) {
+    if (!canvasRef.current) {
       return;
     }
 
-    const rect = imageRef.current.getBoundingClientRect();
-    const start = drawPoint(event, rect);
-    drawStartRef.current = start;
-    setDraftRect({
-      x: start.x,
-      y: start.y,
-      width: 0,
-      height: 0,
-    });
-  }
-
-  function updateSelection(event: React.MouseEvent<HTMLDivElement>) {
-    if (!drawing || !imageRef.current || !drawStartRef.current) {
-      return;
-    }
-
-    const rect = imageRef.current.getBoundingClientRect();
-    const current = drawPoint(event, rect);
-    const start = drawStartRef.current;
-    setDraftRect({
-      x: Math.min(start.x, current.x),
-      y: Math.min(start.y, current.y),
-      width: Math.abs(current.x - start.x),
-      height: Math.abs(current.y - start.y),
-    });
-  }
-
-  function finishSelection() {
-    if (!drawStartRef.current || !draftRect) {
-      return;
-    }
-
-    drawStartRef.current = null;
-    if (draftRect.width < 0.03 || draftRect.height < 0.03) {
-      setDraftRect(null);
-      return;
-    }
-
+    const rect = canvasRef.current.getBoundingClientRect();
+    const point = normalizePoint(clientX, clientY, rect);
     const id = crypto.randomUUID();
-    setComments((current) => [
-      ...current,
-      {
-        id,
-        ...draftRect,
-        note: "",
-      },
-    ]);
+    setComments((current) => [...current, { id, ...point, note: "" }]);
     setActiveCommentId(id);
-    setDraftRect(null);
-    setDrawing(false);
+    setError(null);
   }
 
   function updateComment(id: string, note: string) {
@@ -337,13 +277,13 @@ export function ChangeRequestCaptureLauncher({
 
   async function submitRequest() {
     const completedComments = comments.filter((comment) => comment.note.trim());
-    if (!capture || !completedComments.length) {
-      setError("Add at least one marked comment before you submit.");
+    if (!completedComments.length) {
+      setError("Add at least one comment before you submit.");
       return;
     }
 
     if (completedComments.length !== comments.length) {
-      setError("Every marked area needs a comment before you submit.");
+      setError("Every comment needs text before you submit.");
       return;
     }
 
@@ -358,13 +298,13 @@ export function ChangeRequestCaptureLauncher({
         commentCount: completedComments.length,
       });
       const problem = [
-        `Annotated request from the ${surfaceContext.label}.`,
-        "Marked comments:",
+        `On-screen comments from the ${surfaceContext.label}.`,
+        "Comments:",
         ...completedComments.map((comment, index) => `${index + 1}. ${comment.note.trim()}`),
       ].join("\n");
       const requestedOutcome =
         summary.trim() || `Implement the numbered comments shown on the attached screenshot of the ${surfaceContext.label}.`;
-      const acceptanceCriteria = `The affected ${surfaceContext.label} matches the numbered comments on the attached screenshot.`;
+      const acceptanceCriteria = `The affected ${surfaceContext.label} matches the numbered comments shown on the attached screenshot.`;
 
       const formData = new FormData();
       formData.set("title", title);
@@ -373,12 +313,13 @@ export function ChangeRequestCaptureLauncher({
       formData.set("requestedOutcome", requestedOutcome);
       formData.set(
         "businessContext",
-        businessContext.trim() || `Submitted from the ${surfaceContext.label} with annotated on-screen comments.`,
+        businessContext.trim() || `Submitted from the ${surfaceContext.label} using the inline comment mode.`,
       );
       formData.set("acceptanceCriteria", acceptanceCriteria);
       formData.set("currentUrl", currentUrl);
 
       if (workspace.changeRequests.allowAttachments) {
+        const capture = await captureVisibleViewport();
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const screenshotFile = await createAnnotatedScreenshotFile(
           capture,
@@ -409,7 +350,7 @@ export function ChangeRequestCaptureLauncher({
 
       onCreated?.(payload.request);
       setNotice("Request added to the queue.");
-      closeModal();
+      setOpen(false);
       resetState();
       router.refresh();
     } catch (caught) {
@@ -419,224 +360,235 @@ export function ChangeRequestCaptureLauncher({
     }
   }
 
+  const activeComment = comments.find((comment) => comment.id === activeCommentId) ?? null;
+  const overlay =
+    open && typeof document !== "undefined" ? (
+      <div
+        data-change-request-ui="true"
+        className="fixed inset-0 z-[140] bg-[rgba(15,23,42,0.14)] backdrop-blur-[1px]"
+      >
+        <div className="absolute inset-x-0 top-0 z-[2] border-b border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl md:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(36,103,221,0.12)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#2467dd]">
+                <MessageSquareText className="h-3.5 w-3.5" />
+                Commenting
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                Click anywhere on the screen to leave a comment. The page is locked until you discard or submit this request.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-sm font-semibold text-[var(--text-secondary)]">
+                {comments.length} comment{comments.length === 1 ? "" : "s"}
+              </div>
+              <button
+                type="button"
+                onClick={closeMode}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]"
+              >
+                <X className="h-4 w-4" />
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitRequest()}
+                disabled={submitting}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ color: "#fff" }}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+                Submit change request
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 pt-[96px] md:pt-[88px]">
+          <div
+            ref={canvasRef}
+            className="absolute inset-0 cursor-crosshair"
+            onClick={(event) => addCommentAt(event.clientX, event.clientY)}
+          >
+            {comments.map((comment, index) => (
+              <button
+                key={comment.id}
+                type="button"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveCommentId(comment.id);
+                }}
+                className={classNames(
+                  "absolute inline-flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-[#e2472f] bg-[#151923] text-sm font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition",
+                  activeCommentId === comment.id && "ring-4 ring-[rgba(226,71,47,0.18)]",
+                )}
+                style={commentMarkerStyle(comment)}
+                aria-label={`Edit comment ${index + 1}`}
+              >
+                {index + 1}
+              </button>
+            ))}
+
+            {activeComment ? (
+              <div
+                className="absolute z-[3] w-[min(360px,calc(100vw-2rem))] rounded-[1.5rem] border border-[rgba(21,25,35,0.12)] bg-[rgba(21,25,35,0.96)] p-4 text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)]"
+                style={commentComposerStyle(activeComment)}
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold">Comment {comments.findIndex((comment) => comment.id === activeComment.id) + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeComment(activeComment.id)}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-[#ffb3a7]"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                </div>
+                <textarea
+                  rows={4}
+                  autoFocus
+                  value={activeComment.note}
+                  onChange={(event) => updateComment(activeComment.id, event.target.value)}
+                  placeholder="Add a comment about what should change here."
+                  className="mt-3 w-full rounded-xl border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.08)] px-4 py-3 text-sm font-medium text-white outline-none placeholder:text-[rgba(255,255,255,0.56)]"
+                />
+              </div>
+            ) : null}
+
+            {!comments.length ? (
+              <div className="pointer-events-none absolute left-6 top-6 rounded-full bg-[rgba(21,25,35,0.78)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)]">
+                Click anywhere to add the first comment.
+              </div>
+            ) : null}
+          </div>
+
+          <section
+            className="absolute inset-x-3 bottom-3 z-[4] max-h-[44vh] overflow-hidden rounded-[1.75rem] border border-[rgba(21,25,35,0.1)] bg-[rgba(255,255,255,0.96)] shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl md:inset-x-auto md:left-6 md:w-[min(420px,calc(100vw-3rem))] md:max-h-[420px]"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Request details</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                  Leave comments on the page, then submit when the markup matches what you want changed.
+                </p>
+              </div>
+              <div className="shrink-0 rounded-full bg-[var(--surface-elevated)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                {comments.length} note{comments.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(44vh-78px)] space-y-4 overflow-auto px-5 py-5 md:max-h-[342px]">
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                  Overall request (optional)
+                </span>
+                <textarea
+                  rows={2}
+                  value={summary}
+                  onChange={(event) => setSummary(event.target.value)}
+                  placeholder="Example: make this section easier to scan during calls."
+                  className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                  Why it matters? (optional)
+                </span>
+                <textarea
+                  rows={2}
+                  value={businessContext}
+                  onChange={(event) => setBusinessContext(event.target.value)}
+                  placeholder="Example: this needs to be clearer for reps while they are live with a customer."
+                  className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                />
+              </label>
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Comments on this page</p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {comments.length ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : "No comments yet"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {comments.map((comment, index) => (
+                    <button
+                      key={comment.id}
+                      type="button"
+                      onClick={() => setActiveCommentId(comment.id)}
+                      className={classNames(
+                        "block w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-left transition",
+                        activeCommentId === comment.id && "border-[#151923] shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#151923] text-sm font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">Comment {index + 1}</p>
+                          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                            {comment.note.trim() || "No text yet"}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+
+                  {!comments.length ? (
+                    <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                      Click anywhere on the page to add the first comment.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {workspace.changeRequests.allowAttachments ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                  <Paperclip className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    The harness will attach an annotated screenshot and a notes file automatically when you submit.
+                  </p>
+                </div>
+              ) : null}
+
+              {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
+            </div>
+          </section>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <>
       <div data-change-request-ui="true" className="shrink-0">
         <button
           type="button"
-          onClick={() => void openCaptureStudio()}
-          disabled={capturing}
+          onClick={openCaptureStudio}
+          disabled={open || submitting}
           className={classNames(
-            "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-elevated)] disabled:opacity-60",
+            "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-elevated)] disabled:cursor-not-allowed disabled:opacity-60",
             compact && "px-3 py-2 text-xs",
           )}
         >
-          {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquareText className="h-4 w-4" />}
-          {compact ? "Comment" : "Comment a request"}
+          {open ? <CheckCircle2 className="h-4 w-4" /> : <MessageSquareText className="h-4 w-4" />}
+          {open ? "Commenting" : compact ? "Comment" : "Comment a request"}
         </button>
         {notice ? (
           <p className="mt-2 text-right text-xs font-semibold text-[var(--accent-success)]">{notice}</p>
         ) : null}
       </div>
-
-      {open && capture ? (
-        <div
-          data-change-request-ui="true"
-          className="fixed inset-0 z-[120] flex bg-[rgba(15,23,42,0.72)] p-4 backdrop-blur-sm md:p-6"
-        >
-          <div className="flex h-full w-full flex-col overflow-hidden rounded-[1.75rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[0_28px_90px_rgba(15,23,42,0.35)] xl:flex-row">
-            <div className="flex min-w-0 flex-1 flex-col border-b border-[var(--border-subtle)] xl:border-b-0 xl:border-r">
-              <div className="flex items-center justify-between gap-4 border-b border-[var(--border-subtle)] px-5 py-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Comment a request</p>
-                  <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Mark the screen and explain it in plain language.</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-secondary)]"
-                  aria-label="Close comment capture"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex items-center gap-3 border-b border-[var(--border-subtle)] px-5 py-3 text-sm text-[var(--text-secondary)]">
-                <span className="rounded-full bg-[var(--surface-elevated)] px-3 py-1.5 font-semibold capitalize">{surfaceContext.label}</span>
-                <span>
-                  Click and drag over the screenshot, then write what should change in each marked area.
-                </span>
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto bg-[var(--surface-elevated)] p-4 md:p-6">
-                <div
-                  className={classNames(
-                    "relative mx-auto w-full max-w-5xl overflow-hidden rounded-[1.25rem] border border-[var(--border-subtle)] bg-white shadow-[var(--shadow-soft)]",
-                    drawing && "cursor-crosshair",
-                  )}
-                  onMouseDown={beginSelection}
-                  onMouseMove={updateSelection}
-                  onMouseUp={finishSelection}
-                >
-                  <img
-                    ref={imageRef}
-                    src={capture.dataUrl}
-                    alt="Captured page for change request"
-                    className="block h-auto w-full select-none"
-                    draggable={false}
-                  />
-                  {comments.map((comment, index) => (
-                    <button
-                      key={comment.id}
-                      type="button"
-                      onMouseDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActiveCommentId(comment.id);
-                        setDrawing(false);
-                      }}
-                      className={classNames(
-                        "absolute border-[3px] border-[#e2472f] bg-[rgba(226,71,47,0.12)] text-left transition",
-                        activeCommentId === comment.id && "ring-2 ring-[#151923]",
-                      )}
-                      style={annotationStyle(comment)}
-                    >
-                      <span className="absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#151923] text-sm font-semibold text-white">
-                        {index + 1}
-                      </span>
-                    </button>
-                  ))}
-                  {draftRect ? (
-                    <div
-                      className="pointer-events-none absolute border-[3px] border-dashed border-[#e2472f] bg-[rgba(226,71,47,0.12)]"
-                      style={annotationStyle(draftRect)}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <aside className="flex w-full shrink-0 flex-col xl:w-[430px]">
-              <div className="border-b border-[var(--border-subtle)] px-5 py-4">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Request summary</p>
-                <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                  Add an overall note if you want, then leave one comment for each marked area.
-                </p>
-              </div>
-              <div className="min-h-0 flex-1 space-y-4 overflow-auto px-5 py-5">
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">What should change overall? (optional)</span>
-                  <textarea
-                    rows={3}
-                    value={summary}
-                    onChange={(event) => setSummary(event.target.value)}
-                    placeholder="Example: make the score filters easier to use and show the trend more clearly."
-                    className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">Why does this matter? (optional)</span>
-                  <textarea
-                    rows={3}
-                    value={businessContext}
-                    onChange={(event) => setBusinessContext(event.target.value)}
-                    placeholder="Example: reps need to understand this in one glance during calls."
-                    className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                  />
-                </label>
-
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">Screen comments</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {comments.length ? `${comments.length} marked area${comments.length === 1 ? "" : "s"}` : "No marked areas yet"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDrawing(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add comment
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {comments.map((comment, index) => (
-                    <div
-                      key={comment.id}
-                      className={classNames(
-                        "rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4",
-                        activeCommentId === comment.id && "border-[#151923]",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setActiveCommentId(comment.id)}
-                          className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]"
-                        >
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#151923] text-white">
-                            {index + 1}
-                          </span>
-                          Comment {index + 1}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeComment(comment.id)}
-                          className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent-danger)]"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Remove
-                        </button>
-                      </div>
-                      <textarea
-                        rows={4}
-                        value={comment.note}
-                        onChange={(event) => updateComment(comment.id, event.target.value)}
-                        placeholder="What should change in this marked area?"
-                        className="mt-3 w-full rounded-xl border border-[var(--border-subtle)] bg-white px-4 py-3 text-sm font-medium outline-none"
-                      />
-                    </div>
-                  ))}
-                  {!comments.length ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                      Mark the screen first, then add a short comment for each highlighted area.
-                    </div>
-                  ) : null}
-                </div>
-
-                {workspace.changeRequests.allowAttachments ? (
-                  <div className="flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                    <Paperclip className="mt-0.5 h-4 w-4 shrink-0" />
-                    <p>
-                      The harness will attach an annotated screenshot and a notes file automatically so the queue keeps the visual context.
-                    </p>
-                  </div>
-                ) : null}
-
-                {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] px-5 py-4">
-                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <CheckCircle2 className="h-4 w-4 text-[var(--accent-success)]" />
-                  Auto-classified and queued after submit
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void submitRequest()}
-                  disabled={submitting || capturing}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ color: "#fff" }}
-                >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-                  Submit request
-                </button>
-              </div>
-            </aside>
-          </div>
-        </div>
-      ) : null}
+      {overlay ? createPortal(overlay, document.body) : null}
     </>
   );
 }

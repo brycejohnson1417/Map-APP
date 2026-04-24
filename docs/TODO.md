@@ -57,7 +57,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 
 - [ ] add targeted tests around FraterniTees scoring and trend logic
 - [ ] add browser/runtime verification for tenant-specific account list flows
-- [ ] add browser verification for authenticated screen-comment capture flows
+- [x] add browser verification for authenticated screen-comment capture flows
 - [ ] keep the docs and backlog aligned after every major slice
 - [ ] record what each tenant slice made more reusable
 
