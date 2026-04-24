@@ -11,6 +11,15 @@ import connectorOnboardingManifest from "@/packages/connector-onboarding-kit/man
 import type { Organization } from "@/lib/domain/runtime";
 import type { PackageManifest, WorkspaceDefinition, WorkspaceTemplateSummary } from "@/lib/domain/workspace";
 
+const CHANGE_REQUEST_PACKAGE_ID = "change-request-kit";
+const CHANGE_REQUEST_NAV_ID = "change_requests";
+const CHANGE_REQUEST_NAV_ITEM: WorkspaceDefinition["navigation"][number] = {
+  id: CHANGE_REQUEST_NAV_ID,
+  label: "Change Requests",
+  href: "/change-requests",
+  icon: "MessagesSquare",
+};
+
 const fraterniteesWorkspaceDefinition = fraterniteesWorkspace as WorkspaceDefinition;
 const piccWorkspaceDefinition = piccWorkspace as WorkspaceDefinition;
 const starterWorkspaceDefinition = starterWorkspace as WorkspaceDefinition;
@@ -67,6 +76,30 @@ function deepMerge<T extends object>(base: T, override: Record<string, unknown> 
   }
 
   return output as T;
+}
+
+function normalizeChangeRequestSupport(workspace: WorkspaceDefinition): WorkspaceDefinition {
+  const normalized = structuredClone(workspace);
+
+  if (!normalized.packages.includes(CHANGE_REQUEST_PACKAGE_ID)) {
+    normalized.packages = [...normalized.packages, CHANGE_REQUEST_PACKAGE_ID];
+  }
+
+  if (!normalized.navigation.some((item) => item.id === CHANGE_REQUEST_NAV_ID || item.href === CHANGE_REQUEST_NAV_ITEM.href)) {
+    normalized.navigation = [...normalized.navigation, CHANGE_REQUEST_NAV_ITEM];
+  }
+
+  normalized.changeRequests = {
+    enabled: true,
+    defaultClassification: normalized.changeRequests?.defaultClassification ?? "config",
+    classifications:
+      normalized.changeRequests?.classifications?.length
+        ? normalized.changeRequests.classifications
+        : ["config", "package", "primitive", "core"],
+    allowAttachments: normalized.changeRequests?.allowAttachments ?? true,
+  };
+
+  return normalized;
 }
 
 export function listWorkspaceTemplates(): WorkspaceTemplateSummary[] {
@@ -128,7 +161,7 @@ export function compileWorkspaceDefinition(input: {
       ? ((input.organization.settings.workspace as Record<string, unknown>).overrides as Record<string, unknown> | undefined)
       : undefined;
 
-  const compiled = deepMerge<WorkspaceDefinition>(baseWorkspace, overrides);
+  const compiled = normalizeChangeRequestSupport(deepMerge<WorkspaceDefinition>(baseWorkspace, overrides));
 
   for (const packageId of compiled.packages) {
     if (!packageManifestById.has(packageId)) {

@@ -42,6 +42,7 @@ The repo already has:
 - reusable shared shells for territory/accounts/detail
 - first workspace manifests and package manifests wired into runtime navigation
 - first change-request persistence layer, attachment storage path, and screen-comment intake flow
+- workspace compiler normalization that forces the change-request package, nav item, and enabled flag on for every tenant workspace
 - full-viewport locked comment mode rendered above the live runtime so on-screen comment capture can safely intercept page clicks
 - comment-mode chrome compacted so the live page stays visible during desktop and mobile annotation
 - change-request submission now degrades cleanly when browser screenshot capture hits unsupported CSS color formats

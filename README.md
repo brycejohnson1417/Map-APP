@@ -62,6 +62,7 @@ That is the main architectural work now.
 - user-facing surfaces read local runtime data, not live provider payloads
 - provider credentials are organization-scoped and encrypted
 - tenant-facing provider resolution must never fall back to shared/global paid API keys
+- change requests are a core tenant capability and are normalized on for every compiled workspace, not a per-template optional feature
 - shared multi-tenant is the default topology today
 - tenant-specific behavior should move toward workspace config, packages, and read-model compilation rather than shared-code branching
 

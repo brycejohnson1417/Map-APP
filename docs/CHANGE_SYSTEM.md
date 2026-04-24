@@ -16,6 +16,7 @@ The current goal is simple:
 ### Surface
 - `/change-requests?org=<slug>`
 - header-level `Comment a request` launcher on authenticated tenant pages
+- workspace compiler normalization keeps the change-request package, navigation item, and enabled flag present for every tenant workspace, even if a future template forgets to declare them
 
 ### Persistence
 - `public.change_request`
