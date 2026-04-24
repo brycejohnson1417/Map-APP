@@ -1714,7 +1714,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                           <button type="button" className="min-w-0 flex-1 truncate text-left font-semibold" onClick={() => focusPin(pin)}>
                             {pin.name}
                           </button>
-                          <button type="button" onClick={() => toggleRouteStop(pin.id)}>
+                          <button type="button" onClick={() => toggleRouteStop(pin.id)} aria-label="Remove route stop">
                             <X className="h-4 w-4 text-[var(--text-tertiary)]" />
                           </button>
                         </div>
@@ -1736,7 +1736,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 text-sm font-semibold shadow-[var(--shadow-soft)]">
           <div className="flex items-center justify-between gap-4">
             <span>{notice}</span>
-            <button type="button" onClick={() => setNotice(null)}>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss notice">
               <X className="h-4 w-4" />
             </button>
           </div>
