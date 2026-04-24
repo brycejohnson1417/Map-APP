@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, MapPin, Search, Users } from "lucide-react";
 import { FraterniteesLeadQualificationModule } from "@/components/accounts/fraternitees-lead-qualification-module";
+import { getFraterniteesAccountDirectory } from "@/lib/application/fraternitees/account-directory-service";
 import { AppFrame } from "@/components/layout/app-frame";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
 import { defaultOrgSlug, firstParamValue, orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
@@ -18,12 +19,14 @@ function formatNumber(value: number) {
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
-  const dashboard = await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
+  const fraterniteesDirectory =
+    orgSlug === "fraternitees" ? await getFraterniteesAccountDirectory(orgSlug, resolvedSearchParams) : null;
+  const dashboard =
+    orgSlug === "fraternitees" ? null : await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
   const query = firstParamValue(resolvedSearchParams.q) ?? "";
-  const gradeFilter = firstParamValue(resolvedSearchParams.grade) ?? "All Grades";
-  const dncFilter = firstParamValue(resolvedSearchParams.dnc) === "1";
-  const sortBy = firstParamValue(resolvedSearchParams.sort) ?? "score";
-  const organizationName = dashboard?.organization.name ?? process.env.ORG_NAME?.trim() ?? "PICC";
+  const organizationName =
+    fraterniteesDirectory?.organization.name ?? dashboard?.organization.name ?? process.env.ORG_NAME?.trim() ?? "PICC";
+  const hasWorkspace = orgSlug === "fraternitees" ? Boolean(fraterniteesDirectory) : Boolean(dashboard);
 
   return (
     <AppFrame organizationName={organizationName} organizationSlug={orgSlug}>
@@ -46,19 +49,18 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
           </Link>
         </header>
 
-        {dashboard ? (
+        {hasWorkspace ? (
           orgSlug === "fraternitees" ? (
             <FraterniteesLeadQualificationModule
               orgSlug={orgSlug}
-              accounts={dashboard.pins}
-              counts={dashboard.counts}
-              query={query}
-              gradeFilter={gradeFilter}
-              dncFilter={dncFilter}
-              sortBy={sortBy}
+              directory={fraterniteesDirectory!}
             />
           ) : (
-            <>
+            (() => {
+              const runtimeDashboard = dashboard!;
+
+              return (
+                <>
               <form className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 sm:flex-row">
                 {orgSlug !== defaultOrgSlug() ? <input type="hidden" name="org" value={orgSlug} /> : null}
                 <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
@@ -82,15 +84,15 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
               <section className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Accounts</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.accounts)}</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.accounts)}</p>
                 </div>
                 <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Visible rows</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.pins.length)}</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.pins.length)}</p>
                 </div>
                 <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Orders</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(dashboard.counts.orders)}</p>
+                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.orders)}</p>
                 </div>
               </section>
 
@@ -102,7 +104,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                   </div>
                 </div>
                 <div className="divide-y divide-[var(--border-subtle)]">
-                  {dashboard.pins.map((pin) => (
+                  {runtimeDashboard.pins.map((pin) => (
                     <Link
                       key={pin.id}
                       href={orgScopedHref(`/accounts/${pin.id}`, orgSlug)}
@@ -122,10 +124,12 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
                       </span>
                     </Link>
                   ))}
-                  {!dashboard.pins.length ? <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div> : null}
+                  {!runtimeDashboard.pins.length ? <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div> : null}
                 </div>
               </section>
-            </>
+                </>
+              );
+            })()
           )
         ) : (
           <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)]">

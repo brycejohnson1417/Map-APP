@@ -339,21 +339,18 @@ export function gradeFraterniteesLead(input: FraterniteesGradeInput): Fraternite
   }
 
   if (
-    input.score >= 92 &&
+    input.score >= 90 &&
     normalizedCloseRate >= 0.8 &&
-    input.closedOrders >= 6 &&
-    input.closedRevenue >= 12_000 &&
-    input.monthsWithClosedOrdersLast12 >= 4 &&
+    input.closedOrders >= 5 &&
     input.lostOrders <= 1
   ) {
     return "A+";
   }
 
   if (
-    input.score >= 84 &&
+    input.score >= 82 &&
     normalizedCloseRate >= 0.65 &&
-    input.closedOrders >= 3 &&
-    input.closedRevenue >= 4_000
+    input.closedOrders >= 3
   ) {
     return "A";
   }
@@ -362,11 +359,11 @@ export function gradeFraterniteesLead(input: FraterniteesGradeInput): Fraternite
     return "B";
   }
 
-  if (input.score >= 60) {
+  if (input.score >= 58) {
     return "C";
   }
 
-  if (input.score >= 46) {
+  if (input.score >= 45) {
     return "D";
   }
 

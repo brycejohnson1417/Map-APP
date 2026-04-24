@@ -260,6 +260,61 @@ export interface TerritoryOverlayRuntime {
   markers: TerritoryMarkerRuntime[];
 }
 
+export interface FraterniteesAccountDirectoryItem {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  primaryContactName: string | null;
+  primaryContactEmail: string | null;
+  leadPriority: string | null;
+  leadScore: number | null;
+  leadGrade: FraterniteesLeadGrade;
+  closeRate: number | null;
+  closedOrders: number;
+  lostOrders: number;
+  openOrders: number;
+  totalOrders: number;
+  totalOpportunities: number;
+  closedRevenue: number | null;
+  averageClosedOrderValue: number | null;
+  medianClosedOrderValue: number | null;
+  dncFlagged: boolean;
+  lastOrderDate: string | null;
+}
+
+export interface FraterniteesAccountDirectorySummary {
+  accounts: number;
+  scoredAccounts: number;
+  avgScoreNonDnc: number | null;
+  dncFlaggedAccounts: number;
+  orders: number;
+}
+
+export interface FraterniteesAccountDirectoryPage {
+  organization: Organization;
+  summary: FraterniteesAccountDirectorySummary;
+  items: FraterniteesAccountDirectoryItem[];
+  filters: {
+    query: string;
+    grade: FraterniteesLeadGrade | "All Grades";
+    dncOnly: boolean;
+    sort: "score" | "close_rate" | "order_count";
+    page: number;
+    pageSize: number;
+  };
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+    startItem: number;
+    endItem: number;
+  };
+}
+
 export interface AccountIdentity {
   id: string;
   provider: ExternalProvider;
