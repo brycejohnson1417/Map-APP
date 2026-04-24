@@ -15,7 +15,7 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 - accounts directory
 - account detail page
 - integrations/plugins surface
-- change-request queue surface
+- change-request queue surface with screen-comment capture
 - runtime health, sync jobs, and supporting APIs
 
 ### Tenant-specific workflows
@@ -41,7 +41,7 @@ The repo already has:
 - differentiated tenant workflows
 - reusable shared shells for territory/accounts/detail
 - first workspace manifests and package manifests wired into runtime navigation
-- first change-request persistence layer and attachment storage path
+- first change-request persistence layer, attachment storage path, and screen-comment intake flow
 - generic tenant-session cookies and template-aware onboarding instead of shared runtime paths hardcoding PICC/FraterniTees session cookies
 - workspace-driven account-detail copy and territory color/filter behavior
 - workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules
@@ -66,7 +66,7 @@ If that does not happen, onboarding future tenants will stay founder-driven.
 
 1. document the platform truth clearly
 2. keep moving tenant behavior from shared branching into workspace/package config
-3. strengthen the new onboarding and change-request systems
+3. strengthen the new onboarding and screenshot-first change-request systems
 4. keep current tenants moving
 5. build the next layer of safe adaptation and compiled read models
 

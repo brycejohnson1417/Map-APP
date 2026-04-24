@@ -43,11 +43,11 @@ export default async function ChangeRequestsPage({ searchParams }: ChangeRequest
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--accent-secondary-strong)]">Change requests</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">{workspace.organization.name} change queue</h1>
           <p className="mt-3 max-w-3xl text-base leading-8 text-[var(--text-secondary)]">
-            Capture tenant changes with context, attachments, and an initial classification so the queue is ready for implementation or review.
+            Leave comments directly on the screen you want changed. The queue keeps the screenshot and your notes together so the work can be picked up cleanly without a long back-and-forth.
           </p>
         </header>
 
-        <ChangeRequestList orgSlug={orgSlug} workspace={workspace.workspace} initialRequests={requests} />
+        <ChangeRequestList initialRequests={requests} />
       </div>
     </AppFrame>
   );

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { BarChart3, Building2, Home, MapPinned, MessagesSquare, Route, Settings2, Users } from "lucide-react";
 import type { ReactNode } from "react";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { ChangeRequestCaptureLauncher } from "@/components/change-requests/change-request-capture-launcher";
 import { defaultOrgSlug, orgScopedHref } from "@/lib/presentation/org-slug";
 
 const navigationIcons = {
@@ -38,6 +40,8 @@ export async function AppFrame({
     href: item.href.startsWith("/runtime/") ? item.href : orgScopedHref(item.href, activeOrganizationSlug),
     icon: navigationIcons[item.icon as keyof typeof navigationIcons] ?? Home,
   }));
+  const tenantSessionEmail =
+    workspace.allowChangeRequests && workspace.organization ? await getTenantSessionEmailForSlug(activeOrganizationSlug) : null;
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
@@ -70,6 +74,9 @@ export async function AppFrame({
                 );
               })}
             </nav>
+            {workspace.allowChangeRequests && workspace.organization && tenantSessionEmail ? (
+              <ChangeRequestCaptureLauncher orgSlug={activeOrganizationSlug} workspace={workspace.workspace} compact />
+            ) : null}
           </div>
         </header>
         <main className="flex-1">{children}</main>

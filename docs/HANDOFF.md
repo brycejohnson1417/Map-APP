@@ -35,7 +35,7 @@ PICC and FraterniTees are current tenants. They are not the product identity.
 - shared runtime, accounts, and territory surfaces are live
 - current tenants already use differentiated workflows
 - the repo is mid-extraction from tenant-specific behavior toward primitives/packages/workspace config
-- onboarding and change-request control-plane surfaces now exist in the product
+- onboarding and screenshot-first change-request control-plane surfaces now exist in the product
 - documentation is now part of the product surface and must stay current
 
 ## Working rules

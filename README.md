@@ -35,7 +35,7 @@ The repo already contains working product surfaces, not just scaffolding:
 - runtime-backed territory map and accounts surfaces
 - shared account detail page
 - workspace-driven navigation and integration surfaces
-- in-app change-request queue with classification and attachments
+- in-app screen-comment change capture with annotated screenshots and queue visibility
 - PICC-specific PPP savings and mock-order proposal workflows
 - FraterniTees-specific Printavo onboarding, sync, lead scoring, and map/account experiences
 - first-class workspace/package manifests under `tenants/` and `packages/`

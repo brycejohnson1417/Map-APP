@@ -6,15 +6,16 @@ The change system moves tenant requests out of ad hoc founder support and into a
 
 The current goal is simple:
 
-- capture tenant intent in the app
-- preserve the context needed to implement it
-- classify the work into a reusable bucket
+- let nontechnical tenants comment directly on the screen they mean
+- preserve the screenshot and marked context needed to implement it
+- normalize that request into structured fields internally
 - create a queue that humans and future automation can attack cleanly
 
 ## Current shipped path
 
 ### Surface
 - `/change-requests?org=<slug>`
+- header-level `Comment a request` launcher on authenticated tenant pages
 
 ### Persistence
 - `public.change_request`
@@ -25,7 +26,16 @@ The current goal is simple:
 - `GET /api/runtime/organizations/[slug]/change-requests`
 - `POST /api/runtime/organizations/[slug]/change-requests`
 
-### Current request fields
+### Tenant-facing capture flow
+- tenant opens `Comment a request`
+- harness captures the visible screen
+- tenant drags over one or more areas
+- tenant adds a plain-language comment for each marked area
+- harness submits one request with an annotated screenshot and notes file
+
+### Normalized internal fields
+The UI no longer asks tenants to fill these in directly, but the harness still stores:
+
 - title
 - current URL
 - surface
@@ -33,7 +43,6 @@ The current goal is simple:
 - requested outcome
 - business context
 - acceptance criteria
-- optional classification override
 - optional attachments
 
 ## Current classification model
@@ -51,9 +60,12 @@ Current routing intent:
 - reusable platform building blocks bias toward `primitive`
 - auth, schema, runtime, deployment, or cross-tenant behavior biases toward `core`
 
+These labels are internal harness concepts. They should not be treated as required tenant-facing vocabulary.
+
 ## What this already enables
 
 - tenant change capture from inside the workspace
+- multi-comment requests tied to exact screen areas
 - screenshot/attachment-backed requests
 - tenant-scoped queue review
 - a stable handoff artifact for future AI/policy systems
@@ -73,3 +85,4 @@ Current routing intent:
 - add request status transitions beyond the current queue states
 - attach classifier output to workspace/package/primitive candidates
 - route safe config changes into automated diffs
+- add request conversations and follow-up questions without breaking the screenshot-first workflow

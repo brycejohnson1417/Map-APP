@@ -10,7 +10,7 @@ This file is the concise execution view. The detailed reasoning lives in [docs/I
 - tenant login routing
 - template-driven onboarding v1
 - workspace/package manifests wired into the runtime
-- in-app change-request queue with attachments
+- in-app screen-comment change capture with annotated screenshots
 - PICC runtime workflows for PPP savings and mock proposals
 - FraterniTees runtime onboarding, Printavo sync, and lead-scoring surfaces
 - geocoding flow with open-source default and Google upgrade path
@@ -20,13 +20,13 @@ This file is the concise execution view. The detailed reasoning lives in [docs/I
 - keeping the repo docs aligned with the new control-plane surfaces
 - extraction of tenant behavior into clearer reusable contracts
 - broadening self-serve onboarding and connector depth beyond the first template
-- adding policy/preview layers on top of the new change-request queue
+- adding policy/preview layers on top of the new screenshot-first change-request queue
 
 ### Next critical outcomes
 - broader primitive extraction
 - more compiled score/trend/read-model outputs
 - onboarding improvements for additional templates
-- change-request preview/policy model
+- change-request preview/policy model on top of screen-comment capture
 - more tenant behavior extraction from shared code
 
 ## Sequence
@@ -57,6 +57,7 @@ This file is the concise execution view. The detailed reasoning lives in [docs/I
 
 ### 5. Build governed tenant adaptation
 - request capture
+- screenshot/annotation intake
 - classifier/policy
 - previewable config/package changes
 - maintainer queue for new primitives/core work

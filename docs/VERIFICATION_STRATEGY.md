@@ -73,9 +73,10 @@ Target tool:
 Priority flows to automate:
 1. open home and architecture pages
 2. open runtime org page
-3. queue a Notion dirty-page sync manually
-4. open territory page
-5. verify shared territory layer visibility once the territory runtime exists
+3. verify authenticated-vs-anonymous boundaries on tenant-only controls such as change requests
+4. queue a Notion dirty-page sync manually
+5. open territory page
+6. verify shared territory layer visibility once the territory runtime exists
 
 Current repo command:
 - `SMOKE_BASE_URL=http://localhost:3000 npm run verify:browser`

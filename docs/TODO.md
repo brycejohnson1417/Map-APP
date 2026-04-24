@@ -48,13 +48,16 @@ This is the live execution backlog. It should reflect what the repo actually nee
 
 - [x] define `change_requests` data model
 - [x] define request classification model: config vs package vs primitive proposal vs core
+- [x] replace the technical tenant form with screenshot-first screen comments
 - [ ] define preview/policy requirements for safe changes
 - [x] define maintainer queue flow for escalated work
+- [ ] add follow-up conversation threads without exposing harness jargon to tenants
 
 ## Verification and quality
 
 - [ ] add targeted tests around FraterniTees scoring and trend logic
 - [ ] add browser/runtime verification for tenant-specific account list flows
+- [ ] add browser verification for authenticated screen-comment capture flows
 - [ ] keep the docs and backlog aligned after every major slice
 - [ ] record what each tenant slice made more reusable
 

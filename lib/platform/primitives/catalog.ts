@@ -52,7 +52,7 @@ export const primitiveCatalog: PrimitiveDefinition[] = [
   {
     id: "change_request",
     name: "Change Request",
-    description: "Tenant-facing request intake with classification, attachments, and queue status.",
+    description: "Tenant-facing screen-comment capture with annotated screenshots, normalized request fields, and queue status.",
     status: "active",
     configKeys: ["defaultClassification", "classifications", "allowAttachments"],
     surfaces: ["change_requests", "accounts", "territory", "integrations"],

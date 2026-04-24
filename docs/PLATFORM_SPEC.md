@@ -49,7 +49,7 @@ The repo is partially there already:
 - adapters for Notion, Nabis, Printavo, CSV-style mapping patterns, and Google Maps/geocoding are in flight or landed
 - account, territory, and document flows are live
 - workspace manifests and package manifests are live
-- change-request persistence and attachments are live
+- change-request persistence, attachments, and screenshot-first screen comments are live
 
 The missing pieces are mainly:
 

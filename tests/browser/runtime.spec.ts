@@ -8,6 +8,11 @@ test("core runtime pages load", async ({ page }) => {
 
   await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
   await expect(page.getByRole("heading", { name: /accounts/i }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /comment a request/i })).toHaveCount(0);
+
+  await page.goto(`/change-requests?org=${encodeURIComponent(orgSlug)}`);
+  await expect(page).toHaveURL(new RegExp(`/login\\?org=${orgSlug}`));
+  await expect(page.getByRole("heading", { name: /sign in to the right workspace/i })).toBeVisible();
 
   await page.goto("/architecture");
   await expect(page.getByRole("heading", { name: /local-first runtime/i })).toBeVisible();
