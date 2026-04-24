@@ -83,6 +83,30 @@ function requiredEnv(key) {
   return value;
 }
 
+function tenantEnvPrefix(orgSlug) {
+  return String(orgSlug ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
+function tenantEnv(orgSlug, suffix) {
+  const prefix = tenantEnvPrefix(orgSlug);
+  if (!prefix) {
+    return "";
+  }
+  return process.env[`${prefix}_${suffix}`]?.trim() || "";
+}
+
+function requiredTenantEnv(orgSlug, suffix) {
+  const value = tenantEnv(orgSlug, suffix);
+  if (!value) {
+    throw new Error(`${tenantEnvPrefix(orgSlug)}_${suffix} is required`);
+  }
+  return value;
+}
+
 function optionalJsonArray(raw) {
   if (!raw?.trim()) {
     return [];
@@ -1535,16 +1559,16 @@ async function syncOrders(input) {
   };
 }
 
-async function resolveNotionSources(notion, installation, options) {
-  const configuredIds = optionalJsonArray(process.env.NOTION_DATA_SOURCE_IDS);
+async function resolveNotionSources(notion, installation, options, orgSlug) {
+  const configuredIds = optionalJsonArray(tenantEnv(orgSlug, "NOTION_DATA_SOURCE_IDS"));
   const configIds = Array.isArray(installation?.config?.dataSourceIds) ? installation.config.dataSourceIds.map(cleanConfiguredId).filter(Boolean) : [];
   const ids = uniqueStrings([...configuredIds, ...configIds]);
   const companies =
-    cleanConfiguredId(process.env.NOTION_COMPANIES_DATA_SOURCE_ID) ||
-    cleanConfiguredId(process.env.NOTION_MASTER_LIST_DATA_SOURCE_ID) ||
+    cleanConfiguredId(tenantEnv(orgSlug, "NOTION_COMPANIES_DATA_SOURCE_ID")) ||
+    cleanConfiguredId(tenantEnv(orgSlug, "NOTION_MASTER_LIST_DATA_SOURCE_ID")) ||
     ids[0] ||
     null;
-  let contacts = cleanConfiguredId(process.env.NOTION_CONTACTS_DATA_SOURCE_ID) || ids.find((id) => id !== companies) || null;
+  let contacts = cleanConfiguredId(tenantEnv(orgSlug, "NOTION_CONTACTS_DATA_SOURCE_ID")) || ids.find((id) => id !== companies) || null;
 
   if (!contacts && !options.noDiscovery) {
     contacts = await notion.searchDatabaseId("Contacts Database");
@@ -1590,8 +1614,8 @@ export async function runLiveSync(orgSlug, rawArgs = []) {
   try {
     let companies = [];
     if (options.scopes.has("companies") || options.scopes.has("contacts")) {
-      const notion = new NotionClient(requiredEnv("NOTION_TOKEN"));
-      const sources = await resolveNotionSources(notion, notionInstallation, options);
+      const notion = new NotionClient(requiredTenantEnv(orgSlug, "NOTION_TOKEN"));
+      const sources = await resolveNotionSources(notion, notionInstallation, options, orgSlug);
 
       if (options.scopes.has("companies")) {
         summary.companies = await syncCompanies({
@@ -1623,9 +1647,9 @@ export async function runLiveSync(orgSlug, rawArgs = []) {
 
     if (options.scopes.has("orders")) {
       const nabis = new NabisClient(
-        requiredEnv("NABIS_API_KEY"),
-        process.env.NABIS_API_BASE_URL?.trim() || DEFAULT_NABIS_API_BASE_URL,
-        process.env.NABIS_ORDERS_PATH?.trim() || "/ny/order",
+        requiredTenantEnv(orgSlug, "NABIS_API_KEY"),
+        tenantEnv(orgSlug, "NABIS_API_BASE_URL") || DEFAULT_NABIS_API_BASE_URL,
+        tenantEnv(orgSlug, "NABIS_ORDERS_PATH") || "/ny/order",
       );
       summary.orders = await syncOrders({
         supabase,

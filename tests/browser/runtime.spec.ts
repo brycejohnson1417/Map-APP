@@ -1,7 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+function testTenantOrgSlug() {
+  return process.env.TEST_TENANT_ORG_SLUG?.trim() || process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "fraternitees";
+}
+
+function testTenantEmail() {
+  return process.env.TEST_TENANT_EMAIL?.trim() || "qa@fraternitees.com";
+}
+
+function testTenantTemplate() {
+  return process.env.TEST_TENANT_TEMPLATE_ID?.trim() || "fraternity-sales";
+}
+
 test("core runtime pages load", async ({ page }) => {
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "fraternitees";
+  const orgSlug = testTenantOrgSlug();
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /sign in to the right workspace/i })).toBeVisible();
@@ -28,13 +40,13 @@ test("core runtime pages load", async ({ page }) => {
 });
 
 test("authenticated tenant can enter comment mode and place a locked-page comment", async ({ page, context, baseURL }) => {
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "fraternitees";
+  const orgSlug = testTenantOrgSlug();
   const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
 
   await context.addCookies([
     {
       name: "tenant_session_email",
-      value: "qa@fraternitees.com",
+      value: testTenantEmail(),
       domain: base.hostname,
       path: "/",
       httpOnly: true,
@@ -52,7 +64,7 @@ test("authenticated tenant can enter comment mode and place a locked-page commen
     },
     {
       name: "tenant_session_template",
-      value: "fraternity-sales",
+      value: testTenantTemplate(),
       domain: base.hostname,
       path: "/",
       httpOnly: true,
@@ -89,7 +101,7 @@ test("comment mode shows validation clearly and still submits when screenshot ca
   context,
   baseURL,
 }) => {
-  const orgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim() || "fraternitees";
+  const orgSlug = testTenantOrgSlug();
   const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
 
   await page.addInitScript(() => {
@@ -113,7 +125,7 @@ test("comment mode shows validation clearly and still submits when screenshot ca
   await context.addCookies([
     {
       name: "tenant_session_email",
-      value: "qa@fraternitees.com",
+      value: testTenantEmail(),
       domain: base.hostname,
       path: "/",
       httpOnly: true,
@@ -131,7 +143,7 @@ test("comment mode shows validation clearly and still submits when screenshot ca
     },
     {
       name: "tenant_session_template",
-      value: "fraternity-sales",
+      value: testTenantTemplate(),
       domain: base.hostname,
       path: "/",
       httpOnly: true,
@@ -140,21 +152,23 @@ test("comment mode shows validation clearly and still submits when screenshot ca
     },
   ]);
 
+  let requestCount = 0;
   await page.route(`**/api/runtime/organizations/${orgSlug}/change-requests`, async (route) => {
+    requestCount += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         ok: true,
         request: {
-          id: "mock-request-id",
+          id: `mock-request-id-${requestCount}`,
           organizationId: "mock-org",
           requestedByEmail: "qa@fraternitees.com",
           title: "Mock request",
           currentUrl: `/accounts?org=${orgSlug}`,
           surface: "accounts",
           classification: "config",
-          status: "new",
+          status: "queued",
           problem: "Mock",
           requestedOutcome: "Mock",
           businessContext: null,
@@ -193,5 +207,60 @@ test("comment mode shows validation clearly and still submits when screenshot ca
 
   await page.getByPlaceholder(/add a comment about what should change here/i).fill("Comment two");
   await page.getByRole("button", { name: /^submit$/i }).click();
-  await expect(page.getByText(/request added to the queue/i)).toBeVisible();
+  await expect(page.getByText(/requests added to the queue/i)).toBeVisible();
+});
+
+test.describe("mobile annotation mode", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("keeps the page visible and uses compact comment controls on mobile", async ({ page, context, baseURL }) => {
+    const orgSlug = testTenantOrgSlug();
+    const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
+
+    await context.addCookies([
+      {
+        name: "tenant_session_email",
+        value: testTenantEmail(),
+        domain: base.hostname,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+      {
+        name: "tenant_session_slug",
+        value: orgSlug,
+        domain: base.hostname,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+      {
+        name: "tenant_session_template",
+        value: testTenantTemplate(),
+        domain: base.hostname,
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+    ]);
+
+    await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
+    await page.getByRole("button", { name: /^comment$/i }).click();
+
+    const heading = page.getByRole("heading", { name: /fraternitees accounts/i });
+    await expect(heading).toBeVisible();
+    await expect(page.getByText(/request details/i)).toHaveCount(0);
+
+    const headingBox = await heading.boundingBox();
+    if (!headingBox) {
+      throw new Error("Mobile annotation test could not find the account heading box.");
+    }
+
+    await page.mouse.click(headingBox.x + headingBox.width * 0.7, headingBox.y + headingBox.height * 0.5);
+    await expect(page.getByPlaceholder(/add a comment about what should change here/i)).toBeVisible();
+    await expect(page.getByText(/add extra details after submit from the queue/i)).toBeVisible();
+  });
 });

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, MessageSquareText, Paperclip, SendHorizontal, Trash2, X } from "lucide-react";
-import type { ChangeRequestRecord } from "@/lib/domain/change-request";
+import type { ChangeRequestCaptureContext, ChangeRequestRecord } from "@/lib/domain/change-request";
 import type { WorkspaceDefinition } from "@/lib/domain/workspace";
 import {
   CHANGE_REQUEST_CAPTURE_EVENT,
@@ -23,6 +23,7 @@ interface CommentAnnotation {
   x: number;
   y: number;
   note: string;
+  captureContext: ChangeRequestCaptureContext;
 }
 
 function classNames(...values: Array<string | false | null | undefined>) {
@@ -153,13 +154,14 @@ function commentMarkerStyle(comment: CommentAnnotation) {
   };
 }
 
-function commentComposerStyle(comment: CommentAnnotation) {
-  if (typeof window !== "undefined" && window.innerWidth < 768) {
-    const top = Math.min(72, Math.max(24, comment.y * 100));
+function commentComposerStyle(comment: CommentAnnotation, isNarrowViewport: boolean) {
+  if (isNarrowViewport) {
     return {
-      left: "50%",
-      top: `${top}%`,
-      transform: "translate(-50%, 18px)",
+      left: "0.75rem",
+      right: "0.75rem",
+      bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
+      top: "auto",
+      transform: "none",
     };
   }
 
@@ -179,6 +181,95 @@ function normalizePoint(clientX: number, clientY: number, rect: DOMRect) {
   return {
     x: rect.width ? x / rect.width : 0,
     y: rect.height ? y / rect.height : 0,
+  };
+}
+
+function isCaptureUiElement(element: Element | null) {
+  return element instanceof HTMLElement && Boolean(element.closest("[data-change-request-ui='true']"));
+}
+
+function cleanText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, " ").trim() || null;
+}
+
+function firstMeaningfulText(element: HTMLElement | null) {
+  if (!element) {
+    return null;
+  }
+
+  const directText = cleanText(element.innerText);
+  if (directText) {
+    return directText.slice(0, 180);
+  }
+
+  return cleanText(element.textContent)?.slice(0, 180) ?? null;
+}
+
+function findSectionLabel(element: HTMLElement | null) {
+  let current: HTMLElement | null = element;
+
+  while (current) {
+    const heading = current.querySelector("h1, h2, h3, h4, h5, h6, [data-feedback-label]");
+    if (heading instanceof HTMLElement) {
+      return cleanText(heading.dataset.feedbackLabel || heading.innerText || heading.textContent)?.slice(0, 160) ?? null;
+    }
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function buildCaptureContext(clientX: number, clientY: number): ChangeRequestCaptureContext {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const target = document
+    .elementsFromPoint(clientX, clientY)
+    .find((element) => !isCaptureUiElement(element) && element instanceof HTMLElement) as HTMLElement | undefined;
+
+  const rect = target?.getBoundingClientRect() ?? null;
+
+  return {
+    capturedAt: new Date().toISOString(),
+    viewport: {
+      width: viewportWidth,
+      height: viewportHeight,
+      scrollX,
+      scrollY,
+      devicePixelRatio: window.devicePixelRatio || 1,
+    },
+    marker: {
+      viewportX: viewportWidth ? clientX / viewportWidth : 0,
+      viewportY: viewportHeight ? clientY / viewportHeight : 0,
+      pageX: viewportWidth ? (clientX + scrollX) / Math.max(document.documentElement.scrollWidth, viewportWidth) : 0,
+      pageY: viewportHeight ? (clientY + scrollY) / Math.max(document.documentElement.scrollHeight, viewportHeight) : 0,
+    },
+    target: target
+      ? {
+          tagName: target.tagName?.toLowerCase() ?? null,
+          role: target.getAttribute("role"),
+          ariaLabel: target.getAttribute("aria-label"),
+          id: target.id || null,
+          dataFeedbackId: target.dataset.feedbackId || null,
+          text: firstMeaningfulText(target),
+          sectionLabel: findSectionLabel(target.closest("section, article, aside, main, header, [data-feedback-id]") as HTMLElement | null) ?? findSectionLabel(target),
+          rect: rect
+            ? {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+              }
+            : null,
+          elementOffset: rect
+            ? {
+                x: rect.width ? (clientX - rect.left) / rect.width : 0,
+                y: rect.height ? (clientY - rect.top) / rect.height : 0,
+              }
+            : null,
+        }
+      : null,
   };
 }
 
@@ -208,6 +299,7 @@ export function ChangeRequestCaptureLauncher({
   const [error, setError] = useState<string | null>(null);
   const [captureNotice, setCaptureNotice] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
@@ -222,6 +314,18 @@ export function ChangeRequestCaptureLauncher({
       document.body.style.overflow = previousOverflow;
     };
   }, [open]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsNarrowViewport(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (!notice) {
@@ -272,9 +376,11 @@ export function ChangeRequestCaptureLauncher({
     const rect = canvasRef.current.getBoundingClientRect();
     const point = normalizePoint(clientX, clientY, rect);
     const id = crypto.randomUUID();
-    setComments((current) => [...current, { id, ...point, note: "" }]);
+    setComments((current) => [...current, { id, ...point, note: "", captureContext: buildCaptureContext(clientX, clientY) }]);
     setActiveCommentId(id);
-    setDetailsOpen(true);
+    if (!isNarrowViewport) {
+      setDetailsOpen(true);
+    }
     setError(null);
   }
 
@@ -313,80 +419,91 @@ export function ChangeRequestCaptureLauncher({
     try {
       let captureWarning: string | null = null;
       const currentUrl = `${window.location.origin}${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
-      const title = createChangeRequestTitle({
-        label: surfaceContext.label,
-        summary,
-        commentCount: completedComments.length,
-      });
-      const problem = [
-        `On-screen comments from the ${surfaceContext.label}.`,
-        "Comments:",
-        ...completedComments.map((comment, index) => `${index + 1}. ${comment.note.trim()}`),
-      ].join("\n");
-      const requestedOutcome =
-        summary.trim() || `Implement the numbered comments shown on the attached screenshot of the ${surfaceContext.label}.`;
-      const acceptanceCriteria = `The affected ${surfaceContext.label} matches the numbered comments shown on the attached screenshot.`;
-
-      const formData = new FormData();
-      formData.set("title", title);
-      formData.set("surface", surfaceContext.surface);
-      formData.set("problem", problem);
-      formData.set("requestedOutcome", requestedOutcome);
-      formData.set(
-        "businessContext",
-        businessContext.trim() || `Submitted from the ${surfaceContext.label} using the inline comment mode.`,
-      );
-      formData.set("acceptanceCriteria", acceptanceCriteria);
-      formData.set("currentUrl", currentUrl);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      let sharedCapture: CaptureSnapshot | null = null;
 
       if (workspace.changeRequests.allowAttachments) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
         try {
-          const capture = await captureVisibleViewport();
-          const screenshotFile = await createAnnotatedScreenshotFile(
-            capture,
-            completedComments,
-            `${surfaceContext.surface}-${timestamp}.png`,
-          );
-          formData.append("attachments", screenshotFile);
+          sharedCapture = await captureVisibleViewport();
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : "Unable to generate the annotated screenshot.";
           captureWarning = /unsupported color function "color"/i.test(message)
-            ? "Request submitted without the screenshot because this browser returned a CSS color format the capture renderer could not read."
-            : `Request submitted without the screenshot: ${message}`;
+            ? "Requests were added without screenshots because this browser returned a CSS color format the capture renderer could not read."
+            : `Requests were added without screenshots: ${message}`;
         }
+      }
 
-        formData.append(
-          "attachments",
-          createAnnotationNotesFile({
-            currentUrl,
-            surfaceLabel: surfaceContext.label,
-            summary,
-            businessContext,
-            comments: completedComments,
-          }),
+      let createdCount = 0;
+
+      for (const [index, comment] of completedComments.entries()) {
+        const requestTitle = createChangeRequestTitle({
+          label: surfaceContext.label,
+          summary: comment.note,
+          commentCount: 1,
+        });
+        const requestedOutcome =
+          summary.trim() || `Update the marked area on the ${surfaceContext.label} so it matches this request: ${comment.note.trim()}`;
+        const acceptanceCriteria = `The marked area on the ${surfaceContext.label} matches this request comment.`;
+        const formData = new FormData();
+        formData.set("title", requestTitle);
+        formData.set("surface", surfaceContext.surface);
+        formData.set("problem", comment.note.trim());
+        formData.set("requestedOutcome", requestedOutcome);
+        formData.set(
+          "businessContext",
+          businessContext.trim() || `Submitted from the ${surfaceContext.label} using the inline comment mode.`,
         );
+        formData.set("acceptanceCriteria", acceptanceCriteria);
+        formData.set("currentUrl", currentUrl);
+        formData.set("captureContext", JSON.stringify(comment.captureContext));
 
-        if (captureWarning) {
-          setCaptureNotice(captureWarning);
+        if (workspace.changeRequests.allowAttachments) {
+          if (sharedCapture) {
+            const screenshotFile = await createAnnotatedScreenshotFile(
+              sharedCapture,
+              [comment],
+              `${surfaceContext.surface}-${timestamp}-${index + 1}.png`,
+            );
+            formData.append("attachments", screenshotFile);
+          }
+
+          formData.append(
+            "attachments",
+            createAnnotationNotesFile({
+              currentUrl,
+              surfaceLabel: surfaceContext.label,
+              summary,
+              businessContext,
+              comments: [comment],
+            }),
+          );
         }
+
+        const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
+          method: "POST",
+          body: formData,
+        });
+        const payload = (await response.json()) as { ok: boolean; error?: string; request?: ChangeRequestRecord };
+        if (!response.ok || !payload.ok || !payload.request) {
+          throw new Error(
+            createdCount
+              ? `${payload.error ?? "Unable to submit request."} ${createdCount} request${createdCount === 1 ? "" : "s"} already reached the queue.`
+              : payload.error ?? "Unable to submit request.",
+          );
+        }
+
+        createdCount += 1;
+        onCreated?.(payload.request);
       }
 
-      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as { ok: boolean; error?: string; request?: ChangeRequestRecord };
-      if (!response.ok || !payload.ok || !payload.request) {
-        throw new Error(payload.error ?? "Unable to submit request.");
+      if (captureWarning) {
+        setCaptureNotice(captureWarning);
       }
 
-      onCreated?.(payload.request);
       setNotice(
         captureWarning
-          ? `Request added to the queue. ${captureWarning}`
-          : "Request added to the queue.",
+          ? `${createdCount} request${createdCount === 1 ? "" : "s"} added to the queue. ${captureWarning}`
+          : `${createdCount} request${createdCount === 1 ? "" : "s"} added to the queue.`,
       );
       setOpen(false);
       resetState();
@@ -417,9 +534,16 @@ export function ChangeRequestCaptureLauncher({
           </div>
         </div>
 
-        <div className="pointer-events-none absolute right-3 top-3 z-[4] md:right-5 md:top-4">
-          <div className="pointer-events-auto ml-auto flex w-fit max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-2.5 py-2.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] md:max-w-none md:px-3 md:py-3">
-            {detailsOpen ? (
+        <div className={classNames("pointer-events-none absolute z-[4]", isNarrowViewport ? "left-3 right-3 top-3" : "right-3 top-3 md:right-5 md:top-4")}>
+          <div
+            className={classNames(
+              "pointer-events-auto ml-auto flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] shadow-[0_16px_40px_rgba(15,23,42,0.12)]",
+              isNarrowViewport
+                ? "w-full px-2.5 py-2"
+                : "w-fit max-w-[calc(100vw-1.5rem)] px-2.5 py-2.5 md:max-w-none md:px-3 md:py-3",
+            )}
+          >
+            {detailsOpen && !isNarrowViewport ? (
               <div className="px-1 text-sm font-semibold text-[var(--text-secondary)]">
                 {comments.length} comment{comments.length === 1 ? "" : "s"}
               </div>
@@ -431,10 +555,18 @@ export function ChangeRequestCaptureLauncher({
             >
               {detailsOpen ? "Hide details" : "Details"}
             </button>
+            {isNarrowViewport ? (
+              <div className="mr-auto rounded-full bg-[var(--surface-elevated)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                {comments.length} comment{comments.length === 1 ? "" : "s"}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={closeMode}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)] md:px-3.5"
+              className={classNames(
+                "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] text-sm font-semibold text-[var(--text-primary)]",
+                isNarrowViewport ? "px-3 py-2.5" : "px-3 py-2.5 md:px-3.5",
+              )}
             >
               <X className="h-4 w-4" />
               Discard
@@ -443,7 +575,10 @@ export function ChangeRequestCaptureLauncher({
               type="button"
               onClick={() => void submitRequest()}
               disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className={classNames(
+                "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] text-sm font-semibold text-white disabled:opacity-60",
+                isNarrowViewport ? "min-w-[112px] px-4 py-2.5" : "px-4 py-2.5",
+              )}
               style={{ color: "#fff" }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
@@ -452,7 +587,7 @@ export function ChangeRequestCaptureLauncher({
           </div>
         </div>
 
-        <div className="absolute inset-0 pt-[88px] md:pt-[84px]">
+        <div className={classNames("absolute inset-0", isNarrowViewport ? "pt-[84px]" : "pt-[88px] md:pt-[84px]")}>
           <div
             ref={canvasRef}
             className="absolute inset-0 cursor-crosshair"
@@ -468,7 +603,8 @@ export function ChangeRequestCaptureLauncher({
                   setActiveCommentId(comment.id);
                 }}
                 className={classNames(
-                  "absolute inline-flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-[#e2472f] bg-[#151923] text-sm font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition",
+                  "absolute inline-flex items-center justify-center rounded-full border-[3px] border-[#e2472f] bg-[#151923] text-sm font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.24)] transition",
+                  isNarrowViewport ? "h-12 w-12" : "h-11 w-11",
                   activeCommentId === comment.id && "ring-4 ring-[rgba(226,71,47,0.18)]",
                 )}
                 style={commentMarkerStyle(comment)}
@@ -481,7 +617,7 @@ export function ChangeRequestCaptureLauncher({
             {activeComment ? (
               <div
                 className="absolute z-[3] w-[min(280px,calc(100vw-1rem))] rounded-[1.35rem] border border-[rgba(21,25,35,0.12)] bg-[rgba(21,25,35,0.96)] p-3.5 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)] md:w-[min(320px,calc(100vw-2rem))]"
-                style={commentComposerStyle(activeComment)}
+                style={commentComposerStyle(activeComment, isNarrowViewport)}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -514,6 +650,11 @@ export function ChangeRequestCaptureLauncher({
                 {!activeComment.note.trim() ? (
                   <p className="mt-2 text-xs font-semibold text-[#ffb3a7]">Add text before you submit this request.</p>
                 ) : null}
+                {isNarrowViewport ? (
+                  <p className="mt-3 text-xs font-medium text-[rgba(255,255,255,0.64)]">
+                    The rest of the request can be edited later in the queue. Keep this focused on what should change here.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -524,7 +665,8 @@ export function ChangeRequestCaptureLauncher({
             ) : null}
           </div>
 
-          <div className="pointer-events-none absolute bottom-3 left-3 z-[4] md:bottom-5 md:left-5">
+          {!isNarrowViewport ? (
+            <div className="pointer-events-none absolute bottom-3 left-3 z-[4] md:bottom-5 md:left-5">
             <section
               className={classNames(
                 "pointer-events-auto overflow-hidden rounded-[1.5rem] border border-[rgba(21,25,35,0.1)] bg-[rgba(255,255,255,0.96)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]",
@@ -659,9 +801,25 @@ export function ChangeRequestCaptureLauncher({
                 </div>
               ) : null}
             </section>
-          </div>
+            </div>
+          ) : (
+            <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[4]">
+              {(error || captureNotice) ? (
+                <div className="pointer-events-auto rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
+                  {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
+                  {!error && captureNotice ? (
+                    <p className="text-sm font-semibold text-[var(--accent-secondary-strong)]">{captureNotice}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="pointer-events-auto rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.9)] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
+                  Tap markers to edit them. Add extra details after submit from the queue.
+                </div>
+              )}
+            </div>
+          )}
 
-          {error ? (
+          {error && !isNarrowViewport ? (
             <div className="pointer-events-none absolute right-3 top-[76px] z-[5] md:right-5 md:top-[88px]">
               <div className="pointer-events-auto max-w-[min(360px,calc(100vw-1.5rem))] rounded-2xl border border-[rgba(226,71,47,0.18)] bg-[rgba(255,245,243,0.98)] px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
                 <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p>

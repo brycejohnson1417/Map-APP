@@ -16,6 +16,9 @@ Purpose:
 Commands:
 - `npm run typecheck`
 - `npm run lint`
+- `npm run check:tenant-isolation`
+
+`npm run check:tenant-isolation` is the tenant-boundary guardrail for runtime paths. It currently blocks generic shared credential reads for Google Maps, Nabis, Notion, Printavo, HubSpot, Salesforce, and HighLevel-style env names.
 
 Current lint implementation:
 - `oxlint` for fast, reliable static checks on app code and scripts
@@ -80,6 +83,7 @@ Priority flows to automate:
 
 Current repo command:
 - `SMOKE_BASE_URL=http://localhost:3000 npm run verify:browser`
+- Browser verification can use a seeded tenant fixture via `TEST_TENANT_ORG_SLUG`, `TEST_TENANT_EMAIL`, and `TEST_TENANT_TEMPLATE_ID`. If those are unset, the suite falls back to the local org slug and then to the FraterniTees fixture.
 
 ## Default Verification Loop
 For normal feature work:
@@ -96,6 +100,7 @@ This command is the repo-standard baseline loop.
 It runs:
 - `npm run typecheck`
 - `npm run lint`
+- `npm run check:tenant-isolation`
 - `npm run build`
 - `npm run smoke:runtime` only when `SMOKE_BASE_URL` is set
 - `npm run verify:browser` only when both `SMOKE_BASE_URL` and `PLAYWRIGHT_VERIFY=1` are set

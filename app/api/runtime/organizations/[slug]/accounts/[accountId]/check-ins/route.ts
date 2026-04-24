@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { createAccountCheckIn } from "@/lib/application/runtime/account-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
@@ -7,6 +8,11 @@ export async function POST(
   context: { params: Promise<{ slug: string; accountId: string }> | { slug: string; accountId: string } },
 ) {
   const { slug, accountId } = await resolveRouteParams(context.params);
+  const sessionEmail = await getTenantSessionEmailForSlug(slug);
+  if (!sessionEmail) {
+    return NextResponse.json({ ok: false, error: "Tenant login is required to create a check-in." }, { status: 401 });
+  }
+
   const body = (await request.json().catch(() => ({}))) as { note?: unknown };
   const note = typeof body.note === "string" ? body.note.trim() : "";
 

@@ -45,6 +45,10 @@ The repo already has:
 - full-viewport locked comment mode rendered above the live runtime so on-screen comment capture can safely intercept page clicks
 - comment-mode chrome compacted so the live page stays visible during desktop and mobile annotation
 - change-request submission now degrades cleanly when browser screenshot capture hits unsupported CSS color formats
+- change-request capture now creates one queue item per on-screen comment, with tenant-visible edit/delete/add-details flows on collapsible request cards
+- runtime credential resolution for paid providers now prefers tenant integration installs and tenant-scoped env keys, with generic global fallbacks removed from tenant-facing map/geocoding/Nabis runtime paths
+- `npm run check:tenant-isolation` now fails if tenant runtime code reaches for generic shared Google Maps, Nabis, Notion, Printavo, HubSpot, Salesforce, or HighLevel-style credential env names
+- tenant-mutating runtime routes for change requests, Notion sync queueing, geocoding, printavo sync, and account check-ins now consistently require tenant-session auth
 - generic tenant-session cookies and template-aware onboarding instead of shared runtime paths hardcoding PICC/FraterniTees session cookies
 - workspace-driven account-detail copy and territory color/filter behavior
 - workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules

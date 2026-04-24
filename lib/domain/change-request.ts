@@ -1,5 +1,46 @@
 export type ChangeRequestClassification = "config" | "package" | "primitive" | "core";
-export type ChangeRequestStatus = "new" | "clarifying" | "queued" | "planned" | "completed";
+export type ChangeRequestStatus =
+  | "queued"
+  | "resolved"
+  | "declined"
+  | "stale"
+  | "requires_additional_feedback";
+
+export interface ChangeRequestCaptureContext {
+  capturedAt: string;
+  viewport: {
+    width: number;
+    height: number;
+    scrollX: number;
+    scrollY: number;
+    devicePixelRatio: number;
+  };
+  marker: {
+    viewportX: number;
+    viewportY: number;
+    pageX: number;
+    pageY: number;
+  };
+  target: {
+    tagName: string | null;
+    role: string | null;
+    ariaLabel: string | null;
+    id: string | null;
+    dataFeedbackId: string | null;
+    text: string | null;
+    sectionLabel: string | null;
+    rect: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null;
+    elementOffset: {
+      x: number;
+      y: number;
+    } | null;
+  } | null;
+}
 
 export interface ChangeRequestAttachment {
   id: string;
@@ -25,6 +66,7 @@ export interface ChangeRequestRecord {
   businessContext: string | null;
   acceptanceCriteria: string | null;
   classifierNotes: string | null;
+  captureContext: ChangeRequestCaptureContext | null;
   createdAt: string;
   updatedAt: string;
   attachments: ChangeRequestAttachment[];

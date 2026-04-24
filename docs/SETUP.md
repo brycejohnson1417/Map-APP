@@ -40,30 +40,30 @@ This file defines the environment contract for local development, verification, 
 - `NEON_SOURCE_DATABASE_URL`
 
 ### Tenant connector credentials
-- `NOTION_TOKEN`
-- `NOTION_WORKSPACE_ID`
-- `NOTION_DATA_SOURCE_IDS`
-- `NOTION_COMPANIES_DATA_SOURCE_ID`
-- `NOTION_CONTACTS_DATA_SOURCE_ID`
-- `NOTION_WEBHOOK_VERIFICATION_TOKEN`
-- `NABIS_API_BASE_URL`
-- `NABIS_ORDERS_PATH`
-- `NABIS_API_KEY`
+Provider credentials must be tenant-scoped. Use the organization slug prefix:
 
-`NOTION_DATA_SOURCE_IDS` remains supported as a bootstrap list. For live sync, prefer the explicit
+- `<ORG>_NOTION_TOKEN`
+- `<ORG>_NOTION_WORKSPACE_ID`
+- `<ORG>_NOTION_DATA_SOURCE_IDS`
+- `<ORG>_NOTION_COMPANIES_DATA_SOURCE_ID`
+- `<ORG>_NOTION_CONTACTS_DATA_SOURCE_ID`
+- `<ORG>_NOTION_WEBHOOK_VERIFICATION_TOKEN`
+- `<ORG>_NABIS_API_BASE_URL`
+- `<ORG>_NABIS_ORDERS_PATH`
+- `<ORG>_NABIS_API_KEY`
+- `<ORG>_GOOGLE_MAPS_BROWSER_API_KEY`
+- `<ORG>_GOOGLE_MAPS_SERVER_API_KEY`
+
+Examples:
+
+- `PICC_NABIS_API_KEY`
+- `PICC_NOTION_TOKEN`
+- `PICC_GOOGLE_MAPS_SERVER_API_KEY`
+- `FRATERNITEES_GOOGLE_MAPS_BROWSER_API_KEY`
+
+`<ORG>_NOTION_DATA_SOURCE_IDS` remains supported as a bootstrap list. For live sync, prefer the explicit
 company/contact variables so PICC's Dispensary Master List CRM and Contacts Database cannot be
 accidentally swapped.
-
-### Per-organization Google Maps credentials
-- `GOOGLE_MAPS_BROWSER_API_KEY`
-- `GOOGLE_MAPS_SERVER_API_KEY`
-
-The runtime now resolves Google Maps keys in this order:
-
-1. organization-scoped environment variables like `<ORG>_GOOGLE_MAPS_*`
-2. generic fallback environment variables `GOOGLE_MAPS_*`
-
-That fallback is no longer reserved to PICC. Any tenant can use the generic key if you intentionally want a shared upgraded maps experience.
 
 ### Optional deployment verification
 - `VERCEL_PROJECT_ID`
@@ -73,6 +73,7 @@ That fallback is no longer reserved to PICC. Any tenant can use the generic key 
 - Do not put tenant secrets into committed files.
 - Browser-safe Google Maps keys are still tenant-scoped configuration and should not be shared across organizations.
 - Server-side maps keys, Notion tokens, and Nabis credentials are treated as secrets.
+- Generic paid-provider env fallbacks are no longer allowed for tenant runtime paths. If a tenant needs a provider, use an organization-scoped integration install or an organization-scoped env key.
 - `NEXT_PUBLIC_DEFAULT_ORG_SLUG` / `ORG_SLUG` can still define a local default org, but the platform fallback is now `starter` rather than implicitly pointing at PICC.
 
 ## Live Sync Command

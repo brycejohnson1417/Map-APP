@@ -82,10 +82,12 @@ The agent should prefer the cheapest loop that proves the changed behavior.
 
 Minimum baseline:
 - `npm run verify`
-- `npm run mapapp -- health check <org>`
 
 When a local server is available:
 - `SMOKE_BASE_URL=http://localhost:3000 npm run verify`
+
+When tenant migration or connector bootstrapping changes:
+- `npm run mapapp -- health check <org>`
 
 When sync logic changes:
 - add or update deterministic tests or replay fixtures

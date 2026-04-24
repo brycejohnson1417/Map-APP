@@ -61,6 +61,7 @@ That is the main architectural work now.
 - `Clerk` remains the auth layer
 - user-facing surfaces read local runtime data, not live provider payloads
 - provider credentials are organization-scoped and encrypted
+- tenant-facing provider resolution must never fall back to shared/global paid API keys
 - shared multi-tenant is the default topology today
 - tenant-specific behavior should move toward workspace config, packages, and read-model compilation rather than shared-code branching
 
@@ -143,7 +144,7 @@ SMOKE_BASE_URL=http://localhost:3000 PLAYWRIGHT_VERIFY=1 npm run verify
 ## Key scripts
 
 ```bash
-npm run mapapp -- health check <org-slug>
+npm run mapapp -- health check <org-slug>      # tenant migration preflight, not generic repo verification
 npm run mapapp -- migration dry-run <org-slug>
 npm run mapapp -- migration validate <org-slug>
 npm run seed:runtime

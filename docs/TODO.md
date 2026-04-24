@@ -43,6 +43,9 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] document the adapter credential and setup contract for fresh tenant onboarding
 - [x] make the root product flow clearer for non-PICC tenants
 - [ ] expand self-serve connector save/sync behavior for more providers
+- [x] remove tenant-facing paid-provider runtime fallbacks to generic global env keys
+- [x] require tenant-session auth on tenant-mutating runtime routes instead of leaving isolated write holes
+- [ ] move remaining provider bootstrap and operator tooling onto installation-first, tenant-scoped credential resolution everywhere
 
 ## Change system
 
@@ -52,12 +55,14 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [ ] define preview/policy requirements for safe changes
 - [x] define maintainer queue flow for escalated work
 - [ ] add follow-up conversation threads without exposing harness jargon to tenants
+- [ ] add stronger live replay of saved comment anchors when screenshots are missing or the layout changes later
 
 ## Verification and quality
 
 - [ ] add targeted tests around FraterniTees scoring and trend logic
 - [ ] add browser/runtime verification for tenant-specific account list flows
 - [x] add browser verification for authenticated screen-comment capture flows
+- [x] add a static tenant-isolation verification step so generic paid-provider env usage in runtime code fails fast
 - [ ] keep the docs and backlog aligned after every major slice
 - [ ] record what each tenant slice made more reusable
 

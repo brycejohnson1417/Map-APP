@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { queueNotionDirtyPageSync } from "@/lib/application/runtime/notion-sync-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
@@ -11,6 +12,11 @@ const requestSchema = z.object({
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   try {
     const { slug } = await resolveRouteParams(context.params);
+    const sessionEmail = await getTenantSessionEmailForSlug(slug);
+    if (!sessionEmail) {
+      return NextResponse.json({ ok: false, error: "Tenant login is required to queue Notion sync work." }, { status: 401 });
+    }
+
     const payload = requestSchema.parse(await request.json());
     const job = await queueNotionDirtyPageSync({
       organizationSlug: slug,

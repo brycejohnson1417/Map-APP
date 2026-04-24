@@ -480,7 +480,10 @@ export async function importFraterniteesOrdersToRuntime(input: {
       score,
     };
   }).filter((summary): summary is AccountImportSummary => Boolean(summary.score));
-  const geocodingPlan = resolveGeocodingPlan({ organizationSlug: input.organizationSlug });
+  const geocodingPlan = await resolveGeocodingPlan({
+    organizationId: input.organizationId,
+    organizationSlug: input.organizationSlug,
+  });
 
   let createdAccounts = 0;
   let updatedAccounts = 0;

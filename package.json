@@ -14,6 +14,7 @@
     "mapapp": "node scripts/mapapp.mjs",
     "seed:runtime": "node scripts/seed-runtime.mjs",
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
+    "check:tenant-isolation": "node scripts/check-tenant-provider-isolation.mjs",
     "verify:browser": "playwright test",
     "verify": "node scripts/verify.mjs",
     "review:adversarial": "node scripts/adversarial-review.mjs",

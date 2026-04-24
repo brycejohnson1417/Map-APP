@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findRuntimeOrganization, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
+import { resolveTenantGoogleMapsBrowserKey } from "@/lib/application/runtime/provider-credentials";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
 const DEFAULT_OSM_TILE_URL_TEMPLATE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -12,27 +13,6 @@ interface GoogleMapsIntegrationRow {
 function readBrowserKeyFromConfig(config: Record<string, unknown> | null) {
   const browserApiKey = config?.browserApiKey;
   return typeof browserApiKey === "string" && browserApiKey.trim() ? browserApiKey.trim() : null;
-}
-
-function readBrowserKeyFromEnvironment(slug: string) {
-  const prefix = slug
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toUpperCase();
-  const scopedBrowserKey =
-    process.env[`NEXT_PUBLIC_${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`]?.trim() ||
-    process.env[`${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`]?.trim() ||
-    null;
-  if (scopedBrowserKey) {
-    return scopedBrowserKey;
-  }
-
-  return (
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-    process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-    null
-  );
 }
 
 function readOpenStreetMapConfig(settings: Record<string, unknown>) {
@@ -74,7 +54,10 @@ export async function GET(_: Request, context: { params: Promise<{ slug: string 
 
   const browserApiKey =
     readBrowserKeyFromConfig(data[0]?.config ?? null) ||
-    readBrowserKeyFromEnvironment(organization.slug);
+    (await resolveTenantGoogleMapsBrowserKey({
+      organizationId: organization.id,
+      organizationSlug: organization.slug,
+    }));
   const openStreetMapConfig = readOpenStreetMapConfig(organization.settings);
 
   return NextResponse.json(

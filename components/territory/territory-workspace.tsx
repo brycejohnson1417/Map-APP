@@ -251,6 +251,17 @@ function buildMarkerIcon(google: GoogleNamespace, pin: TerritoryAccountPin, sele
   };
 }
 
+function buildLiteGoogleMarkerIcon(google: GoogleNamespace, pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    fillColor: getPinColor(pin, mode),
+    fillOpacity: 0.92,
+    strokeColor: "#ffffff",
+    strokeWeight: selected ? 3 : 2,
+    scale: selected ? 9 : 7,
+  };
+}
+
 function buildLeafletMarkerHtml(pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
   const color = getPinColor(pin, mode);
   const size = selected ? 44 : 36;
@@ -490,6 +501,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapHandle | null>(null);
@@ -499,6 +511,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const routeLineRef = useRef<LayerCleanup | null>(null);
   const directionsRendererRef = useRef<GoogleDirectionsRenderer | null>(null);
   const lastFitSignatureRef = useRef<string>("");
+  const mobileViewAutoSwitchedRef = useRef(false);
 
   const pins = data.pins;
   const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
@@ -511,6 +524,35 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   );
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const useLiteMarkers = isNarrowViewport || mappablePinCount > 1200;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const applyViewport = () => {
+      setIsNarrowViewport(mediaQuery.matches);
+      if (mediaQuery.matches) {
+        setConsoleOpen(false);
+        setDetailsOpen(false);
+      }
+    };
+
+    applyViewport();
+    mediaQuery.addEventListener("change", applyViewport);
+    return () => mediaQuery.removeEventListener("change", applyViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isNarrowViewport || mappablePinCount <= 1200 || mobileViewAutoSwitchedRef.current) {
+      return;
+    }
+
+    setView("list");
+    mobileViewAutoSwitchedRef.current = true;
+  }, [isNarrowViewport, mappablePinCount]);
 
   const invalidateMapSize = useCallback(() => {
     const handle = mapRef.current;
@@ -635,6 +677,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         const map = leaflet.map(mapElementRef.current, {
           zoomControl: true,
           attributionControl: true,
+          preferCanvas: true,
         });
         map.setView([40.73, -73.93], 10);
         leaflet
@@ -702,13 +745,17 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
           map: handle.map,
           position: { lat: pin.latitude, lng: pin.longitude },
           title: pin.name,
-          icon: buildMarkerIcon(google, pin, selected, colorMode),
-          label: {
-            text: getPinLabel(pin, colorMode),
-            color: "#ffffff",
-            fontSize: selected ? "12px" : "11px",
-            fontWeight: "800",
-          },
+          icon: useLiteMarkers
+            ? buildLiteGoogleMarkerIcon(google, pin, selected, colorMode)
+            : buildMarkerIcon(google, pin, selected, colorMode),
+          label: useLiteMarkers
+            ? undefined
+            : {
+                text: getPinLabel(pin, colorMode),
+                color: "#ffffff",
+                fontSize: selected ? "12px" : "11px",
+                fontWeight: "800",
+              },
           zIndex: selected ? 1000 : 1,
         });
 
@@ -734,19 +781,31 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       }
 
       const selected = pin.id === selectedId;
-      const size = selected ? 44 : 36;
-      const marker = leaflet
-        .marker([pin.latitude as number, pin.longitude as number], {
-          title: pin.name,
-          zIndexOffset: selected ? 1000 : 1,
-          icon: leaflet.divIcon({
-            html: buildLeafletMarkerHtml(pin, selected, colorMode),
-            className: "runtime-map-pin",
-            iconSize: [size, size + 8],
-            iconAnchor: [size / 2, size + 4],
-          }),
-        })
-        .addTo(map);
+      const marker = useLiteMarkers
+        ? leaflet
+            .circleMarker([pin.latitude as number, pin.longitude as number], {
+              radius: selected ? 9 : 7,
+              color: "#ffffff",
+              weight: selected ? 3 : 2,
+              fillColor: getPinColor(pin, colorMode),
+              fillOpacity: 0.92,
+            })
+            .addTo(map)
+        : (() => {
+            const size = selected ? 44 : 36;
+            return leaflet
+              .marker([pin.latitude as number, pin.longitude as number], {
+                title: pin.name,
+                zIndexOffset: selected ? 1000 : 1,
+                icon: leaflet.divIcon({
+                  html: buildLeafletMarkerHtml(pin, selected, colorMode),
+                  className: "runtime-map-pin",
+                  iconSize: [size, size + 8],
+                  iconAnchor: [size / 2, size + 4],
+                }),
+              })
+              .addTo(map);
+          })();
 
       marker.on("click", () => setSelectedId(pin.id));
       markerRefs.current.push(() => marker.remove());
@@ -759,7 +818,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       map.fitBounds(bounds, { padding: [48, 48] });
       lastFitSignatureRef.current = nextFitSignature;
     }
-  }, [colorMode, mapReady, pins, selectedId]);
+  }, [colorMode, mapReady, pins, selectedId, useLiteMarkers]);
 
   useEffect(() => {
     const handle = mapRef.current;

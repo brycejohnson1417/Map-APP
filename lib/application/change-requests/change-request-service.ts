@@ -1,6 +1,11 @@
 import "server-only";
 
-import type { ChangeRequestClassification, ChangeRequestRecord } from "@/lib/domain/change-request";
+import type {
+  ChangeRequestCaptureContext,
+  ChangeRequestClassification,
+  ChangeRequestRecord,
+  ChangeRequestStatus,
+} from "@/lib/domain/change-request";
 import type { WorkspaceDefinition } from "@/lib/domain/workspace";
 import { ChangeRequestRepository } from "@/lib/infrastructure/supabase/change-request-repository";
 
@@ -76,6 +81,7 @@ export async function createChangeRequest(input: {
   businessContext?: string | null;
   acceptanceCriteria?: string | null;
   attachments?: File[];
+  captureContext?: ChangeRequestCaptureContext | null;
 }) {
   const normalizedTitle = input.title.trim();
   const normalizedProblem = input.problem.trim();
@@ -100,6 +106,7 @@ export async function createChangeRequest(input: {
     businessContext: normalizeText(input.businessContext),
     acceptanceCriteria: normalizeText(input.acceptanceCriteria),
     classifierNotes: classification.notes,
+    captureContext: input.captureContext ?? null,
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
@@ -117,4 +124,75 @@ export async function createChangeRequest(input: {
 
   const [created] = await repository.listByOrganizationId(input.organizationId, 50);
   return created ?? request;
+}
+
+export async function updateChangeRequest(input: {
+  organizationId: string;
+  requestId: string;
+  workspace: WorkspaceDefinition;
+  title: string;
+  problem: string;
+  requestedOutcome: string;
+  businessContext?: string | null;
+  acceptanceCriteria?: string | null;
+  attachments?: File[];
+  status?: ChangeRequestStatus | null;
+}) {
+  const existing = await repository.findByIdForOrganization(input.requestId, input.organizationId);
+  if (!existing) {
+    throw new Error("Change request not found.");
+  }
+
+  const normalizedTitle = input.title.trim();
+  const normalizedProblem = input.problem.trim();
+  const normalizedOutcome = input.requestedOutcome.trim();
+  const classification = classifyRequest({
+    title: normalizedTitle,
+    problem: normalizedProblem,
+    requestedOutcome: normalizedOutcome,
+    workspace: input.workspace,
+  });
+
+  const nextStatus =
+    input.status ??
+    (existing.status === "resolved" ||
+    existing.status === "declined" ||
+    existing.status === "stale" ||
+    existing.status === "requires_additional_feedback"
+      ? "queued"
+      : existing.status);
+
+  const updated = await repository.update({
+    changeRequestId: input.requestId,
+    organizationId: input.organizationId,
+    title: normalizedTitle,
+    problem: normalizedProblem,
+    requestedOutcome: normalizedOutcome,
+    businessContext: normalizeText(input.businessContext),
+    acceptanceCriteria: normalizeText(input.acceptanceCriteria),
+    status: nextStatus,
+    classifierNotes: classification.notes,
+  });
+
+  if (input.workspace.changeRequests.allowAttachments) {
+    for (const attachment of input.attachments ?? []) {
+      if (!attachment || attachment.size <= 0) {
+        continue;
+      }
+      await repository.uploadAttachment({
+        organizationId: input.organizationId,
+        changeRequestId: input.requestId,
+        file: attachment,
+      });
+    }
+  }
+
+  return (await repository.findByIdForOrganization(input.requestId, input.organizationId)) ?? updated;
+}
+
+export async function deleteChangeRequest(input: {
+  organizationId: string;
+  requestId: string;
+}) {
+  return repository.delete(input.requestId, input.organizationId);
 }

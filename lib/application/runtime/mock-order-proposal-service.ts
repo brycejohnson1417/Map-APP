@@ -2,6 +2,8 @@ import "server-only";
 
 import type { AccountRuntimeDetail } from "@/lib/domain/runtime";
 import { getAccountRuntimeDetail } from "@/lib/application/runtime/account-service";
+import { findRuntimeOrganization } from "@/lib/application/runtime/runtime-rest";
+import { resolveTenantNabisConfig } from "@/lib/application/runtime/provider-credentials";
 
 const DEFAULT_NABIS_API_BASE_URL = "https://platform-api.nabis.pro/v2";
 const DEFAULT_NABIS_INVENTORY_PATH = "/ny/inventory";
@@ -152,18 +154,19 @@ async function fetchNabisPage(url: URL, apiKey: string) {
   throw lastError instanceof Error ? lastError : new Error("Nabis inventory scan failed.");
 }
 
-async function fetchLiveInventory() {
-  const apiKey = process.env.NABIS_API_KEY?.trim();
+async function fetchLiveInventory(input: { organizationId: string; organizationSlug: string }) {
+  const nabis = await resolveTenantNabisConfig(input);
+  const apiKey = nabis.apiKey;
   if (!apiKey) {
     return {
       rows: [] as InventoryRow[],
       pagesScanned: 0,
-      warning: "NABIS_API_KEY is not configured; unable to generate live inventory proposal.",
+      warning: `Nabis credentials are not configured for "${input.organizationSlug}"; unable to generate live inventory proposal.`,
     };
   }
 
-  const baseUrl = (process.env.NABIS_API_BASE_URL?.trim() || DEFAULT_NABIS_API_BASE_URL).replace(/\/$/, "");
-  const inventoryPath = process.env.NABIS_INVENTORY_PATH?.trim() || DEFAULT_NABIS_INVENTORY_PATH;
+  const baseUrl = (nabis.apiBaseUrl || DEFAULT_NABIS_API_BASE_URL).replace(/\/$/, "");
+  const inventoryPath = nabis.inventoryPath || DEFAULT_NABIS_INVENTORY_PATH;
   const path = inventoryPath.startsWith("/") ? inventoryPath : `/${inventoryPath}`;
   const pageSize = Number.parseInt(process.env.NABIS_INVENTORY_PAGE_SIZE ?? "", 10);
   const limit = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : DEFAULT_NABIS_PAGE_SIZE;
@@ -293,6 +296,11 @@ function buildProposalItems(rows: InventoryRow[]) {
 }
 
 export async function buildMockOrderProposalReport(slug: string, accountId: string) {
+  const organization = await findRuntimeOrganization(slug);
+  if (!organization) {
+    return null;
+  }
+
   const detail: AccountRuntimeDetail | null = await getAccountRuntimeDetail(slug, accountId);
   if (!detail) {
     return null;
@@ -303,7 +311,10 @@ export async function buildMockOrderProposalReport(slug: string, accountId: stri
   let pagesScanned = 0;
 
   try {
-    const inventory = await fetchLiveInventory();
+    const inventory = await fetchLiveInventory({
+      organizationId: organization.id,
+      organizationSlug: organization.slug,
+    });
     inventoryRows = inventory.rows;
     pagesScanned = inventory.pagesScanned;
     if (inventory.warning) {

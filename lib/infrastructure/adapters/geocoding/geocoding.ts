@@ -1,5 +1,7 @@
 import "server-only";
 
+import { resolveTenantGoogleMapsServerKey } from "@/lib/application/runtime/provider-credentials";
+
 export type GeocodeProvider = "google_maps" | "openstreetmap";
 
 interface GoogleGeocodeResult {
@@ -74,24 +76,6 @@ function numberFromEnv(value: string | undefined, fallback: number, min: number,
   return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
-function slugEnvPrefix(slug: string | null | undefined) {
-  return String(slug ?? "")
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toUpperCase();
-}
-
-function resolveTenantGoogleMapsServerKey(organizationSlug: string | null | undefined) {
-  const prefix = slugEnvPrefix(organizationSlug);
-  const scoped = prefix ? process.env[`${prefix}_GOOGLE_MAPS_SERVER_API_KEY`]?.trim() : "";
-  if (scoped) {
-    return scoped;
-  }
-
-  return process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim() || null;
-}
-
 function sleep(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -107,8 +91,14 @@ async function waitForOpenGeocodingSlot(minDelayMs: number) {
   lastOpenGeocodeAt = Date.now();
 }
 
-export function resolveGeocodingPlan(input: { organizationSlug?: string | null } = {}): GeocodingPlan {
-  const googleApiKey = resolveTenantGoogleMapsServerKey(input.organizationSlug);
+export async function resolveGeocodingPlan(input: { organizationId?: string | null; organizationSlug?: string | null } = {}): Promise<GeocodingPlan> {
+  const googleApiKey =
+    input.organizationId && input.organizationSlug
+      ? await resolveTenantGoogleMapsServerKey({
+          organizationId: input.organizationId,
+          organizationSlug: input.organizationSlug,
+        })
+      : null;
   const provider: GeocodeProvider = googleApiKey ? "google_maps" : "openstreetmap";
   const openGeocodingMinDelayMs = numberFromEnv(
     process.env.OPEN_GEOCODING_MIN_DELAY_MS,

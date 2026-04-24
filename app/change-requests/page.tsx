@@ -47,7 +47,7 @@ export default async function ChangeRequestsPage({ searchParams }: ChangeRequest
           </p>
         </header>
 
-        <ChangeRequestList initialRequests={requests} />
+        <ChangeRequestList initialRequests={requests} orgSlug={orgSlug} />
       </div>
     </AppFrame>
   );

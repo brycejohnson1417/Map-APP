@@ -25,6 +25,8 @@ The current goal is simple:
 ### API
 - `GET /api/runtime/organizations/[slug]/change-requests`
 - `POST /api/runtime/organizations/[slug]/change-requests`
+- `PATCH /api/runtime/organizations/[slug]/change-requests/[requestId]`
+- `DELETE /api/runtime/organizations/[slug]/change-requests/[requestId]`
 
 ### Tenant-facing capture flow
 - tenant opens `Comment a request`
@@ -32,8 +34,9 @@ The current goal is simple:
 - tenant clicks directly on one or more points on the live page
 - tenant adds a plain-language comment for each marked point
 - comment-mode chrome stays compact so most of the underlying page remains visible while annotating
+- on mobile, comment mode keeps the page visible and pushes detail capture into the later queue-edit flow instead of forcing a large form over the screen
 - if screenshot capture fails in a browser-specific rendering edge case, the request still submits with the notes file instead of blocking the queue
-- harness submits one request with an annotated screenshot and notes file
+- harness submits one request per completed comment with an annotated screenshot when capture succeeds, or notes-only metadata when screenshot capture falls back
 
 ### Normalized internal fields
 The UI no longer asks tenants to fill these in directly, but the harness still stores:
@@ -67,9 +70,10 @@ These labels are internal harness concepts. They should not be treated as requir
 ## What this already enables
 
 - tenant change capture from inside the workspace
-- multi-comment requests tied to exact screen areas
+- one comment -> one queue item tied to an exact screen area
 - screenshot/attachment-backed requests
 - tenant-scoped queue review
+- tenant-visible request editing, file upload, and delete actions without exposing internal classifier jargon
 - a stable handoff artifact for future AI/policy systems
 
 ## What is not done yet
@@ -80,6 +84,7 @@ These labels are internal harness concepts. They should not be treated as requir
 - maintainer scheduling and assignment
 - request conversation threads
 - escalation SLAs
+- stronger replay/remap of comment anchors after layout changes
 
 ## Next work
 

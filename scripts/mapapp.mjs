@@ -83,8 +83,17 @@ function requiredTenantFiles(org) {
   ];
 }
 
-function requiredEnvKeys() {
-  return [
+function tenantEnvPrefix(org) {
+  return String(org ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
+function requiredEnvKeys(org) {
+  const prefix = tenantEnvPrefix(org);
+  const keys = [
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
@@ -92,11 +101,18 @@ function requiredEnvKeys() {
     "SUPABASE_ACCESS_TOKEN",
     "APP_ENCRYPTION_KEY",
     "NEON_SOURCE_DATABASE_URL",
-    "NOTION_TOKEN",
-    "NABIS_API_KEY",
-    "GOOGLE_MAPS_BROWSER_API_KEY",
-    "GOOGLE_MAPS_SERVER_API_KEY",
   ];
+
+  if (prefix) {
+    keys.push(
+      `${prefix}_NOTION_TOKEN`,
+      `${prefix}_NABIS_API_KEY`,
+      `${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`,
+      `${prefix}_GOOGLE_MAPS_SERVER_API_KEY`,
+    );
+  }
+
+  return keys;
 }
 
 function fileContainsTodo(path) {
@@ -116,8 +132,8 @@ function collectTenantFileChecks(org) {
   });
 }
 
-function collectEnvChecks() {
-  return requiredEnvKeys().map((key) => ({
+function collectEnvChecks(org) {
+  return requiredEnvKeys(org).map((key) => ({
     label: `env:${key}`,
     ok: Boolean(process.env[key]?.trim()),
     detail: process.env[key]?.trim() ? "present" : "missing",
@@ -942,7 +958,7 @@ async function main() {
 
   if (scope === "health" && action === "check") {
     const targetOrg = org?.trim() || process.env.ORG_SLUG?.trim() || "unknown";
-    const envChecks = collectEnvChecks();
+    const envChecks = collectEnvChecks(targetOrg);
     const fileChecks = targetOrg === "unknown" ? [] : collectTenantFileChecks(targetOrg);
     const runtimeChecks = await checkRuntimeHealth();
     const checks = [...envChecks, ...fileChecks, ...runtimeChecks];
@@ -967,8 +983,9 @@ async function main() {
       process.exit(1);
     }
 
+    const targetOrg = org.trim();
     const fileChecks = collectTenantFileChecks(org);
-    const envChecks = collectEnvChecks();
+    const envChecks = collectEnvChecks(targetOrg);
     const checks = [...fileChecks, ...envChecks];
 
     if (action === "validate") {

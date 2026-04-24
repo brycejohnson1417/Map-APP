@@ -45,7 +45,10 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
     throw new Error("organization_not_found");
   }
 
-  const plan = resolveGeocodingPlan({ organizationSlug: organization.slug });
+  const plan = await resolveGeocodingPlan({
+    organizationId: organization.id,
+    organizationSlug: organization.slug,
+  });
   const workspace = await getWorkspaceExperienceBySlug(organization.slug);
   const geocodingConfig = workspace.workspace.geocoding ?? null;
   const limit = readLimit(input.limit, plan.maxPerSync, plan.maxPerSync);

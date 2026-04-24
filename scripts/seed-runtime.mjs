@@ -61,6 +61,22 @@ function requiredEnv(key) {
   return value;
 }
 
+function tenantEnvPrefix(orgSlug) {
+  return String(orgSlug ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+}
+
+function tenantEnv(orgSlug, suffix) {
+  const prefix = tenantEnvPrefix(orgSlug);
+  if (!prefix) {
+    return "";
+  }
+  return process.env[`${prefix}_${suffix}`]?.trim() || "";
+}
+
 function optionalJsonArray(raw) {
   if (!raw?.trim()) {
     return [];
@@ -197,51 +213,62 @@ async function main() {
 
   const integrations = {};
 
-  if (process.env.NOTION_TOKEN?.trim()) {
-    const notionDataSourceIds = optionalJsonArray(process.env.NOTION_DATA_SOURCE_IDS);
+  const notionToken = tenantEnv(orgSlug, "NOTION_TOKEN");
+  const notionWorkspaceId = tenantEnv(orgSlug, "NOTION_WORKSPACE_ID");
+  const notionDataSourceIds = optionalJsonArray(tenantEnv(orgSlug, "NOTION_DATA_SOURCE_IDS"));
+  const notionCompaniesDataSourceId = tenantEnv(orgSlug, "NOTION_COMPANIES_DATA_SOURCE_ID");
+  const notionMasterListDataSourceId = tenantEnv(orgSlug, "NOTION_MASTER_LIST_DATA_SOURCE_ID");
+  const notionContactsDataSourceId = tenantEnv(orgSlug, "NOTION_CONTACTS_DATA_SOURCE_ID");
+
+  if (notionToken) {
     integrations.notion = await upsertIntegration(supabase, organization.id, {
       provider: "notion",
       displayName: "Notion CRM",
-      externalAccountId: process.env.NOTION_WORKSPACE_ID?.trim() || null,
+      externalAccountId: notionWorkspaceId || null,
       config: {
         dataSourceIds: notionDataSourceIds,
         companyDataSourceId:
-          process.env.NOTION_COMPANIES_DATA_SOURCE_ID?.trim() ||
-          process.env.NOTION_MASTER_LIST_DATA_SOURCE_ID?.trim() ||
+          notionCompaniesDataSourceId ||
+          notionMasterListDataSourceId ||
           notionDataSourceIds[0] ||
           null,
-        contactDataSourceId: process.env.NOTION_CONTACTS_DATA_SOURCE_ID?.trim() || notionDataSourceIds[1] || null,
+        contactDataSourceId: notionContactsDataSourceId || notionDataSourceIds[1] || null,
       },
       secrets: {
-        token: process.env.NOTION_TOKEN,
+        token: notionToken,
       },
     });
   }
 
-  if (process.env.NABIS_API_KEY?.trim()) {
+  const nabisApiKey = tenantEnv(orgSlug, "NABIS_API_KEY");
+  const nabisApiBaseUrl = tenantEnv(orgSlug, "NABIS_API_BASE_URL");
+  const nabisOrdersPath = tenantEnv(orgSlug, "NABIS_ORDERS_PATH");
+  if (nabisApiKey) {
     integrations.nabis = await upsertIntegration(supabase, organization.id, {
       provider: "nabis",
       displayName: "Nabis Orders",
       config: {
-        apiBaseUrl: process.env.NABIS_API_BASE_URL?.trim() || "https://platform-api.nabis.pro/v2",
-        ordersPath: process.env.NABIS_ORDERS_PATH?.trim() || "/ny/order",
+        apiBaseUrl: nabisApiBaseUrl || "https://platform-api.nabis.pro/v2",
+        ordersPath: nabisOrdersPath || "/ny/order",
       },
       secrets: {
-        apiKey: process.env.NABIS_API_KEY,
+        apiKey: nabisApiKey,
       },
     });
   }
 
-  if (process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() || process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim()) {
+  const googleMapsBrowserApiKey = tenantEnv(orgSlug, "GOOGLE_MAPS_BROWSER_API_KEY");
+  const googleMapsServerApiKey = tenantEnv(orgSlug, "GOOGLE_MAPS_SERVER_API_KEY");
+  if (googleMapsBrowserApiKey || googleMapsServerApiKey) {
     integrations.google_maps = await upsertIntegration(supabase, organization.id, {
       provider: "google_maps",
       displayName: "Google Maps",
       config: {
-        browserApiKey: process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() || null,
+        browserApiKey: googleMapsBrowserApiKey || null,
       },
-      secrets: process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim()
+      secrets: googleMapsServerApiKey
         ? {
-            serverApiKey: process.env.GOOGLE_MAPS_SERVER_API_KEY,
+            serverApiKey: googleMapsServerApiKey,
           }
         : {},
     });

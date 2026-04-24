@@ -5,12 +5,25 @@ import {
   listChangeRequestsForOrganization,
 } from "@/lib/application/change-requests/change-request-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
-import type { ChangeRequestClassification } from "@/lib/domain/change-request";
+import type { ChangeRequestCaptureContext, ChangeRequestClassification } from "@/lib/domain/change-request";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
 function readText(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function readCaptureContext(formData: FormData): ChangeRequestCaptureContext | null {
+  const raw = readText(formData, "captureContext");
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as ChangeRequestCaptureContext;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
@@ -72,6 +85,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     businessContext: readText(formData, "businessContext") || null,
     acceptanceCriteria: readText(formData, "acceptanceCriteria") || null,
     attachments,
+    captureContext: readCaptureContext(formData),
   });
 
   return NextResponse.json({

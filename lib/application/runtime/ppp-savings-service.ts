@@ -4,6 +4,7 @@ import pricingGuide from "@/tenants/picc/preferred-partner-pricing.json";
 import type { AccountContact, AccountRuntimeDetail } from "@/lib/domain/runtime";
 import { findRuntimeOrganization, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { getAccountRuntimeDetail } from "@/lib/application/runtime/account-service";
+import { resolveTenantNabisConfig } from "@/lib/application/runtime/provider-credentials";
 
 const DEFAULT_NABIS_API_BASE_URL = "https://platform-api.nabis.pro/v2";
 const DEFAULT_NABIS_ORDERS_PATH = "/ny/order";
@@ -565,13 +566,25 @@ async function fetchNabisPage(url: URL, apiKey: string) {
   throw lastError instanceof Error ? lastError : new Error("Nabis order scan failed.");
 }
 
-async function fetchLiveNabisRows(identifiers: AccountIdentifiers, year: number, targetOrderKeyGroups: string[][]) {
-  const apiKey = process.env.NABIS_API_KEY?.trim();
+async function fetchLiveNabisRows(
+  input: {
+    organizationId: string;
+    organizationSlug: string;
+    identifiers: AccountIdentifiers;
+    year: number;
+    targetOrderKeyGroups: string[][];
+  },
+) {
+  const nabis = await resolveTenantNabisConfig({
+    organizationId: input.organizationId,
+    organizationSlug: input.organizationSlug,
+  });
+  const apiKey = nabis.apiKey;
   if (!apiKey) {
     return {
       rows: [] as Record<string, unknown>[],
       pagesScanned: 0,
-      warning: "NABIS_API_KEY is not configured; used stored Nabis payloads only.",
+      warning: `Nabis credentials are not configured for "${input.organizationSlug}"; used stored Nabis payloads only.`,
     };
   }
 
@@ -585,8 +598,8 @@ async function fetchLiveNabisRows(identifiers: AccountIdentifiers, year: number,
     };
   }
 
-  const baseUrl = (process.env.NABIS_API_BASE_URL?.trim() || DEFAULT_NABIS_API_BASE_URL).replace(/\/$/, "");
-  const ordersPath = process.env.NABIS_ORDERS_PATH?.trim() || DEFAULT_NABIS_ORDERS_PATH;
+  const baseUrl = (nabis.apiBaseUrl || DEFAULT_NABIS_API_BASE_URL).replace(/\/$/, "");
+  const ordersPath = nabis.ordersPath || DEFAULT_NABIS_ORDERS_PATH;
   const path = ordersPath.startsWith("/") ? ordersPath : `/${ordersPath}`;
   const pageSize = Number.parseInt(process.env.NABIS_PPP_PAGE_SIZE ?? "", 10);
   const limit = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : DEFAULT_NABIS_PAGE_SIZE;
@@ -611,25 +624,28 @@ async function fetchLiveNabisRows(identifiers: AccountIdentifiers, year: number,
     const payloadRecord = getRecord(payload);
     const pageRows = Array.isArray(payloadRecord?.data) ? payloadRecord.data : Array.isArray(payload) ? payload : [];
     const records = pageRows.map(getRecord).filter((entry): entry is Record<string, unknown> => Boolean(entry));
-    const matchedRecords = records.filter((record) => accountMatchesNabisRecord(record, identifiers));
+    const matchedRecords = records.filter((record) => accountMatchesNabisRecord(record, input.identifiers));
     rows.push(...matchedRecords);
     for (const record of matchedRecords) {
       for (const key of normalizedNabisRecordOrderKeys(record)) {
-        if (targetOrderKeyGroups.some((group) => group.includes(key))) {
+        if (input.targetOrderKeyGroups.some((group) => group.includes(key))) {
           matchedTargetOrderKeys.add(key);
         }
       }
     }
 
     const nextPage = typeof payloadRecord?.nextPage === "number" ? payloadRecord.nextPage : null;
-    stoppedAtYearBoundary = pageReachedBeforeYear(records, year);
+    stoppedAtYearBoundary = pageReachedBeforeYear(records, input.year);
     if (!records.length || nextPage === null || nextPage <= page) {
       break;
     }
     if (stoppedAtYearBoundary) {
       break;
     }
-    if (targetOrderKeyGroups.length > 0 && targetOrderKeyGroups.every((group) => group.some((key) => matchedTargetOrderKeys.has(key)))) {
+    if (
+      input.targetOrderKeyGroups.length > 0 &&
+      input.targetOrderKeyGroups.every((group) => group.some((key) => matchedTargetOrderKeys.has(key)))
+    ) {
       break;
     }
   }
@@ -639,7 +655,7 @@ async function fetchLiveNabisRows(identifiers: AccountIdentifiers, year: number,
     rows,
     pagesScanned,
     warning: hitPageCap
-      ? `Live Nabis scan reached ${maxPages} pages before passing ${year} order data. Increase NABIS_PPP_LIVE_SCAN_PAGES if this retailer has older ${year} orders beyond that window.`
+      ? `Live Nabis scan reached ${maxPages} pages before passing ${input.year} order data. Increase NABIS_PPP_LIVE_SCAN_PAGES if this retailer has older ${input.year} orders beyond that window.`
       : null,
   };
 }
@@ -999,7 +1015,13 @@ export async function calculatePppSavingsReport(slug: string, accountId: string,
   let livePagesScanned = 0;
 
   try {
-    const liveResult = await fetchLiveNabisRows(identifiers, year, localCurrentYearOrderKeyGroups);
+    const liveResult = await fetchLiveNabisRows({
+      organizationId: organization.id,
+      organizationSlug: organization.slug,
+      identifiers,
+      year,
+      targetOrderKeyGroups: localCurrentYearOrderKeyGroups,
+    });
     liveRows = liveResult.rows;
     livePagesScanned = liveResult.pagesScanned;
     if (liveResult.warning) {
