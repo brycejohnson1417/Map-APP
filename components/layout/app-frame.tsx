@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { ChangeRequestCaptureLauncher } from "@/components/change-requests/change-request-capture-launcher";
+import { MobileNavigationMenu } from "@/components/layout/mobile-navigation-menu";
 import { defaultOrgSlug, orgScopedHref } from "@/lib/presentation/org-slug";
 
 const navigationIcons = {
@@ -47,19 +48,19 @@ export async function AppFrame({
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
       <div className="flex min-h-screen w-full flex-col">
         <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--background)_82%,transparent)] backdrop-blur-xl">
-          <div className="flex min-h-16 w-full items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-3 md:gap-4 md:px-6">
             <Link href={homeHref} className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-white shadow-[var(--shadow-soft)]">
                 <Building2 className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
                   {workspace.workspace.branding.heroEyebrow}
                 </p>
-                <p className="text-base font-semibold tracking-[-0.02em]">{activeOrganizationName}</p>
+                <p className="truncate text-base font-semibold tracking-[-0.02em]">{activeOrganizationName}</p>
               </div>
             </Link>
-            <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -74,9 +75,15 @@ export async function AppFrame({
                 );
               })}
             </nav>
-            {workspace.allowChangeRequests && workspace.organization && tenantSessionEmail ? (
-              <ChangeRequestCaptureLauncher orgSlug={activeOrganizationSlug} workspace={workspace.workspace} compact />
-            ) : null}
+            <div className="flex shrink-0 items-center gap-2">
+              {workspace.allowChangeRequests && workspace.organization && tenantSessionEmail ? (
+                <ChangeRequestCaptureLauncher orgSlug={activeOrganizationSlug} workspace={workspace.workspace} compact />
+              ) : null}
+              <MobileNavigationMenu
+                organizationName={activeOrganizationName}
+                items={navigation.map((item) => ({ href: item.href, label: item.label }))}
+              />
+            </div>
           </div>
         </header>
         <main className="flex-1">{children}</main>

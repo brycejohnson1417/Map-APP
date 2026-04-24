@@ -12,6 +12,49 @@ function testTenantTemplate() {
   return process.env.TEST_TENANT_TEMPLATE_ID?.trim() || "fraternity-sales";
 }
 
+async function seedTenantSession({
+  context,
+  baseURL,
+  orgSlug,
+}: {
+  context: Parameters<(typeof test)["extend"]>[0] extends never ? never : any;
+  baseURL?: string;
+  orgSlug: string;
+}) {
+  const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
+  const secure = base.protocol === "https:";
+
+  await context.addCookies([
+    {
+      name: "tenant_session_email",
+      value: testTenantEmail(),
+      domain: base.hostname,
+      path: "/",
+      httpOnly: true,
+      secure,
+      sameSite: "Lax",
+    },
+    {
+      name: "tenant_session_slug",
+      value: orgSlug,
+      domain: base.hostname,
+      path: "/",
+      httpOnly: true,
+      secure,
+      sameSite: "Lax",
+    },
+    {
+      name: "tenant_session_template",
+      value: testTenantTemplate(),
+      domain: base.hostname,
+      path: "/",
+      httpOnly: true,
+      secure,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
 test("core runtime pages load", async ({ page }) => {
   const orgSlug = testTenantOrgSlug();
 
@@ -41,37 +84,7 @@ test("core runtime pages load", async ({ page }) => {
 
 test("authenticated tenant can enter comment mode and place a locked-page comment", async ({ page, context, baseURL }) => {
   const orgSlug = testTenantOrgSlug();
-  const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
-
-  await context.addCookies([
-    {
-      name: "tenant_session_email",
-      value: testTenantEmail(),
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-    {
-      name: "tenant_session_slug",
-      value: orgSlug,
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-    {
-      name: "tenant_session_template",
-      value: testTenantTemplate(),
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-  ]);
+  await seedTenantSession({ context, baseURL, orgSlug });
 
   await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
   await expect(page.getByRole("heading", { name: /accounts/i }).first()).toBeVisible();
@@ -102,7 +115,6 @@ test("comment mode shows validation clearly and still submits when screenshot ca
   baseURL,
 }) => {
   const orgSlug = testTenantOrgSlug();
-  const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
 
   await page.addInitScript(() => {
     const original = window.getComputedStyle.bind(window);
@@ -122,35 +134,7 @@ test("comment mode shows validation clearly and still submits when screenshot ca
     }) as typeof window.getComputedStyle;
   });
 
-  await context.addCookies([
-    {
-      name: "tenant_session_email",
-      value: testTenantEmail(),
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-    {
-      name: "tenant_session_slug",
-      value: orgSlug,
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-    {
-      name: "tenant_session_template",
-      value: testTenantTemplate(),
-      domain: base.hostname,
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-    },
-  ]);
+  await seedTenantSession({ context, baseURL, orgSlug });
 
   let requestCount = 0;
   await page.route(`**/api/runtime/organizations/${orgSlug}/change-requests`, async (route) => {
@@ -215,37 +199,7 @@ test.describe("mobile annotation mode", () => {
 
   test("keeps the page visible and uses compact comment controls on mobile", async ({ page, context, baseURL }) => {
     const orgSlug = testTenantOrgSlug();
-    const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
-
-    await context.addCookies([
-      {
-        name: "tenant_session_email",
-        value: testTenantEmail(),
-        domain: base.hostname,
-        path: "/",
-        httpOnly: true,
-        secure: true,
-        sameSite: "Lax",
-      },
-      {
-        name: "tenant_session_slug",
-        value: orgSlug,
-        domain: base.hostname,
-        path: "/",
-        httpOnly: true,
-        secure: true,
-        sameSite: "Lax",
-      },
-      {
-        name: "tenant_session_template",
-        value: testTenantTemplate(),
-        domain: base.hostname,
-        path: "/",
-        httpOnly: true,
-        secure: true,
-        sameSite: "Lax",
-      },
-    ]);
+    await seedTenantSession({ context, baseURL, orgSlug });
 
     await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
     await page.getByRole("button", { name: /^comment$/i }).click();
@@ -262,5 +216,79 @@ test.describe("mobile annotation mode", () => {
     await page.mouse.click(headingBox.x + headingBox.width * 0.7, headingBox.y + headingBox.height * 0.5);
     await expect(page.getByPlaceholder(/add a comment about what should change here/i)).toBeVisible();
     await expect(page.getByText(/add extra details after submit from the queue/i)).toBeVisible();
+  });
+
+  test("mobile territory uses a true single-mode view and keeps navigation accessible", async ({ page, context, baseURL }) => {
+    const orgSlug = testTenantOrgSlug();
+    await seedTenantSession({ context, baseURL, orgSlug });
+
+    await page.goto(`/territory?org=${encodeURIComponent(orgSlug)}`);
+    await expect(page.getByRole("button", { name: /open workspace navigation/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /field console/i })).toBeVisible();
+    await expect(page.locator(".leaflet-container")).toHaveCount(0);
+
+    await page.getByRole("button", { name: /field console/i }).click();
+    await expect(page.getByRole("button", { name: /^list$/i })).toBeVisible();
+    await page.getByRole("button", { name: /^map$/i }).click();
+    await expect(page.locator(".leaflet-container")).toHaveCount(1);
+    await expect(page.locator(".leaflet-control-zoom")).toBeVisible();
+  });
+
+  test("mobile comment submit still works when screenshot annotation fails", async ({ page, context, baseURL }) => {
+    const orgSlug = testTenantOrgSlug();
+    await seedTenantSession({ context, baseURL, orgSlug });
+
+    await page.addInitScript(() => {
+      const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function patchedToBlob(...args: Parameters<typeof originalToBlob>) {
+        throw new DOMException("The string did not match the expected pattern.");
+      };
+    });
+
+    let requestCount = 0;
+    await page.route(`**/api/runtime/organizations/${orgSlug}/change-requests`, async (route) => {
+      requestCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          request: {
+            id: `mobile-request-id-${requestCount}`,
+            organizationId: "mock-org",
+            requestedByEmail: "qa@fraternitees.com",
+            title: "Mock request",
+            currentUrl: `/accounts?org=${orgSlug}`,
+            surface: "accounts",
+            classification: "config",
+            status: "queued",
+            problem: "Mock",
+            requestedOutcome: "Mock",
+            businessContext: null,
+            acceptanceCriteria: null,
+            classifierNotes: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            attachments: [],
+          },
+        }),
+      });
+    });
+
+    await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
+    await page.getByRole("button", { name: /^comment$/i }).click();
+
+    const scoreCard = page.getByText(/total organizations/i).first();
+    const scoreCardBox = await scoreCard.boundingBox();
+    if (!scoreCardBox) {
+      throw new Error("Mobile submit fallback test could not find the target card.");
+    }
+
+    await page.mouse.click(scoreCardBox.x + scoreCardBox.width * 0.7, scoreCardBox.y + scoreCardBox.height * 0.5);
+    await page.getByPlaceholder(/add a comment about what should change here/i).fill("Mobile screenshot fallback should not block submit.");
+    await page.getByRole("button", { name: /^submit$/i }).click();
+
+    await expect(page.getByText(/request added to the queue|requests added to the queue/i)).toBeVisible();
+    await expect(page.getByText(/without screenshots/i)).toBeVisible();
   });
 });

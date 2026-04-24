@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
 import type * as Leaflet from "leaflet";
 import {
   Check,
@@ -147,6 +148,42 @@ function formatDate(value: string | null | undefined) {
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
+}
+
+function teardownMap(
+  mapRef: MutableRefObject<MapHandle | null>,
+  markerRefs: MutableRefObject<LayerCleanup[]>,
+  polygonRefs: MutableRefObject<LayerCleanup[]>,
+  overlayMarkerRefs: MutableRefObject<LayerCleanup[]>,
+  routeLineRef: MutableRefObject<LayerCleanup | null>,
+  directionsRendererRef: MutableRefObject<GoogleDirectionsRenderer | null>,
+  lastFitSignatureRef: MutableRefObject<string>,
+) {
+  markerRefs.current.forEach((cleanup) => cleanup());
+  polygonRefs.current.forEach((cleanup) => cleanup());
+  overlayMarkerRefs.current.forEach((cleanup) => cleanup());
+  markerRefs.current = [];
+  polygonRefs.current = [];
+  overlayMarkerRefs.current = [];
+  routeLineRef.current?.();
+  routeLineRef.current = null;
+  directionsRendererRef.current?.setMap(null);
+  directionsRendererRef.current = null;
+  lastFitSignatureRef.current = "";
+
+  const handle = mapRef.current;
+  if (!handle) {
+    return;
+  }
+
+  if (handle.provider === "openstreetmap") {
+    handle.map.remove();
+  } else {
+    const google = (window as any).google;
+    google?.maps?.event?.clearInstanceListeners?.(handle.map);
+  }
+
+  mapRef.current = null;
 }
 
 function getRepColor(rep: string | null | undefined) {
@@ -525,6 +562,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const useLiteMarkers = isNarrowViewport || mappablePinCount > 1200;
+  const mobileListMode = isNarrowViewport && view === "list";
+  const shouldRenderInteractiveMap = Boolean(mapConfig?.configured) && !mobileListMode;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -553,6 +592,15 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     setView("list");
     mobileViewAutoSwitchedRef.current = true;
   }, [isNarrowViewport, mappablePinCount]);
+
+  useEffect(() => {
+    if (shouldRenderInteractiveMap) {
+      return;
+    }
+
+    teardownMap(mapRef, markerRefs, polygonRefs, overlayMarkerRefs, routeLineRef, directionsRendererRef, lastFitSignatureRef);
+    setMapReady(false);
+  }, [shouldRenderInteractiveMap]);
 
   const invalidateMapSize = useCallback(() => {
     const handle = mapRef.current;
@@ -639,7 +687,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   }, [orgSlug, selectedId]);
 
   useEffect(() => {
-    if (!mapConfig || !mapElementRef.current || mapRef.current) {
+    if (!shouldRenderInteractiveMap || !mapConfig || !mapElementRef.current || mapRef.current) {
       return;
     }
 
@@ -694,7 +742,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         window.setTimeout(() => map.invalidateSize({ pan: false }), 250);
       })
       .catch((error: unknown) => setNotice(error instanceof Error ? error.message : "OpenStreetMap failed to load"));
-  }, [mapConfig]);
+  }, [mapConfig, shouldRenderInteractiveMap]);
 
   useEffect(() => {
     if (!mapReady) {
@@ -1002,7 +1050,9 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   function focusPin(pin: TerritoryAccountPin) {
     setSelectedId(pin.id);
     setView("map");
-    setDetailsOpen(true);
+    setDetailsOpen(!isNarrowViewport);
+    setConsoleOpen(false);
+    setFiltersOpen(false);
     const handle = mapRef.current;
     if (handle && pin.latitude !== null && pin.longitude !== null) {
       if (handle.provider === "google_maps") {
@@ -1158,9 +1208,24 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const directionsHref = getDirectionsHref(selectedPin, mapConfig?.mapProvider ?? "openstreetmap");
   const notionHref = getNotionHref(detail);
   const organizationName = initialDashboard.organization.name;
+  const mapSurface =
+    mapConfig === null ? (
+      <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm font-semibold text-[var(--text-secondary)]">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading map
+      </div>
+    ) : shouldRenderInteractiveMap && mapConfig.configured ? (
+      <div ref={mapElementRef} className="h-full w-full" />
+    ) : view === "map" ? (
+      <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm text-[var(--text-secondary)]">
+        {mapConfig.configured ? "Switch back to Map to load the territory canvas." : "Map tiles are not configured for this organization."}
+      </div>
+    ) : (
+      <div className="h-full w-full bg-[var(--surface-card)]" />
+    );
 
   return (
-    <div className="relative h-[calc(100dvh-65px)] min-h-[620px] overflow-hidden bg-[#d9ded6] text-[var(--text-primary)]">
+    <div className="relative h-[calc(100dvh-65px)] min-h-0 overflow-hidden bg-[#d9ded6] text-[var(--text-primary)] md:min-h-[620px]">
       {!consoleOpen ? (
         <div className="absolute left-3 top-3 z-20 flex flex-wrap gap-2 sm:left-4 sm:top-4">
           <button
@@ -1380,19 +1445,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
 
       <div className={classNames("grid h-full w-full gap-0", detailsOpen ? "xl:grid-cols-[minmax(0,1fr)_420px]" : "xl:grid-cols-1")}>
         <main className="relative min-h-[560px] xl:min-h-0">
-          <div className="absolute inset-0">
-            {mapConfig === null ? (
-              <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm font-semibold text-[var(--text-secondary)]">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading map
-              </div>
-            ) : mapConfig.configured ? (
-              <div ref={mapElementRef} className="h-full w-full" />
-            ) : (
-              <div className="flex h-full items-center justify-center bg-[var(--surface-elevated)] p-8 text-center text-sm text-[var(--text-secondary)]">
-                Google Maps is not configured for this organization.
-              </div>
-            )}
+          <div className={classNames("absolute inset-0", view === "list" ? "z-0" : "z-10")}>
+            {mapSurface}
             {view === "map" ? (
               <div className="pointer-events-none absolute bottom-4 left-4 flex flex-wrap gap-2">
                   <div className="pointer-events-auto rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2 text-sm font-semibold shadow-[var(--shadow-soft)]">
@@ -1429,7 +1483,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
             ) : null}
           </div>
           {view === "list" ? (
-            <div className="absolute inset-0 overflow-auto bg-[var(--surface-card)]">
+            <div className="absolute inset-0 z-20 overflow-auto bg-[var(--surface-card)]">
               {pins.map((pin) => (
                 <PinRow
                   key={pin.id}

@@ -46,7 +46,10 @@ The repo already has:
 - full-viewport locked comment mode rendered above the live runtime so on-screen comment capture can safely intercept page clicks
 - comment-mode chrome compacted so the live page stays visible during desktop and mobile annotation
 - change-request submission now degrades cleanly when browser screenshot capture hits unsupported CSS color formats
+- mobile change-request submission now also degrades cleanly if later screenshot annotation generation fails after capture
 - change-request capture now creates one queue item per on-screen comment, with tenant-visible edit/delete/add-details flows on collapsible request cards
+- shared app-frame mobile navigation now uses an explicit menu instead of relying on horizontal nav overflow
+- mobile territory rendering now uses a true single-mode view so list mode does not keep a live Leaflet map mounted underneath it
 - runtime credential resolution for paid providers now prefers tenant integration installs and tenant-scoped env keys, with generic global fallbacks removed from tenant-facing map/geocoding/Nabis runtime paths
 - `npm run check:tenant-isolation` now fails if tenant runtime code reaches for generic shared Google Maps, Nabis, Notion, Printavo, HubSpot, Salesforce, or HighLevel-style credential env names
 - tenant-mutating runtime routes for change requests, Notion sync queueing, geocoding, printavo sync, and account check-ins now consistently require tenant-session auth

@@ -458,25 +458,30 @@ export function ChangeRequestCaptureLauncher({
         formData.set("captureContext", JSON.stringify(comment.captureContext));
 
         if (workspace.changeRequests.allowAttachments) {
-          if (sharedCapture) {
-            const screenshotFile = await createAnnotatedScreenshotFile(
-              sharedCapture,
-              [comment],
-              `${surfaceContext.surface}-${timestamp}-${index + 1}.png`,
-            );
-            formData.append("attachments", screenshotFile);
-          }
+          try {
+            if (sharedCapture) {
+              const screenshotFile = await createAnnotatedScreenshotFile(
+                sharedCapture,
+                [comment],
+                `${surfaceContext.surface}-${timestamp}-${index + 1}.png`,
+              );
+              formData.append("attachments", screenshotFile);
+            }
 
-          formData.append(
-            "attachments",
-            createAnnotationNotesFile({
-              currentUrl,
-              surfaceLabel: surfaceContext.label,
-              summary,
-              businessContext,
-              comments: [comment],
-            }),
-          );
+            formData.append(
+              "attachments",
+              createAnnotationNotesFile({
+                currentUrl,
+                surfaceLabel: surfaceContext.label,
+                summary,
+                businessContext,
+                comments: [comment],
+              }),
+            );
+          } catch (caught) {
+            const message = caught instanceof Error ? caught.message : "Unable to generate request attachments.";
+            captureWarning = captureWarning ?? `Requests were added without screenshots: ${message}`;
+          }
         }
 
         const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
@@ -845,10 +850,15 @@ export function ChangeRequestCaptureLauncher({
           {open ? <CheckCircle2 className="h-4 w-4" /> : <MessageSquareText className="h-4 w-4" />}
           {open ? "Commenting" : compact ? "Comment" : "Comment a request"}
         </button>
-        {notice ? (
-          <p className="mt-2 text-right text-xs font-semibold text-[var(--accent-success)]">{notice}</p>
-        ) : null}
       </div>
+      {notice ? createPortal(
+        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[150] flex justify-center md:bottom-5">
+          <div className="max-w-[min(42rem,100%)] rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.96)] px-4 py-3 text-sm font-semibold text-[var(--accent-success)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+            {notice}
+          </div>
+        </div>,
+        document.body,
+      ) : null}
       {overlay ? createPortal(overlay, document.body) : null}
     </>
   );

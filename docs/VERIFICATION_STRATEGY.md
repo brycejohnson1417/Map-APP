@@ -84,6 +84,7 @@ Priority flows to automate:
 Current repo command:
 - `SMOKE_BASE_URL=http://localhost:3000 npm run verify:browser`
 - Browser verification can use a seeded tenant fixture via `TEST_TENANT_ORG_SLUG`, `TEST_TENANT_EMAIL`, and `TEST_TENANT_TEMPLATE_ID`. If those are unset, the suite falls back to the local org slug and then to the FraterniTees fixture.
+- Current browser coverage includes authenticated comment capture, screenshot-fallback submission, mobile annotation layout, mobile territory single-mode rendering, and mobile submit fallback when screenshot annotation generation throws.
 
 ## Default Verification Loop
 For normal feature work:
