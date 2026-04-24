@@ -8,23 +8,26 @@ This file is the concise execution view. The detailed reasoning lives in [docs/I
 - shared tenant-aware runtime foundation
 - territory and account runtime surfaces
 - tenant login routing
+- template-driven onboarding v1
+- workspace/package manifests wired into the runtime
+- in-app change-request queue with attachments
 - PICC runtime workflows for PPP savings and mock proposals
 - FraterniTees runtime onboarding, Printavo sync, and lead-scoring surfaces
 - geocoding flow with open-source default and Google upgrade path
 - sync status, runtime APIs, and base verification loops
 
 ### In progress
-- platform documentation rewrite around the harness/package/workspace model
+- keeping the repo docs aligned with the new control-plane surfaces
 - extraction of tenant behavior into clearer reusable contracts
-- FraterniTees scoring/filter/trend refinement
+- broadening self-serve onboarding and connector depth beyond the first template
+- adding policy/preview layers on top of the new change-request queue
 
 ### Next critical outcomes
-- primitive catalog v1
-- workspace/package model v1
-- tenant behavior extraction from shared code
-- compiled score/trend/read-model outputs
-- self-serve onboarding path
-- change-request queue and policy model
+- broader primitive extraction
+- more compiled score/trend/read-model outputs
+- onboarding improvements for additional templates
+- change-request preview/policy model
+- more tenant behavior extraction from shared code
 
 ## Sequence
 

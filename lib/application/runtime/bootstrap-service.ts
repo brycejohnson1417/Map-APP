@@ -12,6 +12,7 @@ const integrations = new IntegrationRepository();
 export async function bootstrapOrganization(input: {
   slug: string;
   name: string;
+  settings?: Record<string, unknown>;
   owner: {
     clerkUserId: string;
     email: string;
@@ -25,6 +26,12 @@ export async function bootstrapOrganization(input: {
     organization = await organizations.createOrganization({
       slug: input.slug,
       name: input.name,
+      settings: input.settings,
+    });
+  } else if (input.settings && JSON.stringify(organization.settings) !== JSON.stringify(input.settings)) {
+    organization = await organizations.updateSettings(organization.id, {
+      ...organization.settings,
+      ...input.settings,
     });
   }
 

@@ -1,0 +1,87 @@
+{
+  "id": "field-ops-starter",
+  "version": 1,
+  "kind": "tenant_workspace",
+  "displayName": "Field Ops Starter",
+  "templateLabel": "Field Ops Starter",
+  "description": "Self-serve starter template for teams that need accounts, map, change requests, and connector scaffolding without founder setup.",
+  "selfServe": true,
+  "emailDomains": [],
+  "defaultOrgSlug": "starter",
+  "defaultRedirectPath": "/accounts",
+  "branding": {
+    "heroEyebrow": "Self-serve starter",
+    "heroTitle": "Spin up an ops workspace without a dev team.",
+    "heroDescription": "Choose a template, connect data, and start with map, accounts, integrations, and a change-request queue."
+  },
+  "navigation": [
+    { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
+    { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
+    { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
+  ],
+  "packages": [
+    "core-runtime",
+    "territory-map-kit",
+    "account-directory-kit",
+    "change-request-kit",
+    "connector-onboarding-kit"
+  ],
+  "connectors": [
+    {
+      "provider": "csv_import",
+      "label": "CSV Import",
+      "description": "Upload customer data as a first connector while richer integrations are configured.",
+      "required": false,
+      "selfServe": true,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "notes", "label": "CSV source notes", "type": "textarea", "required": false, "placeholder": "Where will the first CSV come from?" }
+      ]
+    },
+    {
+      "provider": "google_sheets",
+      "label": "Google Sheets",
+      "description": "Use Google Sheets as a lightweight CRM or enrichment source.",
+      "required": false,
+      "selfServe": true,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "sheetUrl", "label": "Sheet URL", "type": "url", "required": false, "placeholder": "https://docs.google.com/..." }
+      ]
+    }
+  ],
+  "modules": {
+    "accounts": {
+      "variant": "default_directory",
+      "pageSize": 100
+    },
+    "accountDetail": {
+      "variant": "starter_detail",
+      "sections": ["identity_location", "contacts", "orders", "activities"]
+    },
+    "territory": {
+      "variant": "field_console",
+      "includeUnmappedAccounts": false,
+      "filtersAlwaysAvailable": true,
+      "enabledFlags": [],
+      "leadGradeFilter": false
+    },
+    "integrations": {
+      "variant": "generic_onboarding",
+      "allowRoutePlanning": true
+    }
+  },
+  "changeRequests": {
+    "enabled": true,
+    "defaultClassification": "config",
+    "classifications": ["config", "package", "primitive", "core"],
+    "allowAttachments": true
+  },
+  "onboarding": {
+    "enabled": true,
+    "summary": "Choose this template if you want a clean operations shell first and connector depth later."
+  }
+}

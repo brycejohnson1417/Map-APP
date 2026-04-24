@@ -1,0 +1,9 @@
+{
+  "id": "lead-score-kit",
+  "version": 1,
+  "name": "Lead Score Kit",
+  "description": "Tenant-configurable score models, grade bands, and DNC rules for account prioritization.",
+  "primitives": ["score_model", "scorecard", "dnc_rule"],
+  "surfaces": ["accounts", "territory", "account_detail"],
+  "status": "active"
+}

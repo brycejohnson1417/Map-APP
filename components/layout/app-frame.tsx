@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { BarChart3, Building2, Home, MapPinned, Route, Settings2, Users } from "lucide-react";
+import { BarChart3, Building2, Home, MapPinned, MessagesSquare, Route, Settings2, Users } from "lucide-react";
 import type { ReactNode } from "react";
+import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { defaultOrgSlug, orgScopedHref } from "@/lib/presentation/org-slug";
 
-export function AppFrame({
+const navigationIcons = {
+  BarChart3,
+  Home,
+  MapPinned,
+  MessagesSquare,
+  Route,
+  Settings2,
+  Users,
+} as const;
+
+export async function AppFrame({
   children,
   organizationName,
   organizationSlug,
@@ -12,24 +23,21 @@ export function AppFrame({
   organizationName?: string;
   organizationSlug?: string;
 }) {
-  const activeOrganizationName =
-    organizationName?.trim() || process.env.ORG_NAME?.trim() || process.env.NEXT_PUBLIC_ORG_NAME?.trim() || "PICC";
   const activeOrganizationSlug = organizationSlug?.trim() || defaultOrgSlug();
-  const isFraternitees = activeOrganizationSlug === "fraternitees";
-  const homeHref = isFraternitees ? orgScopedHref("/accounts", activeOrganizationSlug) : "/";
-  const navigation = isFraternitees
-    ? [
-        { href: orgScopedHref("/accounts", activeOrganizationSlug), label: "Accounts", icon: Users },
-        { href: orgScopedHref("/territory", activeOrganizationSlug), label: "Map", icon: MapPinned },
-        { href: orgScopedHref("/integrations", activeOrganizationSlug), label: "Integrations & Plugins", icon: Settings2 },
-      ]
-    : [
-        { href: "/", label: "Home", icon: Home },
-        { href: orgScopedHref("/territory", activeOrganizationSlug), label: "Map", icon: MapPinned },
-        { href: orgScopedHref("/accounts", activeOrganizationSlug), label: "Accounts List", icon: Users },
-        { href: orgScopedHref("/territory?tool=route", activeOrganizationSlug), label: "Route", icon: Route },
-        { href: `/runtime/${activeOrganizationSlug}`, label: "Dashboard", icon: BarChart3 },
-      ];
+  const workspace = await getWorkspaceExperienceBySlug(activeOrganizationSlug);
+  const activeOrganizationName =
+    organizationName?.trim() ||
+    workspace.organization?.name ||
+    process.env.ORG_NAME?.trim() ||
+    process.env.NEXT_PUBLIC_ORG_NAME?.trim() ||
+    workspace.workspace.displayName ||
+    "Map App Harness";
+  const homeHref = orgScopedHref(workspace.defaultRedirectPath, activeOrganizationSlug);
+  const navigation = workspace.navigation.map((item) => ({
+    ...item,
+    href: item.href.startsWith("/runtime/") ? item.href : orgScopedHref(item.href, activeOrganizationSlug),
+    icon: navigationIcons[item.icon as keyof typeof navigationIcons] ?? Home,
+  }));
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
@@ -42,7 +50,7 @@ export function AppFrame({
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-                  Company field operations
+                  {workspace.workspace.branding.heroEyebrow}
                 </p>
                 <p className="text-base font-semibold tracking-[-0.02em]">{activeOrganizationName}</p>
               </div>

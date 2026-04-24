@@ -1,0 +1,9 @@
+{
+  "id": "core-runtime",
+  "version": 1,
+  "name": "Core Runtime",
+  "description": "Canonical runtime shell for organizations, accounts, contacts, orders, activities, and tenant routing.",
+  "primitives": ["workspace_shell", "runtime_surface", "connector_adapter"],
+  "surfaces": ["login", "accounts", "territory", "account_detail", "integrations", "runtime"],
+  "status": "active"
+}

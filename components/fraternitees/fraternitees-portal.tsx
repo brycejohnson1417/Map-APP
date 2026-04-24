@@ -34,6 +34,8 @@ interface IntegrationSummary {
 }
 
 interface FraterniteesWorkspaceProps {
+  orgSlug: string;
+  workspaceName: string;
   sessionEmail: string;
   integrations: IntegrationSummary[];
   pluginSettings?: TenantPluginSettings;
@@ -309,7 +311,14 @@ export function FraterniteesLoginForm() {
   );
 }
 
-export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettings, setupError }: FraterniteesWorkspaceProps) {
+export function FraterniteesWorkspace({
+  orgSlug,
+  workspaceName,
+  sessionEmail,
+  integrations,
+  pluginSettings,
+  setupError,
+}: FraterniteesWorkspaceProps) {
   const savedPrintavoEmail = integrations.find((integration) => integration.provider === "printavo")?.externalAccountId ?? sessionEmail;
   const [printavoEmail, setPrintavoEmail] = useState(savedPrintavoEmail);
   const [printavoApiKey, setPrintavoApiKey] = useState("");
@@ -320,7 +329,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
   const [connected, setConnected] = useState(integrations);
   const [syncStatus, setSyncStatus] = useState<PrintavoSyncStatus | null>(null);
   const [plugins, setPlugins] = useState<TenantPluginSettings>(
-    pluginSettings ?? resolveTenantPluginSettings("fraternitees", {}),
+    pluginSettings ?? resolveTenantPluginSettings(orgSlug, {}),
   );
 
   const connectedProviders = useMemo(() => new Set(connected.map((integration) => integration.provider)), [connected]);
@@ -328,7 +337,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
   const printavoReady = Boolean(printavoEmail && (printavoApiKey || hasSavedPrintavo));
 
   async function refreshSyncStatus() {
-    const response = await fetch("/api/tenants/fraternitees/printavo/sync", { cache: "no-store" });
+    const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/printavo/sync`, { cache: "no-store" });
     const payload = (await response.json()) as { ok: boolean; error?: string; status?: PrintavoSyncStatus };
     if (!response.ok || !payload.ok) {
       throw new Error(payload.error ?? "Printavo sync status failed");
@@ -345,8 +354,8 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
   }, [hasSavedPrintavo]);
 
   async function logout() {
-    await fetch("/api/tenants/fraternitees/session", { method: "DELETE" });
-    window.location.reload();
+    await fetch("/api/tenant-session", { method: "DELETE" });
+    window.location.assign("/login");
   }
 
   async function updatePlugin(plugin: TenantPluginKey, enabled: boolean) {
@@ -357,7 +366,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
     }));
 
     try {
-      const response = await fetch("/api/runtime/organizations/fraternitees/plugins", {
+      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/plugins`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plugin, enabled }),
@@ -373,7 +382,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
       setPlugins(payload.plugins);
       setNotice(
         plugin === "routePlanning"
-          ? `Route planning is now ${payload.plugins.routePlanning.enabled ? "on" : "off"} for FraterniTees. Reload the map to apply the change.`
+          ? `Route planning is now ${payload.plugins.routePlanning.enabled ? "on" : "off"} for this workspace. Reload the map to apply the change.`
           : "Plugin settings updated.",
       );
     } catch (caught) {
@@ -386,7 +395,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
     setBusy("printavo");
     setNotice(null);
     try {
-      const response = await fetch("/api/tenants/fraternitees/printavo/preview", {
+      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/printavo/preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: printavoEmail, apiKey: printavoApiKey }),
@@ -420,7 +429,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
     setBusy("sync");
     setNotice(null);
     try {
-      const response = await fetch("/api/tenants/fraternitees/printavo/sync", {
+      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/printavo/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -491,7 +500,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
     try {
       while (hasMore && batchNumber < BACKFILL_MAX_BATCHES) {
         batchNumber += 1;
-        const response = await fetch("/api/tenants/fraternitees/printavo/sync", {
+        const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/printavo/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -583,11 +592,12 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
     setBusy("save");
     setNotice(null);
     try {
-      const response = await fetch("/api/tenants/fraternitees/connectors", {
+      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/connectors`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          printavo: {
+          provider: "printavo",
+          fields: {
             email: printavoEmail,
             apiKey: printavoApiKey,
           },
@@ -596,12 +606,18 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
       const payload = (await response.json()) as {
         ok: boolean;
         error?: string;
-        snapshot?: { integrations: IntegrationSummary[] };
+        integration?: IntegrationSummary;
       };
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error ?? "Connector save failed");
       }
-      setConnected(payload.snapshot?.integrations ?? []);
+      if (payload.integration) {
+        setConnected((current) => {
+          const next = current.filter((integration) => integration.provider !== payload.integration!.provider);
+          next.push(payload.integration!);
+          return next.sort((left, right) => left.displayName.localeCompare(right.displayName));
+        });
+      }
       setPrintavoApiKey("");
       setNotice("Connectors saved. Secrets are stored through the encrypted integration vault.");
     } catch (caught) {
@@ -617,7 +633,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
         <header className="flex flex-col justify-between gap-5 border-b border-[var(--border-subtle)] pb-6 lg:flex-row lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent-secondary-strong)]">
-              FraterniTees tenant
+              {workspaceName} workspace
             </p>
             <h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">Close Rate Lead Scoring</h1>
             <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
@@ -627,21 +643,21 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/accounts?org=fraternitees"
+              href={`/accounts?org=${encodeURIComponent(orgSlug)}`}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold"
             >
               <ListChecks className="h-4 w-4" />
               Accounts
             </Link>
             <Link
-              href="/territory?org=fraternitees"
+              href={`/territory?org=${encodeURIComponent(orgSlug)}`}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold"
             >
               <MapPinned className="h-4 w-4" />
               Map
             </Link>
             <Link
-              href="/runtime/fraternitees"
+              href={`/runtime/${encodeURIComponent(orgSlug)}`}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold"
             >
               <DatabaseZap className="h-4 w-4" />
@@ -708,11 +724,11 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
                 <h2 className="text-xl font-semibold tracking-[-0.03em]">Integrations & plugin controls</h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                Tenant-specific features live here so FraterniTees is not carrying PICC-only workflow buttons.
+                Tenant-specific controls live here so this workspace only carries the integrations and plugins it actually needs.
               </p>
             </div>
             <Link
-              href="/runtime/fraternitees"
+              href={`/runtime/${encodeURIComponent(orgSlug)}`}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-semibold"
             >
               <DatabaseZap className="h-4 w-4" />
@@ -722,7 +738,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
           <div className="mt-5 grid gap-3 lg:grid-cols-3">
             <PluginToggle
               label="Printavo sync"
-              description="CRM, organization, and order-history import for FraterniTees."
+              description={`CRM, organization, and order-history import for ${workspaceName}.`}
               enabled={plugins.printavoSync.enabled}
               onToggle={() => updatePlugin("printavoSync", !plugins.printavoSync.enabled)}
             />
@@ -734,7 +750,7 @@ export function FraterniteesWorkspace({ sessionEmail, integrations, pluginSettin
             />
             <PluginToggle
               label="Route planning"
-              description="PICC field-sales route workflow. Off for FraterniTees unless explicitly enabled."
+              description={`Field route workflow. Off for ${workspaceName} unless explicitly enabled.`}
               enabled={plugins.routePlanning.enabled}
               onToggle={() => updatePlugin("routePlanning", !plugins.routePlanning.enabled)}
             />

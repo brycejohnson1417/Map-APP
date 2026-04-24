@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import {
   PICC_SESSION_EMAIL_COOKIE,
   TENANT_SESSION_EMAIL_COOKIE,
+  TENANT_SESSION_TEMPLATE_COOKIE,
   TENANT_SESSION_SLUG_COOKIE,
+  getTenantCookieSlug,
   resolveTenantAccess,
 } from "@/lib/application/auth/tenant-access";
 import { FRATERNITEES_SESSION_COOKIE } from "@/lib/application/fraternitees/onboarding-service";
@@ -19,18 +21,24 @@ const cookieOptions = {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { email?: string };
   const email = body.email?.trim().toLowerCase() ?? "";
-  const access = resolveTenantAccess(email);
+  const access = await resolveTenantAccess(email);
 
   if (!access) {
     return NextResponse.json(
-      { ok: false, error: "Use a FraterniTees.com or piccplatform.com email address." },
+      { ok: false, error: "Enter a valid work email address." },
       { status: 400 },
     );
   }
 
   const cookieStore = await cookies();
   cookieStore.set(TENANT_SESSION_EMAIL_COOKIE, email, cookieOptions);
-  cookieStore.set(TENANT_SESSION_SLUG_COOKIE, access.slug, cookieOptions);
+  cookieStore.set(TENANT_SESSION_TEMPLATE_COOKIE, access.templateId, cookieOptions);
+  const tenantCookieSlug = getTenantCookieSlug(access);
+  if (tenantCookieSlug) {
+    cookieStore.set(TENANT_SESSION_SLUG_COOKIE, tenantCookieSlug, cookieOptions);
+  } else {
+    cookieStore.delete(TENANT_SESSION_SLUG_COOKIE);
+  }
 
   if (access.slug === "fraternitees") {
     cookieStore.set(FRATERNITEES_SESSION_COOKIE, email, cookieOptions);
@@ -46,8 +54,8 @@ export async function DELETE() {
   const cookieStore = await cookies();
   cookieStore.delete(TENANT_SESSION_EMAIL_COOKIE);
   cookieStore.delete(TENANT_SESSION_SLUG_COOKIE);
+  cookieStore.delete(TENANT_SESSION_TEMPLATE_COOKIE);
   cookieStore.delete(FRATERNITEES_SESSION_COOKIE);
   cookieStore.delete(PICC_SESSION_EMAIL_COOKIE);
   return NextResponse.json({ ok: true });
 }
-

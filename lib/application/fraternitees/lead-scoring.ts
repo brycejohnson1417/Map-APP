@@ -1,3 +1,5 @@
+import type { FraterniteesScoreModelConfig } from "@/lib/domain/workspace";
+
 export const FRATERNITEES_POSITIVE_STATUSES = [
   "Order Placed Townsend",
   "Order Placed Night Shift",
@@ -185,6 +187,71 @@ interface FraterniteesGradeInput {
   monthsWithClosedOrdersLast12: number;
 }
 
+const defaultFraterniteesLeadConfig: FraterniteesScoreModelConfig = {
+  weights: {
+    closeRate: 36,
+    orderCount: 18,
+    consistency: 12,
+    revenue: 18,
+    recentRevenue: 8,
+    recency: 8,
+  },
+  caps: {
+    revenueTarget: 12_000,
+    recentRevenueTarget: 12_000,
+    orderCountTarget: 12,
+    consistencyMonthsTarget: 8,
+  },
+  penalties: {
+    lostOrder: 6,
+    maxLostOrderPenalty: 24,
+    hardLoss: 4,
+    maxHardLossPenalty: 12,
+    volatility: 8,
+  },
+  gradeThresholds: {
+    aPlus: 90,
+    a: 82,
+    b: 72,
+    c: 58,
+    d: 45,
+  },
+  gradeGuards: {
+    aPlus: {
+      minCloseRate: 0.8,
+      minClosedOrders: 5,
+      maxLostOrders: 1,
+    },
+    a: {
+      minCloseRate: 0.65,
+      minClosedOrders: 3,
+    },
+  },
+  dncRule: {
+    lostOrdersThreshold: 3,
+    cooldownYears: 2,
+  },
+  highTicket: {
+    threshold: 6_000,
+    minCloseRate: 0.35,
+    lossesAfterHighTicket: 3,
+  },
+  recency: {
+    hotDays: 60,
+    warmDays: 120,
+    coolDays: 240,
+    points: {
+      hot: 8,
+      warm: 5,
+      cool: 2,
+    },
+  },
+  trend: {
+    currentMonths: 12,
+    comparisonMonths: 12,
+  },
+};
+
 const closedStatusSet = new Set(FRATERNITEES_POSITIVE_STATUSES.map(normalizeStatus));
 const lostStatusSet = new Set(FRATERNITEES_NEGATIVE_STATUSES.map(normalizeStatus));
 
@@ -236,6 +303,12 @@ function addYears(date: Date, years: number) {
 function shiftUtcYears(date: Date, years: number) {
   const next = new Date(date);
   next.setUTCFullYear(next.getUTCFullYear() + years);
+  return next;
+}
+
+function shiftUtcMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setUTCMonth(next.getUTCMonth() + months);
   return next;
 }
 
@@ -294,6 +367,10 @@ export function classifyFraterniteesStatus(status: string | null | undefined): F
   return "open";
 }
 
+export function getFraterniteesLeadModelConfig(config?: FraterniteesScoreModelConfig) {
+  return config ?? defaultFraterniteesLeadConfig;
+}
+
 function isGhostOrHardLoss(status: string | null | undefined) {
   const normalized = normalizeStatus(status ?? "");
   return (
@@ -326,7 +403,11 @@ function summarizeStatusMix(orders: FraterniteesLeadOrder[]) {
     .sort((a, b) => b.count - a.count || a.status.localeCompare(b.status));
 }
 
-export function gradeFraterniteesLead(input: FraterniteesGradeInput): FraterniteesLeadGrade {
+export function gradeFraterniteesLead(
+  input: FraterniteesGradeInput,
+  options: { config?: FraterniteesScoreModelConfig } = {},
+): FraterniteesLeadGrade {
+  const config = getFraterniteesLeadModelConfig(options.config);
   if (input.score === null) {
     return "Unscored";
   }
@@ -334,43 +415,51 @@ export function gradeFraterniteesLead(input: FraterniteesGradeInput): Fraternite
   const totalOrders = input.closedOrders + input.lostOrders + input.openOrders;
   const normalizedCloseRate = input.closeRate ?? 0;
 
-  if ((totalOrders <= 2 && input.lostOrders >= 2) || (input.lostOrders >= 4 && normalizedCloseRate < 0.4)) {
+  if (
+    (totalOrders <= 2 && input.lostOrders >= 2) ||
+    (input.lostOrders >= config.dncRule.lostOrdersThreshold + 1 && normalizedCloseRate < config.highTicket.minCloseRate)
+  ) {
     return "F";
   }
 
   if (
-    input.score >= 90 &&
-    normalizedCloseRate >= 0.8 &&
-    input.closedOrders >= 5 &&
-    input.lostOrders <= 1
+    input.score >= config.gradeThresholds.aPlus &&
+    normalizedCloseRate >= config.gradeGuards.aPlus.minCloseRate &&
+    input.closedOrders >= config.gradeGuards.aPlus.minClosedOrders &&
+    input.lostOrders <= config.gradeGuards.aPlus.maxLostOrders
   ) {
     return "A+";
   }
 
   if (
-    input.score >= 82 &&
-    normalizedCloseRate >= 0.65 &&
-    input.closedOrders >= 3
+    input.score >= config.gradeThresholds.a &&
+    normalizedCloseRate >= config.gradeGuards.a.minCloseRate &&
+    input.closedOrders >= config.gradeGuards.a.minClosedOrders
   ) {
     return "A";
   }
 
-  if (input.score >= 72) {
+  if (input.score >= config.gradeThresholds.b) {
     return "B";
   }
 
-  if (input.score >= 58) {
+  if (input.score >= config.gradeThresholds.c) {
     return "C";
   }
 
-  if (input.score >= 45) {
+  if (input.score >= config.gradeThresholds.d) {
     return "D";
   }
 
   return "F";
 }
 
-function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: Date): FraterniteesLeadScore {
+function scoreGroup(
+  customerName: string,
+  orders: FraterniteesLeadOrder[],
+  now: Date,
+  config: FraterniteesScoreModelConfig,
+): FraterniteesLeadScore {
   const sortedOrders = [...orders].sort((a, b) => {
     const aDate = parseDate(a.orderDate)?.getTime() ?? 0;
     const bDate = parseDate(b.orderDate)?.getTime() ?? 0;
@@ -403,7 +492,7 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
 
   const ghostOrHardLosses = sortedOrders.filter((order) => isGhostOrHardLoss(order.status)).length;
   const highTicketDate = sortedOrders
-    .filter((order) => (order.total ?? 0) >= 6000)
+    .filter((order) => (order.total ?? 0) >= config.highTicket.threshold)
     .map((order) => parseDate(order.orderDate))
     .find((date): date is Date => Boolean(date));
   const hardLossesAfterHighTicket = highTicketDate
@@ -413,19 +502,35 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
       }).length
     : 0;
   const highTicketVolatility =
-    maxOrderValue >= 6000 &&
-    (closedOrders.length <= 1 || hardLossesAfterHighTicket >= 3 || (closeRate !== null && closeRate < 0.35));
+    maxOrderValue >= config.highTicket.threshold &&
+    (
+      closedOrders.length <= 1 ||
+      hardLossesAfterHighTicket >= config.highTicket.lossesAfterHighTicket ||
+      (closeRate !== null && closeRate < config.highTicket.minCloseRate)
+    );
 
   const recencyDays = lastOrderDate ? Math.max(0, Math.floor((now.getTime() - lastOrderDate.getTime()) / 86_400_000)) : 999;
-  const closeRateScore = closeRate === null ? 10 : clamp(closeRate, 0, 1) * 36;
-  const orderCountScore = clamp(closedOrders.length / 12, 0, 1) * 18;
-  const consistencyScore = clamp(closedMonthsLast12.size / 8, 0, 1) * 12;
-  const revenueScore = clamp(closedRevenue / 12_000, 0, 1) * 18;
-  const recentRevenueScore = clamp(closedRevenueLast12 / 12_000, 0, 1) * 8;
-  const recencyScore = recencyDays <= 60 ? 8 : recencyDays <= 120 ? 5 : recencyDays <= 240 ? 2 : 0;
-  const lostOrdersPenalty = Math.min(lostOrders.length * 6, 24);
-  const hardLossPenalty = Math.min(ghostOrHardLosses * 4, 12);
-  const volatilityPenalty = highTicketVolatility ? 8 : 0;
+  const closeRateScore = closeRate === null ? 10 : clamp(closeRate, 0, 1) * config.weights.closeRate;
+  const orderCountScore = clamp(closedOrders.length / config.caps.orderCountTarget, 0, 1) * config.weights.orderCount;
+  const consistencyScore =
+    clamp(closedMonthsLast12.size / config.caps.consistencyMonthsTarget, 0, 1) * config.weights.consistency;
+  const revenueScore = clamp(closedRevenue / config.caps.revenueTarget, 0, 1) * config.weights.revenue;
+  const recentRevenueScore =
+    clamp(closedRevenueLast12 / config.caps.recentRevenueTarget, 0, 1) * config.weights.recentRevenue;
+  const recencyScore =
+    recencyDays <= config.recency.hotDays
+      ? config.recency.points.hot
+      : recencyDays <= config.recency.warmDays
+        ? config.recency.points.warm
+        : recencyDays <= config.recency.coolDays
+          ? config.recency.points.cool
+          : 0;
+  const lostOrdersPenalty = Math.min(lostOrders.length * config.penalties.lostOrder, config.penalties.maxLostOrderPenalty);
+  const hardLossPenalty = Math.min(
+    ghostOrHardLosses * config.penalties.hardLoss,
+    config.penalties.maxHardLossPenalty,
+  );
+  const volatilityPenalty = highTicketVolatility ? config.penalties.volatility : 0;
   const rawScore =
     closeRateScore +
     orderCountScore +
@@ -445,11 +550,14 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
     openOrders,
     closedRevenue,
     monthsWithClosedOrdersLast12: closedMonthsLast12.size,
-  });
-  const dncRecommendedUntil = lostOrders.length >= 3 ? addYears(now, 2).toISOString().slice(0, 10) : null;
+  }, { config });
+  const dncRecommendedUntil =
+    lostOrders.length >= config.dncRule.lostOrdersThreshold
+      ? addYears(now, config.dncRule.cooldownYears).toISOString().slice(0, 10)
+      : null;
 
   let priority: FraterniteesLeadScore["priority"] = "Nurture";
-  if (lostOrders.length >= 3) {
+  if (lostOrders.length >= config.dncRule.lostOrdersThreshold) {
     priority = "Do Not Contact review";
   } else if (grade === "A+" || grade === "A") {
     priority = "Priority";
@@ -479,8 +587,8 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
   if (ghostOrHardLosses) {
     reasons.push(`${ghostOrHardLosses} ghost or hard-loss outcome${ghostOrHardLosses === 1 ? "" : "s"}`);
   }
-  if (lostOrders.length >= 3) {
-    reasons.push("DNC flagged because this organization has at least 3 cancelled orders");
+  if (lostOrders.length >= config.dncRule.lostOrdersThreshold) {
+    reasons.push(`DNC flagged because this organization has at least ${config.dncRule.lostOrdersThreshold} cancelled orders`);
   }
 
   return {
@@ -512,9 +620,10 @@ function scoreGroup(customerName: string, orders: FraterniteesLeadOrder[], now: 
 
 export function scoreFraterniteesLeads(
   orders: FraterniteesLeadOrder[],
-  options: { now?: Date; limit?: number } = {},
+  options: { now?: Date; limit?: number; config?: FraterniteesScoreModelConfig } = {},
 ): FraterniteesLeadScore[] {
   const now = options.now ?? new Date();
+  const config = getFraterniteesLeadModelConfig(options.config);
   const groups = new Map<string, FraterniteesLeadOrder[]>();
 
   for (const order of orders) {
@@ -534,7 +643,7 @@ export function scoreFraterniteesLeads(
   }
 
   return [...groups.entries()]
-    .map(([customerName, groupOrders]) => scoreGroup(customerName, groupOrders, now))
+    .map(([customerName, groupOrders]) => scoreGroup(customerName, groupOrders, now, config))
     .sort((a, b) => b.score - a.score || b.closedRevenue - a.closedRevenue || a.customerName.localeCompare(b.customerName))
     .slice(0, options.limit ?? 100);
 }
@@ -545,6 +654,7 @@ function buildTrendPeriod(
   startDate: Date,
   endDate: Date,
   scoreAsOf: Date,
+  config: FraterniteesScoreModelConfig,
 ): FraterniteesLeadTrendPeriod {
   const scopedOrders = orders.filter((order) => {
     const orderDate = parseDate(order.orderDate);
@@ -566,7 +676,7 @@ function buildTrendPeriod(
     };
   }
 
-  const summary = scoreGroup(scopedOrders[0]?.customerName ?? "Account", scopedOrders, scoreAsOf);
+  const summary = scoreGroup(scopedOrders[0]?.customerName ?? "Account", scopedOrders, scoreAsOf, config);
 
   return {
     label,
@@ -584,14 +694,15 @@ function buildTrendPeriod(
 
 export function buildFraterniteesLeadTrendSummary(
   orders: FraterniteesLeadOrder[],
-  options: { now?: Date } = {},
+  options: { now?: Date; config?: FraterniteesScoreModelConfig } = {},
 ): FraterniteesLeadTrendSummary {
   const now = options.now ?? new Date();
-  const currentStart = shiftUtcYears(now, -1);
-  const previousStart = shiftUtcYears(currentStart, -1);
+  const config = getFraterniteesLeadModelConfig(options.config);
+  const currentStart = shiftUtcMonths(now, -config.trend.currentMonths);
+  const previousStart = shiftUtcMonths(currentStart, -config.trend.comparisonMonths);
 
-  const previous = buildTrendPeriod("Previous 12 months", orders, previousStart, currentStart, currentStart);
-  const current = buildTrendPeriod("Current 12 months", orders, currentStart, now, now);
+  const previous = buildTrendPeriod("Previous 12 months", orders, previousStart, currentStart, currentStart, config);
+  const current = buildTrendPeriod("Current 12 months", orders, currentStart, now, now, config);
 
   let direction: FraterniteesLeadTrendSummary["direction"] = "insufficient_data";
   let delta: number | null = null;

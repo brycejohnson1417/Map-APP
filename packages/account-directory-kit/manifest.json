@@ -1,0 +1,9 @@
+{
+  "id": "account-directory-kit",
+  "version": 1,
+  "name": "Account Directory Kit",
+  "description": "Paginated account directories with score-aware summaries, search, sorting, and filter registries.",
+  "primitives": ["account_directory", "scorecard", "sort_filter_set"],
+  "surfaces": ["accounts"],
+  "status": "active"
+}

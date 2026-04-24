@@ -1,0 +1,9 @@
+{
+  "id": "trend-module-kit",
+  "version": 1,
+  "name": "Trend Module Kit",
+  "description": "Reusable trend summaries for current versus previous periods across score, orders, and revenue.",
+  "primitives": ["trend_module"],
+  "surfaces": ["account_detail", "accounts"],
+  "status": "active"
+}

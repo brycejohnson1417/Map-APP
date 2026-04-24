@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, MapPin, Search, Users } from "lucide-react";
 import { FraterniteesLeadQualificationModule } from "@/components/accounts/fraternitees-lead-qualification-module";
 import { getFraterniteesAccountDirectory } from "@/lib/application/fraternitees/account-directory-service";
+import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { AppFrame } from "@/components/layout/app-frame";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
 import { defaultOrgSlug, firstParamValue, orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
@@ -19,14 +20,20 @@ function formatNumber(value: number) {
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
+  const workspace = await getWorkspaceExperienceBySlug(orgSlug);
+  const isLeadQualificationDirectory = workspace.accountDirectoryVariant === "lead_qualification";
   const fraterniteesDirectory =
-    orgSlug === "fraternitees" ? await getFraterniteesAccountDirectory(orgSlug, resolvedSearchParams) : null;
+    isLeadQualificationDirectory ? await getFraterniteesAccountDirectory(orgSlug, resolvedSearchParams) : null;
   const dashboard =
-    orgSlug === "fraternitees" ? null : await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
+    isLeadQualificationDirectory ? null : await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
   const query = firstParamValue(resolvedSearchParams.q) ?? "";
   const organizationName =
-    fraterniteesDirectory?.organization.name ?? dashboard?.organization.name ?? process.env.ORG_NAME?.trim() ?? "PICC";
-  const hasWorkspace = orgSlug === "fraternitees" ? Boolean(fraterniteesDirectory) : Boolean(dashboard);
+    fraterniteesDirectory?.organization.name ??
+    dashboard?.organization.name ??
+    workspace.organization?.name ??
+    process.env.ORG_NAME?.trim() ??
+    workspace.workspace.displayName;
+  const hasWorkspace = isLeadQualificationDirectory ? Boolean(fraterniteesDirectory) : Boolean(dashboard);
 
   return (
     <AppFrame organizationName={organizationName} organizationSlug={orgSlug}>
@@ -50,10 +57,12 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
         </header>
 
         {hasWorkspace ? (
-          orgSlug === "fraternitees" ? (
+          isLeadQualificationDirectory ? (
             <FraterniteesLeadQualificationModule
               orgSlug={orgSlug}
               directory={fraterniteesDirectory!}
+              gradeOptions={workspace.workspace.modules.accounts?.gradeOptions?.map(String)}
+              sortOptions={workspace.workspace.modules.accounts?.sortOptions}
             />
           ) : (
             (() => {

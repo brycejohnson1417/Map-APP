@@ -11,10 +11,12 @@ If you are new to the repo, read in this order:
 5. [docs/ARCHITECTURE.md](ARCHITECTURE.md)
 6. [docs/WORKSPACE_MODEL.md](WORKSPACE_MODEL.md)
 7. [docs/PRIMITIVE_CATALOG.md](PRIMITIVE_CATALOG.md)
-8. [docs/IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-9. [docs/TODO.md](TODO.md)
-10. [docs/VERIFICATION_STRATEGY.md](VERIFICATION_STRATEGY.md)
-11. [docs/SETUP.md](SETUP.md)
+8. [docs/ONBOARDING.md](ONBOARDING.md)
+9. [docs/CHANGE_SYSTEM.md](CHANGE_SYSTEM.md)
+10. [docs/IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
+11. [docs/TODO.md](TODO.md)
+12. [docs/VERIFICATION_STRATEGY.md](VERIFICATION_STRATEGY.md)
+13. [docs/SETUP.md](SETUP.md)
 
 ## What this repo is
 
@@ -33,6 +35,7 @@ PICC and FraterniTees are current tenants. They are not the product identity.
 - shared runtime, accounts, and territory surfaces are live
 - current tenants already use differentiated workflows
 - the repo is mid-extraction from tenant-specific behavior toward primitives/packages/workspace config
+- onboarding and change-request control-plane surfaces now exist in the product
 - documentation is now part of the product surface and must stay current
 
 ## Working rules

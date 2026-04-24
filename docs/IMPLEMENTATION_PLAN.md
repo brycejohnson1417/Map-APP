@@ -31,7 +31,7 @@ This track exists so the platform does not become an abstract architecture proje
 This track turns tenant-specific behavior into durable platform structure.
 
 ### Slice 1 — Document the platform truth
-Status: active
+Status: landed and now maintenance-required
 
 Scope:
 - repo-level philosophy and product direction
@@ -44,7 +44,7 @@ Acceptance:
 - a fresh engineer or AI can explain what the platform is, what exists, and what comes next from the repo alone
 
 ### Slice 2 — Freeze the core contracts
-Status: next
+Status: active
 
 Scope:
 - canonical entity definitions
@@ -57,7 +57,7 @@ Acceptance:
 - new tenant work can reference stable platform contracts instead of implicit repo conventions
 
 ### Slice 3 — Extract tenant behavior
-Status: next
+Status: active
 
 Scope:
 - move current tenant scoring/filter/module behavior toward config/package boundaries
@@ -78,7 +78,7 @@ Acceptance:
 - tenant behavior changes affect compiled outputs more than shared React branching
 
 ### Slice 5 — Self-serve onboarding
-Status: planned
+Status: landed v1, needs expansion
 
 Scope:
 - template selection
@@ -91,7 +91,7 @@ Acceptance:
 - a new tenant can reach a useful workspace without code changes
 
 ### Slice 6 — Change system
-Status: planned
+Status: landed v1, needs policy/preview layer
 
 Scope:
 - in-app request capture

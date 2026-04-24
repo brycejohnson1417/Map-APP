@@ -4,9 +4,9 @@ import {
   PICC_SESSION_EMAIL_COOKIE,
   TENANT_SESSION_EMAIL_COOKIE,
   TENANT_SESSION_SLUG_COOKIE,
-  resolveTenantAccess,
+  emailHasTenantAccessToSlug,
 } from "@/lib/application/auth/tenant-access";
-import { FRATERNITEES_SESSION_COOKIE, isFraterniteesEmail } from "@/lib/application/fraternitees/onboarding-service";
+import { FRATERNITEES_SESSION_COOKIE } from "@/lib/application/fraternitees/onboarding-service";
 import {
   mergeTenantPluginSetting,
   resolveTenantPluginSettings,
@@ -29,15 +29,19 @@ async function hasTenantAccess(slug: string) {
   const directFraterniteesEmail = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
   const directPiccEmail = cookieStore.get(PICC_SESSION_EMAIL_COOKIE)?.value ?? "";
 
-  if (slug === "fraternitees") {
-    return isFraterniteesEmail(directFraterniteesEmail) || (tenantSlug === slug && resolveTenantAccess(tenantEmail)?.slug === slug);
+  if (tenantSlug === slug && tenantEmail) {
+    return emailHasTenantAccessToSlug(tenantEmail, slug);
   }
 
-  if (slug === "picc") {
-    return resolveTenantAccess(directPiccEmail)?.slug === slug || (tenantSlug === slug && resolveTenantAccess(tenantEmail)?.slug === slug);
+  if (directFraterniteesEmail) {
+    return emailHasTenantAccessToSlug(directFraterniteesEmail, slug);
   }
 
-  return tenantSlug === slug && resolveTenantAccess(tenantEmail)?.slug === slug;
+  if (directPiccEmail) {
+    return emailHasTenantAccessToSlug(directPiccEmail, slug);
+  }
+
+  return false;
 }
 
 export async function GET(_request: Request, context: PluginsRouteContext) {

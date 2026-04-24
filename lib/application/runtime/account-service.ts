@@ -8,7 +8,9 @@ import type {
   AccountRuntimeDetail,
   FraterniteesLeadScoreSummary,
 } from "@/lib/domain/runtime";
+import type { FraterniteesScoreModelConfig } from "@/lib/domain/workspace";
 import { gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
+import { getWorkspaceDefinitionBySlug } from "@/lib/application/workspace/workspace-service";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { AuditEventRepository } from "@/lib/infrastructure/supabase/audit-event-repository";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -112,7 +114,10 @@ function readBooleanField(fields: Record<string, unknown> | null, key: string) {
   return fields?.[key] === true;
 }
 
-function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
+function mapFraterniteesLeadScore(
+  fields: Record<string, unknown> | null,
+  config?: FraterniteesScoreModelConfig,
+): FraterniteesLeadScoreSummary | null {
   const score = toNumber(fields?.leadScore as number | string | null | undefined);
   const closedOrders = toNumber(fields?.closedOrders as number | string | null | undefined) ?? 0;
   const lostOrders = toNumber(fields?.lostOrders as number | string | null | undefined) ?? 0;
@@ -140,7 +145,7 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
       openOrders,
       closedRevenue: closedRevenue ?? 0,
       monthsWithClosedOrdersLast12,
-    }),
+    }, { config }),
     priority: readStringField(fields, "leadPriority"),
     closeRate: toNumber(fields?.closeRate as number | string | null | undefined),
     closedOrders,
@@ -221,7 +226,7 @@ function mapOrder(row: OrderRow): AccountOrder {
   };
 }
 
-function mapAccount(row: AccountRow): AccountRuntimeDetail["account"] {
+function mapAccount(row: AccountRow, config?: FraterniteesScoreModelConfig): AccountRuntimeDetail["account"] {
   const daysOverdue = row.custom_fields?.daysOverdue;
 
   return {
@@ -253,7 +258,7 @@ function mapAccount(row: AccountRow): AccountRuntimeDetail["account"] {
     externalUpdatedAt: row.external_updated_at,
     customFields: row.custom_fields ?? {},
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
-    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields),
+    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields, config),
   };
 }
 
@@ -335,13 +340,15 @@ export async function getAccountRuntimeDetail(slug: string, accountId: string): 
   if (!organization) {
     return null;
   }
+  const workspace = await getWorkspaceDefinitionBySlug(slug);
+  const fraterniteesConfig = workspace.scoring?.fraterniteesLeadV1;
 
   const accountRow = await fetchAccount(organization.id, accountId);
   if (!accountRow) {
     return null;
   }
 
-  const account = mapAccount(accountRow);
+  const account = mapAccount(accountRow, fraterniteesConfig);
   const [identities, contacts, activities, orders, totalOrders] = await Promise.all([
     fetchIdentities(organization.id, account.id),
     fetchContacts(organization.id, account.id),
@@ -357,6 +364,7 @@ export async function getAccountRuntimeDetail(slug: string, accountId: string): 
     contacts,
     activities,
     recentOrders: orders.slice(0, 20),
+    allOrders: orders,
     orderSummary: buildOrderSummary(orders, totalOrders, account),
   };
 }

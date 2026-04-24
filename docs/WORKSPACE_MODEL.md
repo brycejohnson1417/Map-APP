@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the direction for how tenant behavior should move out of shared code and into portable workspace structure.
+This document defines how tenant behavior is moving out of shared code and into portable workspace structure.
 
 The goal is not to build a generic no-code builder. The goal is to make tenant workspaces:
 
@@ -41,30 +41,31 @@ Packages are built from primitives plus configuration.
 
 ## Directional file shape
 
-This is the shape the repo should move toward:
+This is the shape the repo now uses in its first live form:
 
 ```text
 tenants/
   fraternitees/
-    workspace.yaml
-    scoring/
-    modules/
-    sync/
-    documents/
+    workspace.json
+    field-mappings.json
   picc/
-    workspace.yaml
-    scoring/
-    modules/
-    sync/
-    documents/
+    workspace.json
+    field-mappings.json
+    preferred-partner-pricing.json
+  field-ops-starter/
+    workspace.json
 
 packages/
+  core-runtime/
   territory-map-kit/
-  lead-scoring-kit/
-  document-pdf-kit/
+  account-directory-kit/
+  lead-score-kit/
+  trend-module-kit/
+  change-request-kit/
+  connector-onboarding-kit/
 ```
 
-The repo does not fully use this structure yet. That is a target extraction path.
+The repo is still early in this extraction. The manifests now exist and are wired into login, navigation, onboarding, integrations, and FraterniTees score behavior, but not every tenant-specific behavior has been pulled under them yet.
 
 ## Workspace responsibilities
 
@@ -89,6 +90,15 @@ These are good candidates for workspace config:
 - trend windows
 - branding and labels
 - package/plugin toggles
+
+These are already live in the current repo:
+
+- FraterniTees score weights, grade guards, DNC rule, and trend window
+- account-directory sort and grade options
+- account-detail section registry
+- integrations-route behavior per template
+- navigation model per template
+- route-planning plugin default per workspace
 
 ## What should stay code
 

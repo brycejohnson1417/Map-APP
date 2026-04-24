@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BarChart3, PlugZap } from "lucide-react";
-import { TENANT_SESSION_EMAIL_COOKIE, TENANT_SESSION_SLUG_COOKIE } from "@/lib/application/auth/tenant-access";
-import {
-  FRATERNITEES_SESSION_COOKIE,
-  ensureFraterniteesWorkspace,
-  isFraterniteesEmail,
-} from "@/lib/application/fraternitees/onboarding-service";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { FraterniteesWorkspace } from "@/components/fraternitees/fraternitees-portal";
 import { AppFrame } from "@/components/layout/app-frame";
+import { WorkspaceIntegrationsPanel } from "@/components/onboarding/workspace-integrations-panel";
+import { getOrganizationRuntimeSnapshot } from "@/lib/application/runtime/organization-service";
+import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { resolveTenantPluginSettings } from "@/lib/application/runtime/plugin-settings";
 import { orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
 export const dynamic = "force-dynamic";
@@ -21,32 +19,49 @@ interface IntegrationsPageProps {
 export default async function IntegrationsPage({ searchParams }: IntegrationsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
-  const cookieStore = await cookies();
+  const workspace = await getWorkspaceExperienceBySlug(orgSlug);
+  const sessionEmail = await getTenantSessionEmailForSlug(orgSlug);
 
-  if (orgSlug === "fraternitees") {
-    const directSessionEmail = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
-    const tenantSessionEmail = cookieStore.get(TENANT_SESSION_EMAIL_COOKIE)?.value ?? "";
-    const tenantSessionSlug = cookieStore.get(TENANT_SESSION_SLUG_COOKIE)?.value ?? "";
-    const sessionEmail = directSessionEmail || (tenantSessionSlug === "fraternitees" ? tenantSessionEmail : "");
+  if (!sessionEmail) {
+    redirect(`/login?org=${encodeURIComponent(orgSlug)}`);
+  }
 
-    if (!isFraterniteesEmail(sessionEmail)) {
-      redirect("/login");
-    }
-
-    const snapshot = await ensureFraterniteesWorkspace(sessionEmail);
+  const snapshot = await getOrganizationRuntimeSnapshot(orgSlug);
+  if (!snapshot) {
     return (
-      <AppFrame organizationName="FraterniTees" organizationSlug="fraternitees">
+      <AppFrame organizationName={workspace.workspace.displayName} organizationSlug={orgSlug}>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 md:px-10">
+          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 text-sm text-[var(--text-secondary)]">
+            No company workspace was found for {orgSlug}.
+          </div>
+        </div>
+      </AppFrame>
+    );
+  }
+
+  if (workspace.integrationsVariant === "fraternity_integrations") {
+    return (
+      <AppFrame organizationName={snapshot.organization.name} organizationSlug={orgSlug}>
         <FraterniteesWorkspace
+          orgSlug={orgSlug}
+          workspaceName={snapshot.organization.name}
           sessionEmail={sessionEmail}
-          integrations={snapshot.integrations}
-          pluginSettings={snapshot.pluginSettings}
+          integrations={snapshot.integrations.map((integration) => ({
+            id: integration.id,
+            provider: integration.provider,
+            displayName: integration.displayName,
+            externalAccountId: integration.externalAccountId,
+            status: integration.status,
+            updatedAt: integration.updatedAt,
+          }))}
+          pluginSettings={resolveTenantPluginSettings(snapshot.organization.slug, snapshot.organization.settings)}
         />
       </AppFrame>
     );
   }
 
   return (
-    <AppFrame organizationName="PICC New York" organizationSlug="picc">
+    <AppFrame organizationName={snapshot.organization.name} organizationSlug={orgSlug}>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 md:px-10">
         <header>
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--accent-secondary-strong)]">
@@ -54,8 +69,21 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
           </p>
           <h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">Workspace controls</h1>
         </header>
+        <WorkspaceIntegrationsPanel
+          orgSlug={orgSlug}
+          workspace={workspace.workspace}
+          integrations={snapshot.integrations.map((integration) => ({
+            id: integration.id,
+            provider: integration.provider,
+            displayName: integration.displayName,
+            externalAccountId: integration.externalAccountId,
+            status: integration.status,
+            updatedAt: integration.updatedAt,
+          }))}
+          pluginSettings={resolveTenantPluginSettings(snapshot.organization.slug, snapshot.organization.settings)}
+        />
         <section className="grid gap-4 md:grid-cols-2">
-          <Link href="/runtime/picc" className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+          <Link href={`/runtime/${orgSlug}`} className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
             <BarChart3 className="h-5 w-5 text-[var(--accent-secondary-strong)]" />
             <h2 className="mt-4 text-xl font-semibold">Runtime</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">Review sync cursors, jobs, integrations, and runtime health.</p>

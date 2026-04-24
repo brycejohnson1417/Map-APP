@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck, CalendarDays, ClipboardList, ExternalLink, MapPin, Minus, Package, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarDays, ClipboardList, ExternalLink, MapPin, Package, Users } from "lucide-react";
 import { AppFrame } from "@/components/layout/app-frame";
 import { MockOrderProposalPanel } from "@/components/accounts/mock-order-proposal-panel";
 import { PppSavingsPanel } from "@/components/accounts/ppp-savings-panel";
+import { TrendSummaryPanel } from "@/components/primitives/trend-summary-panel";
 import { buildFraterniteesLeadTrendSummary } from "@/lib/application/fraternitees/lead-scoring";
 import { getAccountRuntimeDetail } from "@/lib/application/runtime/account-service";
+import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import type { AccountRuntimeDetail } from "@/lib/domain/runtime";
 import { orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
@@ -92,53 +94,23 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function trendBadge(summary: ReturnType<typeof buildFraterniteesLeadTrendSummary>) {
-  if (summary.direction === "up") {
-    return {
-      label: summary.delta === null ? "Trending up" : `Trending up (${summary.delta > 0 ? "+" : ""}${summary.delta})`,
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      icon: TrendingUp,
-    };
-  }
-
-  if (summary.direction === "down") {
-    return {
-      label: summary.delta === null ? "Trending down" : `Trending down (${summary.delta})`,
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-      icon: TrendingDown,
-    };
-  }
-
-  if (summary.direction === "flat") {
-    return {
-      label: summary.delta === null ? "Flat" : `Flat (${summary.delta > 0 ? "+" : ""}${summary.delta})`,
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-      icon: Minus,
-    };
-  }
-
-  return {
-    label: "Insufficient history",
-    className: "border-slate-200 bg-slate-50 text-slate-700",
-    icon: Minus,
-  };
-}
-
 export default async function AccountPage({ params, searchParams }: AccountPageProps) {
   const { accountId } = await Promise.resolve(params);
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
+  const workspace = await getWorkspaceExperienceBySlug(orgSlug);
   const detail = await getAccountRuntimeDetail(orgSlug, accountId);
 
   if (!detail) {
     notFound();
   }
 
-  const isFraternitees = orgSlug === "fraternitees";
+  const isFraternitees = workspace.accountDetailSections.includes("score_summary");
+  const accountDetailSections = new Set(workspace.accountDetailSections);
   const leadScore = detail.account.fraterniteesLeadScore;
   const fraterniteesTrend = isFraternitees
     ? buildFraterniteesLeadTrendSummary(
-        detail.recentOrders.map((order) => ({
+        detail.allOrders.map((order) => ({
           customerName: detail.account.name,
           status: order.status,
           total: order.orderTotal,
@@ -146,10 +118,11 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
           externalOrderId: order.externalOrderId,
           orderNumber: order.orderNumber,
         })),
+        {
+          config: workspace.workspace.scoring?.fraterniteesLeadV1,
+        },
       )
     : null;
-  const trendMeta = fraterniteesTrend ? trendBadge(fraterniteesTrend) : null;
-  const TrendIcon = trendMeta?.icon;
   const sourceCrmHref = getSourceCrmHref(detail);
   const address = [
     detail.account.addressLine1,
@@ -206,7 +179,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
           <MetricCard label="Last order" value={formatDate(detail.orderSummary.lastOrderDate)} icon={CalendarDays} />
         </section>
 
-        {orgSlug === "picc" ? (
+        {accountDetailSections.has("ppp_savings") ? (
           <>
             <PppSavingsPanel orgSlug={orgSlug} accountId={detail.account.id} />
             <MockOrderProposalPanel orgSlug={orgSlug} accountId={detail.account.id} />
@@ -214,129 +187,83 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
         ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="flex items-center gap-3">
-              <MapPin className="h-5 w-5 text-[var(--accent-primary)]" />
-              <h2 className="text-xl font-semibold tracking-[-0.03em]">Map agreement</h2>
+          {accountDetailSections.has("score_summary") || accountDetailSections.has("map_agreement") ? (
+            <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
+              <div className="flex items-center gap-3">
+                <MapPin className="h-5 w-5 text-[var(--accent-primary)]" />
+                <h2 className="text-xl font-semibold tracking-[-0.03em]">
+                  {isFraternitees ? "Score summary" : "Map agreement"}
+                </h2>
+              </div>
+              <dl className="mt-5">
+                {isFraternitees ? (
+                  <>
+                    <DetailRow label="Lead score" value={`${fieldValue(leadScore?.score)} / ${leadScore?.grade ?? "Unscored"}`} />
+                    <DetailRow label="Lead priority" value={fieldValue(leadScore?.priority ?? detail.account.status)} />
+                    <DetailRow label="Close rate" value={formatPercent(leadScore?.closeRate)} />
+                    <DetailRow label="Total orders" value={fieldValue(leadScore?.totalOrders)} />
+                    <DetailRow label="Closed orders" value={fieldValue(leadScore?.closedOrders)} />
+                    <DetailRow label="Cancelled orders" value={fieldValue(leadScore?.lostOrders)} />
+                    <DetailRow label="Closed revenue" value={formatOptionalMoney(leadScore?.closedRevenue)} />
+                    <DetailRow label="Last order" value={formatDate(detail.account.lastOrderDate)} />
+                  </>
+                ) : (
+                  <>
+                    <DetailRow label="Sales rep" value={formatList(detail.account.salesRepNames)} />
+                    <DetailRow label="Account manager" value={formatList(detail.account.accountManagerNames)} />
+                    <DetailRow label="Account status" value={fieldValue(detail.account.status)} />
+                    <DetailRow label="Lead status" value={fieldValue(detail.account.leadStatus)} />
+                    <DetailRow label="Referral source" value={fieldValue(detail.account.referralSource)} />
+                    <DetailRow label="Last contacted" value={formatDate(detail.account.lastContactedAt)} />
+                    <DetailRow label="Sample delivery" value={formatDate(detail.account.lastSampleDeliveryDate)} />
+                  </>
+                )}
+              </dl>
             </div>
-            <dl className="mt-5">
-              {isFraternitees ? (
-                <>
-                  <DetailRow label="Lead score" value={`${fieldValue(leadScore?.score)} / ${leadScore?.grade ?? "Unscored"}`} />
-                  <DetailRow label="Lead priority" value={fieldValue(leadScore?.priority ?? detail.account.status)} />
-                  <DetailRow label="Close rate" value={formatPercent(leadScore?.closeRate)} />
-                  <DetailRow label="Total orders" value={fieldValue(leadScore?.totalOrders)} />
-                  <DetailRow label="Closed orders" value={fieldValue(leadScore?.closedOrders)} />
-                  <DetailRow label="Cancelled orders" value={fieldValue(leadScore?.lostOrders)} />
-                  <DetailRow label="Closed revenue" value={formatOptionalMoney(leadScore?.closedRevenue)} />
-                  <DetailRow label="Last order" value={formatDate(detail.account.lastOrderDate)} />
-                </>
-              ) : (
-                <>
-                  <DetailRow label="Sales rep" value={formatList(detail.account.salesRepNames)} />
-                  <DetailRow label="Account manager" value={formatList(detail.account.accountManagerNames)} />
-                  <DetailRow label="Account status" value={fieldValue(detail.account.status)} />
-                  <DetailRow label="Lead status" value={fieldValue(detail.account.leadStatus)} />
-                  <DetailRow label="Referral source" value={fieldValue(detail.account.referralSource)} />
-                  <DetailRow label="Last contacted" value={formatDate(detail.account.lastContactedAt)} />
-                  <DetailRow label="Sample delivery" value={formatDate(detail.account.lastSampleDeliveryDate)} />
-                </>
-              )}
-            </dl>
-          </div>
+          ) : null}
 
-          <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="flex items-center gap-3">
-              <BadgeCheck className="h-5 w-5 text-[var(--accent-success)]" />
-              <h2 className="text-xl font-semibold tracking-[-0.03em]">Identity and location</h2>
+          {accountDetailSections.has("identity_location") ? (
+            <div className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
+              <div className="flex items-center gap-3">
+                <BadgeCheck className="h-5 w-5 text-[var(--accent-success)]" />
+                <h2 className="text-xl font-semibold tracking-[-0.03em]">Identity and location</h2>
+              </div>
+              <dl className="mt-5">
+                {!isFraternitees ? (
+                  <>
+                    <DetailRow label="Licensed location ID" value={fieldValue(detail.account.licensedLocationId)} />
+                    <DetailRow label="License number" value={fieldValue(detail.account.licenseNumber)} />
+                  </>
+                ) : null}
+                <DetailRow label="Address" value={address || "None"} />
+                <DetailRow label="Coordinates" value={`${fieldValue(detail.account.latitude)}, ${fieldValue(detail.account.longitude)}`} />
+                <DetailRow label="Customer since" value={formatDate(detail.account.customerSinceDate)} />
+                <DetailRow label={isFraternitees ? "Printavo updated" : "CRM updated"} value={formatDate(detail.account.crmUpdatedAt)} />
+              </dl>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {detail.identities.map((identity) => (
+                  <span
+                    key={identity.id}
+                    className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
+                  >
+                    {identity.provider}: {identity.externalEntityType}
+                  </span>
+                ))}
+              </div>
             </div>
-            <dl className="mt-5">
-              {!isFraternitees ? (
-                <>
-                  <DetailRow label="Licensed location ID" value={fieldValue(detail.account.licensedLocationId)} />
-                  <DetailRow label="License number" value={fieldValue(detail.account.licenseNumber)} />
-                </>
-              ) : null}
-              <DetailRow label="Address" value={address || "None"} />
-              <DetailRow label="Coordinates" value={`${fieldValue(detail.account.latitude)}, ${fieldValue(detail.account.longitude)}`} />
-              <DetailRow label="Customer since" value={formatDate(detail.account.customerSinceDate)} />
-              <DetailRow label={isFraternitees ? "Printavo updated" : "CRM updated"} value={formatDate(detail.account.crmUpdatedAt)} />
-            </dl>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {detail.identities.map((identity) => (
-                <span
-                  key={identity.id}
-                  className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
-                >
-                  {identity.provider}: {identity.externalEntityType}
-                </span>
-              ))}
-            </div>
-          </div>
+          ) : null}
         </section>
 
-        {isFraternitees && fraterniteesTrend && trendMeta ? (
-          <section className="rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Trend</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Last 2 years score trend</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
-                  Compare the current 12 months against the previous 12 months using the same FraterniTees score model.
-                </p>
-              </div>
-              <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${trendMeta.className}`}>
-                {TrendIcon ? <TrendIcon className="h-4 w-4" /> : null}
-                {trendMeta.label}
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              {[fraterniteesTrend.current, fraterniteesTrend.previous].map((period) => (
-                <div
-                  key={period.label}
-                  className="rounded-[1.5rem] border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-5"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">{period.label}</p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        {period.startDate} to {period.endDate}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-semibold tracking-[-0.03em]">{period.score ?? "-"}</p>
-                      <p className="text-sm font-semibold text-[var(--text-secondary)]">{period.grade}</p>
-                    </div>
-                  </div>
-                  <dl className="mt-5 space-y-2 text-sm">
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--text-tertiary)]">Close rate</dt>
-                      <dd className="font-semibold">{formatPercent(period.closeRate)}</dd>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--text-tertiary)]">Orders</dt>
-                      <dd className="font-semibold">{period.totalOrders}</dd>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--text-tertiary)]">Closed / lost</dt>
-                      <dd className="font-semibold">
-                        {period.closedOrders} / {period.lostOrders}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--text-tertiary)]">Revenue</dt>
-                      <dd className="font-semibold">{formatMoney(period.closedRevenue)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              ))}
-            </div>
-          </section>
+        {accountDetailSections.has("score_trend") && isFraternitees && fraterniteesTrend ? (
+          <TrendSummaryPanel
+            summary={fraterniteesTrend}
+            description="Compare the current 12 months against the previous 12 months using the same FraterniTees score model."
+          />
         ) : null}
 
         <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
+          {accountDetailSections.has("orders") ? (
+            <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
             <div className="border-b border-[var(--border-subtle)] p-6">
               <h2 className="text-xl font-semibold tracking-[-0.03em]">
                 Recent {orgSlug === "fraternitees" ? "Printavo" : "Nabis"} orders
@@ -362,9 +289,11 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                 <div className="p-6 text-sm text-[var(--text-secondary)]">No local orders are attached to this account.</div>
               )}
             </div>
-          </div>
+            </div>
+          ) : null}
 
-          <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
+          {accountDetailSections.has("contacts") || accountDetailSections.has("activities") ? (
+            <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
             <div className="border-b border-[var(--border-subtle)] p-6">
               <h2 className="text-xl font-semibold tracking-[-0.03em]">Contacts and activity</h2>
             </div>
@@ -389,7 +318,8 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                 <div className="p-6 text-sm text-[var(--text-secondary)]">No local contacts or activity are attached to this account.</div>
               ) : null}
             </div>
-          </div>
+            </div>
+          ) : null}
         </section>
       </div>
     </AppFrame>

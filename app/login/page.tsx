@@ -1,12 +1,12 @@
 import { TenantLoginForm } from "@/components/auth/tenant-login-form";
+import { listWorkspaceTemplates } from "@/lib/platform/workspace/registry";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Tenant Login",
-  description: "Login for FraterniTees and PICC New York tenant workspaces.",
+  description: "Login and onboarding for Map App Harness tenant workspaces.",
 };
 
 export default function LoginPage() {
-  return <TenantLoginForm />;
+  return <TenantLoginForm templates={listWorkspaceTemplates()} />;
 }
-

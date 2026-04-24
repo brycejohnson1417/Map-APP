@@ -10,10 +10,12 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 
 ### Shared runtime surfaces
 - root login redirect and tenant entry flow
+- template-driven onboarding flow
 - territory map runtime
 - accounts directory
 - account detail page
 - integrations/plugins surface
+- change-request queue surface
 - runtime health, sync jobs, and supporting APIs
 
 ### Tenant-specific workflows
@@ -26,9 +28,10 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 #### FraterniTees
 - Printavo login/setup flow
 - Printavo sync and preview flow
-- lead-qualification accounts module with score-based sorting
+- lead-qualification accounts module with workspace-driven score/sort config
 - lead score + DNC + no-address-aware territory experience
 - account-detail trend comparison over the last 2 years
+- self-serve domain handoff so teammates on the same company domain can resolve back into the same workspace after bootstrap
 
 ## Current architectural reality
 
@@ -37,12 +40,14 @@ The repo already has:
 - tenant-scoped runtime APIs
 - differentiated tenant workflows
 - reusable shared shells for territory/accounts/detail
+- first workspace manifests and package manifests wired into runtime navigation
+- first change-request persistence layer and attachment storage path
 
 The repo does not yet fully have:
-- an explicit primitive catalog
-- first-class workspace/package manifests
-- compiled tenant read-model outputs as the default pattern
-- a governed change-request system
+- a complete primitive extraction across every tenant surface
+- compiled tenant read-model outputs as the default pattern beyond the FraterniTees account directory
+- preview/policy automation on top of the new change-request queue
+- fully self-serve connector depth across all templates
 
 ## The main problem now
 
@@ -56,10 +61,10 @@ If that does not happen, onboarding future tenants will stay founder-driven.
 ## Near-term direction
 
 1. document the platform truth clearly
-2. define primitives/packages/workspace model
-3. extract current tenant behavior into that model
+2. keep moving tenant behavior from shared branching into workspace/package config
+3. strengthen the new onboarding and change-request systems
 4. keep current tenants moving
-5. build the path to self-serve onboarding and safe tenant adaptation
+5. build the next layer of safe adaptation and compiled read models
 
 ## Current benchmark for decisions
 

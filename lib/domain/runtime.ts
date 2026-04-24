@@ -385,6 +385,7 @@ export interface AccountRuntimeDetail {
   contacts: AccountContact[];
   activities: AccountActivity[];
   recentOrders: AccountOrder[];
+  allOrders: AccountOrder[];
   orderSummary: {
     totalOrders: number;
     totalRevenue: number;

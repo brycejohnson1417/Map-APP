@@ -1,0 +1,60 @@
+import type { PrimitiveDefinition } from "@/lib/platform/primitives/types";
+
+export const primitiveCatalog: PrimitiveDefinition[] = [
+  {
+    id: "score_model",
+    name: "Score Model",
+    description: "Tenant-configurable scoring logic, grade bands, and penalties for account prioritization.",
+    status: "active",
+    configKeys: ["weights", "caps", "penalties", "gradeThresholds", "dncRule", "trend"],
+    surfaces: ["accounts", "territory", "account_detail"],
+  },
+  {
+    id: "scorecard",
+    name: "Scorecard",
+    description: "Small KPI cards that summarize a tenant-specific account or map surface.",
+    status: "active",
+    configKeys: ["summaryCards", "title", "variant"],
+    surfaces: ["accounts", "runtime", "territory"],
+  },
+  {
+    id: "account_directory",
+    name: "Account Directory",
+    description: "Paginated account directory with search, grading, sorting, and account links.",
+    status: "active",
+    configKeys: ["pageSize", "sortOptions", "gradeOptions", "variant"],
+    surfaces: ["accounts"],
+  },
+  {
+    id: "sort_filter_set",
+    name: "Sort & Filter Set",
+    description: "Registry of supported sorts and filters for a tenant surface.",
+    status: "active",
+    configKeys: ["sortOptions", "gradeOptions", "enabledFlags"],
+    surfaces: ["accounts", "territory"],
+  },
+  {
+    id: "trend_module",
+    name: "Trend Module",
+    description: "Reusable current-vs-previous period trend summaries for score, orders, and revenue.",
+    status: "active",
+    configKeys: ["trendWindowMonths", "comparisonWindowMonths", "sections"],
+    surfaces: ["account_detail"],
+  },
+  {
+    id: "territory_pin_layer",
+    name: "Territory Pin Layer",
+    description: "Tenant-specific map pins, facets, and geocoding-aware runtime behavior.",
+    status: "active",
+    configKeys: ["includeUnmappedAccounts", "filtersAlwaysAvailable", "leadGradeFilter"],
+    surfaces: ["territory"],
+  },
+  {
+    id: "change_request",
+    name: "Change Request",
+    description: "Tenant-facing request intake with classification, attachments, and queue status.",
+    status: "active",
+    configKeys: ["defaultClassification", "classifications", "allowAttachments"],
+    surfaces: ["change_requests", "accounts", "territory", "integrations"],
+  },
+];

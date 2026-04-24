@@ -18,6 +18,26 @@ function mapMemberRow(row: Record<string, unknown>): OrganizationMember {
 }
 
 export class OrganizationMemberRepository {
+  async listByEmail(email: string): Promise<OrganizationMember[]> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return [];
+    }
+
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("organization_member")
+      .select("*")
+      .ilike("email", normalizedEmail)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((row: Record<string, unknown>) => mapMemberRow(row));
+  }
+
   async upsertMember(input: {
     organizationId: string;
     clerkUserId: string;

@@ -44,16 +44,18 @@ That is the standard we are working toward.
 The repo is partially there already:
 
 - shared tenant-aware runtime exists
+- template-driven onboarding v1 exists
 - current tenants already use differentiated workspaces
 - adapters for Notion, Nabis, Printavo, CSV-style mapping patterns, and Google Maps/geocoding are in flight or landed
 - account, territory, and document flows are live
+- workspace manifests and package manifests are live
+- change-request persistence and attachments are live
 
 The missing pieces are mainly:
 
-- explicit primitive and package contracts
-- portable workspace manifests
+- broader primitive extraction and package contracts
 - clearer read-model compilation
-- governed tenant change workflow
+- preview/policy layers on the governed tenant change workflow
 
 ## Core platform requirements
 

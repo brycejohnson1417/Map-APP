@@ -13,8 +13,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PICC New York",
-  description: "PICC field operations workspace.",
+  title: "Map App Harness",
+  description: "Multi-tenant operations harness for account, map, runtime, and change-request workspaces.",
 };
 
 export default function RootLayout({

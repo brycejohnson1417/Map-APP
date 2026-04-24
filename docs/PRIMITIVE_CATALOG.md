@@ -27,10 +27,10 @@ Examples:
 - future wholesale account quality scores
 
 Status:
-- partial, implemented directly in tenant service code today
+- partial, extracted into a shared score-model config contract and still finishing service-level reuse
 
 Needs:
-- config shape for weights, thresholds, grade bands, penalties, and time windows
+- broader reuse outside FraterniTees and compiled read-model generation
 
 ## 2. DNC rule
 
@@ -41,7 +41,7 @@ Examples:
 - FraterniTees lost-order threshold
 
 Status:
-- partial, implemented directly today
+- partial, live in workspace config and shared scoring helpers
 
 Needs:
 - reusable rule contract and display semantics
@@ -56,7 +56,7 @@ Examples:
 - trending up/down on score or revenue
 
 Status:
-- emerging from FraterniTees account-detail need
+- landed as a shared primitive component with FraterniTees account-detail usage
 
 ## 4. Filter registry
 
@@ -70,7 +70,7 @@ Examples:
 - referral source
 
 Status:
-- partial, exists in shared code and runtime parameters today
+- partial, first shared filter-toolbar primitive is live but registry extraction is still incomplete
 
 ## 5. Sort registry
 
@@ -85,7 +85,7 @@ Examples:
 - recency
 
 Status:
-- emerging
+- partial, FraterniTees sort options now come from workspace config
 
 ## 6. Account detail module
 
@@ -100,7 +100,7 @@ Examples:
 - proposal block
 
 Status:
-- partial, currently expressed mostly in shared page branching
+- partial, account-detail sections are now workspace-driven for current tenants
 
 ## 7. KPI card set
 
@@ -114,7 +114,7 @@ Examples:
 - order count
 
 Status:
-- landed in multiple surfaces, not yet formally packaged
+- landed as a first shared primitive component
 
 ## 8. Territory pin layer
 
@@ -179,4 +179,4 @@ Examples:
 - core-platform queue item
 
 Status:
-- planned
+- landed as an initial queue with persistence, attachments, and heuristic classification

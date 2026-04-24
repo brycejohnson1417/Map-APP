@@ -1,0 +1,9 @@
+{
+  "id": "change-request-kit",
+  "version": 1,
+  "name": "Change Request Kit",
+  "description": "Tenant-facing request intake, classification, attachments, and maintainer queue visibility.",
+  "primitives": ["change_request"],
+  "surfaces": ["change_requests", "accounts", "territory", "integrations"],
+  "status": "active"
+}

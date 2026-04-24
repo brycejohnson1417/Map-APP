@@ -30,19 +30,27 @@ If the answer is no, it is probably the wrong abstraction or the wrong slice.
 The repo already contains working product surfaces, not just scaffolding:
 
 - shared login and tenant routing
+- self-serve onboarding for template-based workspaces
+- self-serve domain handoff for bootstrap-created workspaces
 - runtime-backed territory map and accounts surfaces
 - shared account detail page
+- workspace-driven navigation and integration surfaces
+- in-app change-request queue with classification and attachments
 - PICC-specific PPP savings and mock-order proposal workflows
 - FraterniTees-specific Printavo onboarding, sync, lead scoring, and map/account experiences
+- first-class workspace/package manifests under `tenants/` and `packages/`
+- first primitive components for scorecards, filter bars, and trend panels
 - tenant-scoped integration state and plugin toggles
 - runtime APIs for territory, accounts, sync jobs, geocoding, and tenant integrations
 
 The repo is also mid-transition:
 
 - tenant differences still exist in shared code paths
-- the primitive catalog is not fully extracted yet
-- workspace/package manifests are not first-class yet
-- the change-request system is not built yet
+- the primitive catalog is only partially extracted into reusable runtime components
+- workspace/package manifests exist but not every tenant behavior is driven by them yet
+- the change-request system exists, but preview/policy automation is still next
+- onboarding exists, but connector depth is still uneven across templates
+- onboarding is email-domain based today, not verified-domain based
 
 That is the main architectural work now.
 
@@ -77,6 +85,8 @@ See the docs below for the detailed plan.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/WORKSPACE_MODEL.md](docs/WORKSPACE_MODEL.md)
 - [docs/PRIMITIVE_CATALOG.md](docs/PRIMITIVE_CATALOG.md)
+- [docs/ONBOARDING.md](docs/ONBOARDING.md)
+- [docs/CHANGE_SYSTEM.md](docs/CHANGE_SYSTEM.md)
 - [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/TODO.md](docs/TODO.md)

@@ -1,0 +1,88 @@
+{
+  "id": "wholesale-territory-ops",
+  "version": 1,
+  "kind": "tenant_workspace",
+  "displayName": "PICC New York",
+  "templateLabel": "Wholesale Territory Ops",
+  "description": "Wholesale field operations workspace for distributor accounts, PPP savings analysis, and reorder proposal generation.",
+  "selfServe": false,
+  "emailDomains": ["piccplatform.com"],
+  "defaultOrgSlug": "picc",
+  "defaultRedirectPath": "/territory",
+  "branding": {
+    "heroEyebrow": "Wholesale territory workspace",
+    "heroTitle": "Operate the field from one account graph.",
+    "heroDescription": "Run map, PPP savings, mock-order proposals, and runtime health from the same canonical account layer."
+  },
+  "navigation": [
+    { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
+    { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
+    { "id": "runtime", "label": "Runtime", "href": "/runtime/picc", "icon": "BarChart3" },
+    { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
+  ],
+  "packages": [
+    "core-runtime",
+    "territory-map-kit",
+    "account-directory-kit",
+    "change-request-kit",
+    "connector-onboarding-kit"
+  ],
+  "connectors": [
+    {
+      "provider": "nabis",
+      "label": "Nabis",
+      "description": "Sync retailer accounts, orders, line items, and wholesale pricing.",
+      "required": true,
+      "selfServe": false,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "apiKey", "label": "Nabis API key", "type": "secret", "required": true, "placeholder": "Paste Nabis API key" }
+      ]
+    },
+    {
+      "provider": "notion",
+      "label": "Notion",
+      "description": "Connect workspace CRM and ops data sources.",
+      "required": false,
+      "selfServe": false,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "apiKey", "label": "Notion internal integration token", "type": "secret", "required": true, "placeholder": "Paste Notion token" }
+      ]
+    }
+  ],
+  "modules": {
+    "accounts": {
+      "variant": "default_directory",
+      "pageSize": 100
+    },
+    "accountDetail": {
+      "variant": "wholesale_ops",
+      "sections": ["map_agreement", "identity_location", "contacts", "orders", "activities", "ppp_savings", "mock_order_proposal"]
+    },
+    "territory": {
+      "variant": "field_console",
+      "includeUnmappedAccounts": false,
+      "filtersAlwaysAvailable": true,
+      "enabledFlags": ["missing_referral_source", "missing_sample_delivery"],
+      "leadGradeFilter": false
+    },
+    "integrations": {
+      "variant": "runtime_controls",
+      "allowRoutePlanning": true
+    }
+  },
+  "changeRequests": {
+    "enabled": true,
+    "defaultClassification": "core",
+    "classifications": ["config", "package", "primitive", "core"],
+    "allowAttachments": true
+  },
+  "onboarding": {
+    "enabled": false,
+    "summary": "PICC currently uses guided setup for Nabis and Notion credentials."
+  }
+}

@@ -10,7 +10,9 @@ import type {
   TerritoryOverlayRuntime,
   TerritoryRuntimeDashboard,
 } from "@/lib/domain/runtime";
+import type { FraterniteesScoreModelConfig } from "@/lib/domain/workspace";
 import { gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
+import { getWorkspaceDefinitionBySlug } from "@/lib/application/workspace/workspace-service";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
 const DASHBOARD_ACCOUNT_PAGE_SIZE = 1_000;
@@ -97,12 +99,12 @@ function isNoAddressAvailable(row: AccountRow) {
   return !row.city?.trim() || !row.state?.trim();
 }
 
-function rowMatchesFlag(row: AccountRow, flag: TerritoryFilterFlag | null) {
+function rowMatchesFlag(row: AccountRow, flag: TerritoryFilterFlag | null, config?: FraterniteesScoreModelConfig) {
   if (flag === "no_address_available") {
     return isNoAddressAvailable(row);
   }
   if (flag === "dnc_flagged") {
-    return isDncFlagged(row);
+    return isDncFlagged(row, config);
   }
   return true;
 }
@@ -180,7 +182,10 @@ function readBooleanField(fields: Record<string, unknown> | null, key: string) {
   return fields?.[key] === true;
 }
 
-function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): FraterniteesLeadScoreSummary | null {
+function mapFraterniteesLeadScore(
+  fields: Record<string, unknown> | null,
+  config?: FraterniteesScoreModelConfig,
+): FraterniteesLeadScoreSummary | null {
   const score = readNumberField(fields, "leadScore");
   const closedOrders = readNumberField(fields, "closedOrders") ?? 0;
   const lostOrders = readNumberField(fields, "lostOrders") ?? 0;
@@ -207,7 +212,7 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
       openOrders,
       closedRevenue: closedRevenue ?? 0,
       monthsWithClosedOrdersLast12,
-    }),
+    }, { config }),
     priority: readStringField(fields, "leadPriority"),
     closeRate: readNumberField(fields, "closeRate"),
     closedOrders,
@@ -229,19 +234,21 @@ function mapFraterniteesLeadScore(fields: Record<string, unknown> | null): Frate
   };
 }
 
-function leadGradeForRow(row: AccountRow): FraterniteesLeadGrade {
-  return mapFraterniteesLeadScore(row.custom_fields)?.grade ?? "Unscored";
+function leadGradeForRow(row: AccountRow, config?: FraterniteesScoreModelConfig): FraterniteesLeadGrade {
+  return mapFraterniteesLeadScore(row.custom_fields, config)?.grade ?? "Unscored";
 }
 
-function isDncFlagged(row: AccountRow) {
-  return (mapFraterniteesLeadScore(row.custom_fields)?.lostOrders ?? 0) >= 3;
+function isDncFlagged(row: AccountRow, config?: FraterniteesScoreModelConfig) {
+  return (
+    mapFraterniteesLeadScore(row.custom_fields, config)?.lostOrders ?? 0
+  ) >= (config?.dncRule.lostOrdersThreshold ?? 3);
 }
 
-function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadGrade | null) {
-  return !leadGrade || leadGradeForRow(row) === leadGrade;
+function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadGrade | null, config?: FraterniteesScoreModelConfig) {
+  return !leadGrade || leadGradeForRow(row, config) === leadGrade;
 }
 
-function mapPinRow(row: AccountRow): TerritoryAccountPin {
+function mapPinRow(row: AccountRow, config?: FraterniteesScoreModelConfig): TerritoryAccountPin {
   const daysOverdue = row.custom_fields?.daysOverdue;
 
   return {
@@ -260,7 +267,7 @@ function mapPinRow(row: AccountRow): TerritoryAccountPin {
     lastOrderDate: row.last_order_date,
     lastSampleDeliveryDate: row.last_sample_delivery_date,
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
-    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields),
+    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields, config),
   };
 }
 
@@ -351,7 +358,9 @@ export async function getTerritoryRuntimeDashboard(
     vendorDayStatus: normalizeFacet(params.vendorDayStatus),
     leadGrade: normalizeLeadGrade(params.leadGrade),
   };
-  const includeUnmappedAccounts = slug === "fraternitees";
+  const workspace = await getWorkspaceDefinitionBySlug(slug);
+  const fraterniteesConfig = workspace.scoring?.fraterniteesLeadV1;
+  const includeUnmappedAccounts = workspace.modules.territory?.includeUnmappedAccounts ?? false;
 
   const [accounts, geocodedPins, orders, contacts, territoryBoundaries, territoryMarkers, noReferralSource, noLastSampleDeliveryDate] =
     await Promise.all([
@@ -367,15 +376,15 @@ export async function getTerritoryRuntimeDashboard(
 
   const dashboardRows = await fetchDashboardAccounts(organization.id, appliedFilters.flag, includeUnmappedAccounts);
   const noAddressAvailable = dashboardRows.filter(isNoAddressAvailable).length;
-  const dncFlagged = dashboardRows.filter(isDncFlagged).length;
+  const dncFlagged = dashboardRows.filter((row) => isDncFlagged(row, fraterniteesConfig)).length;
   const visibleRows = dashboardRows
-    .filter((row) => rowMatchesFlag(row, appliedFilters.flag))
+    .filter((row) => rowMatchesFlag(row, appliedFilters.flag, fraterniteesConfig))
     .filter((row) => rowMatchesSearch(row, appliedFilters.search))
     .filter((row) => rowMatchesRep(row, appliedFilters.rep))
     .filter((row) => rowMatchesFacet(row.account_status, appliedFilters.status))
     .filter((row) => rowMatchesFacet(row.referral_source, appliedFilters.referralSource))
     .filter((row) => rowMatchesFacet(row.vendor_day_status, appliedFilters.vendorDayStatus))
-    .filter((row) => rowMatchesLeadGrade(row, appliedFilters.leadGrade));
+    .filter((row) => rowMatchesLeadGrade(row, appliedFilters.leadGrade, fraterniteesConfig));
 
   return {
     organization,
@@ -395,8 +404,8 @@ export async function getTerritoryRuntimeDashboard(
     statusFacets: buildSingleValueFacets(dashboardRows, (row) => row.account_status),
     referralSourceFacets: buildSingleValueFacets(dashboardRows, (row) => row.referral_source),
     vendorDayFacets: buildSingleValueFacets(dashboardRows, (row) => row.vendor_day_status),
-    leadGradeFacets: buildSingleValueFacets(dashboardRows, leadGradeForRow),
-    pins: visibleRows.map(mapPinRow),
+    leadGradeFacets: buildSingleValueFacets(dashboardRows, (row) => leadGradeForRow(row, fraterniteesConfig)),
+    pins: visibleRows.map((row) => mapPinRow(row, fraterniteesConfig)),
     appliedFilters,
   };
 }

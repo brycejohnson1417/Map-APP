@@ -1,0 +1,9 @@
+{
+  "id": "connector-onboarding-kit",
+  "version": 1,
+  "name": "Connector Onboarding Kit",
+  "description": "Template selection, connector setup, first sync orchestration, and generated workspace bootstrap.",
+  "primitives": ["connector_adapter", "workspace_shell", "runtime_surface"],
+  "surfaces": ["login", "onboarding", "integrations"],
+  "status": "active"
+}

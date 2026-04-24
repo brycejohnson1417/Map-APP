@@ -1,0 +1,145 @@
+{
+  "id": "fraternity-sales",
+  "version": 1,
+  "kind": "tenant_workspace",
+  "displayName": "FraterniTees",
+  "templateLabel": "Fraternity Sales Ops",
+  "description": "Lead-scored fraternity apparel workspace with Printavo sync, account prioritization, and field-map operations.",
+  "selfServe": true,
+  "emailDomains": ["fraternitees.com"],
+  "defaultOrgSlug": "fraternitees",
+  "defaultRedirectPath": "/accounts",
+  "branding": {
+    "heroEyebrow": "Fraternity sales workspace",
+    "heroTitle": "Compete on repeatability, not noise.",
+    "heroDescription": "Track close rate, repeat order quality, DNC risk, and territory coverage from one runtime."
+  },
+  "navigation": [
+    { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
+    { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
+    { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
+  ],
+  "packages": [
+    "core-runtime",
+    "account-directory-kit",
+    "lead-score-kit",
+    "trend-module-kit",
+    "territory-map-kit",
+    "change-request-kit",
+    "connector-onboarding-kit"
+  ],
+  "connectors": [
+    {
+      "provider": "printavo",
+      "label": "Printavo",
+      "description": "Sync organizations, contacts, and orders directly from Printavo.",
+      "required": true,
+      "selfServe": true,
+      "supportsPreview": true,
+      "supportsFirstSync": true,
+      "fields": [
+        { "key": "email", "label": "Printavo email", "type": "email", "required": true, "placeholder": "ops@fraternitees.com" },
+        { "key": "apiKey", "label": "Printavo API key", "type": "secret", "required": true, "placeholder": "Paste Printavo API key" }
+      ]
+    }
+  ],
+  "modules": {
+    "accounts": {
+      "variant": "lead_qualification",
+      "title": "Scoring Engine",
+      "pageSize": 50,
+      "cacheTtlSeconds": 300,
+      "gradeOptions": ["All Grades", "A+", "A", "B", "C", "D", "F", "Unscored"],
+      "sortOptions": [
+        { "value": "score", "label": "Top score" },
+        { "value": "close_rate", "label": "Highest close rate" },
+        { "value": "order_count", "label": "Most orders" }
+      ],
+      "summaryCards": ["total_organizations", "avg_score_non_dnc", "dnc_flagged"]
+    },
+    "accountDetail": {
+      "variant": "fraternity_sales",
+      "sections": ["score_summary", "identity_location", "score_trend", "contacts", "orders", "activities"],
+      "trendWindowMonths": 12,
+      "comparisonWindowMonths": 12
+    },
+    "territory": {
+      "variant": "lead_map",
+      "includeUnmappedAccounts": true,
+      "filtersAlwaysAvailable": true,
+      "enabledFlags": ["no_address_available", "dnc_flagged"],
+      "leadGradeFilter": true
+    },
+    "integrations": {
+      "variant": "fraternity_integrations",
+      "allowRoutePlanning": false
+    }
+  },
+  "scoring": {
+    "fraterniteesLeadV1": {
+      "weights": {
+        "closeRate": 36,
+        "orderCount": 18,
+        "consistency": 12,
+        "revenue": 18,
+        "recentRevenue": 8,
+        "recency": 8
+      },
+      "caps": {
+        "revenueTarget": 12000,
+        "recentRevenueTarget": 12000,
+        "orderCountTarget": 12,
+        "consistencyMonthsTarget": 8
+      },
+      "penalties": {
+        "lostOrder": 6,
+        "maxLostOrderPenalty": 24,
+        "hardLoss": 4,
+        "maxHardLossPenalty": 12,
+        "volatility": 8
+      },
+      "gradeThresholds": {
+        "aPlus": 90,
+        "a": 82,
+        "b": 72,
+        "c": 58,
+        "d": 45
+      },
+      "gradeGuards": {
+        "aPlus": { "minCloseRate": 0.8, "minClosedOrders": 5, "maxLostOrders": 1 },
+        "a": { "minCloseRate": 0.65, "minClosedOrders": 3 }
+      },
+      "dncRule": {
+        "lostOrdersThreshold": 3,
+        "cooldownYears": 2
+      },
+      "highTicket": {
+        "threshold": 6000,
+        "minCloseRate": 0.35,
+        "lossesAfterHighTicket": 3
+      },
+      "recency": {
+        "hotDays": 60,
+        "warmDays": 120,
+        "coolDays": 240,
+        "points": { "hot": 8, "warm": 5, "cool": 2 }
+      },
+      "trend": {
+        "currentMonths": 12,
+        "comparisonMonths": 12
+      }
+    }
+  },
+  "changeRequests": {
+    "enabled": true,
+    "defaultClassification": "config",
+    "classifications": ["config", "package", "primitive", "core"],
+    "allowAttachments": true
+  },
+  "onboarding": {
+    "enabled": true,
+    "summary": "Connect Printavo, run the first sync, and the workspace will generate the scored account directory and map automatically.",
+    "firstSyncProvider": "printavo"
+  }
+}

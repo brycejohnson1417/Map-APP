@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
 import type { FraterniteesAccountDirectoryItem, FraterniteesAccountDirectoryPage } from "@/lib/domain/runtime";
+import { FilterToolbar } from "@/components/primitives/filter-toolbar";
+import { ScorecardGrid } from "@/components/primitives/scorecard-grid";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
 
 interface FraterniteesLeadQualificationModuleProps {
   orgSlug: string;
   directory: FraterniteesAccountDirectoryPage;
+  gradeOptions?: readonly string[];
+  sortOptions?: ReadonlyArray<{ value: string; label: string }>;
 }
 
 const gradeOptions = ["All Grades", "A+", "A", "B", "C", "D", "F", "Unscored"] as const;
@@ -88,9 +92,13 @@ function statusLine(account: FraterniteesAccountDirectoryItem) {
 export function FraterniteesLeadQualificationModule({
   orgSlug,
   directory,
+  gradeOptions: configuredGradeOptions,
+  sortOptions: configuredSortOptions,
 }: FraterniteesLeadQualificationModuleProps) {
   const { summary, items, filters, pagination } = directory;
   const connectionHealthy = summary.accounts > 0 && summary.orders > 0;
+  const resolvedGradeOptions = configuredGradeOptions ?? [...gradeOptions];
+  const resolvedSortOptions = configuredSortOptions ?? [...sortOptions];
 
   return (
     <section className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-[#f7f9fc] p-5 text-slate-950 shadow-sm md:p-6">
@@ -123,82 +131,59 @@ export function FraterniteesLeadQualificationModule({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f26a00]">Total organizations</p>
-          <p className="mt-4 text-5xl font-bold tracking-normal text-slate-950">{summary.accounts}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Avg score (non-DNC)</p>
-          <p className="mt-4 text-5xl font-bold tracking-normal text-slate-950">{summary.avgScoreNonDnc ?? "-"}</p>
-        </div>
-        <Link
-          href={accountsFilterHref({
-            orgSlug,
-            query: filters.query,
-            grade: filters.grade,
-            sort: filters.sort,
-            dnc: true,
-          })}
-          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-red-200 hover:bg-red-50"
-        >
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-red-600">
-            DNC flagged
-            <AlertTriangle className="h-4 w-4" />
-          </p>
-          <p className="mt-4 text-5xl font-bold tracking-normal text-red-600">{summary.dncFlaggedAccounts}</p>
-        </Link>
-      </div>
+      <ScorecardGrid
+        items={[
+          {
+            id: "total-organizations",
+            label: "Total organizations",
+            value: String(summary.accounts),
+            accentClassName: "text-[#f26a00]",
+          },
+          {
+            id: "avg-score",
+            label: "Avg score (non-DNC)",
+            value: summary.avgScoreNonDnc === null ? "-" : String(summary.avgScoreNonDnc),
+            accentClassName: "text-emerald-600",
+          },
+          {
+            id: "dnc-flagged",
+            label: "DNC flagged",
+            value: String(summary.dncFlaggedAccounts),
+            accentClassName: "text-red-600",
+            href: accountsFilterHref({
+              orgSlug,
+              query: filters.query,
+              grade: filters.grade,
+              sort: filters.sort,
+              dnc: true,
+            }),
+          },
+        ]}
+      />
 
-      <form action="/accounts" className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-center">
-        <input type="hidden" name="org" value={orgSlug} />
-        {filters.dncOnly ? <input type="hidden" name="dnc" value="1" /> : null}
-        <label className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-          <Search className="h-5 w-5 text-slate-400" />
-          <input
-            name="q"
-            defaultValue={filters.query}
-            placeholder="Search fraternities by name, city, state, or contact..."
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-          />
-        </label>
-        <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 sm:grid-cols-[auto_1fr] sm:items-center">
-          Grade filter
-          <select
-            name="grade"
-            defaultValue={filters.grade}
-            className="min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold normal-case tracking-normal text-slate-900 outline-none"
-          >
-            {gradeOptions.map((grade) => (
-              <option key={grade} value={grade}>
-                {grade}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 sm:grid-cols-[auto_1fr] sm:items-center">
-          Sort
-          <select
-            name="sort"
-            defaultValue={filters.sort}
-            className="min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold normal-case tracking-normal text-slate-900 outline-none"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-          style={{ color: "#fff" }}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Apply
-        </button>
-      </form>
+      <FilterToolbar
+        action="/accounts"
+        hiddenInputs={[
+          { name: "org", value: orgSlug },
+          ...(filters.dncOnly ? [{ name: "dnc", value: "1" }] : []),
+        ]}
+        queryValue={filters.query}
+        queryPlaceholder="Search fraternities by name, city, state, or contact..."
+        selects={[
+          {
+            name: "grade",
+            label: "Grade filter",
+            value: filters.grade,
+            options: resolvedGradeOptions.map((grade) => ({ value: grade, label: grade })),
+          },
+          {
+            name: "sort",
+            label: "Sort",
+            value: filters.sort,
+            options: resolvedSortOptions.map((option) => ({ value: option.value, label: option.label })),
+          },
+        ]}
+      />
 
       <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 sm:flex-row sm:items-center sm:justify-between">
         <span>
