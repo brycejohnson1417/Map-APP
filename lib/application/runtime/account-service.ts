@@ -228,6 +228,7 @@ function mapOrder(row: OrderRow): AccountOrder {
 
 function mapAccount(row: AccountRow, config?: FraterniteesScoreModelConfig): AccountRuntimeDetail["account"] {
   const daysOverdue = row.custom_fields?.daysOverdue;
+  const leadScoreSummary = mapFraterniteesLeadScore(row.custom_fields, config);
 
   return {
     id: row.id,
@@ -258,7 +259,8 @@ function mapAccount(row: AccountRow, config?: FraterniteesScoreModelConfig): Acc
     externalUpdatedAt: row.external_updated_at,
     customFields: row.custom_fields ?? {},
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
-    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields, config),
+    leadScoreSummary,
+    fraterniteesLeadScore: leadScoreSummary,
   };
 }
 

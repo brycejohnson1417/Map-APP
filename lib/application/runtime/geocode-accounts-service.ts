@@ -1,7 +1,11 @@
 import "server-only";
 
 import { findRuntimeOrganization } from "@/lib/application/runtime/runtime-rest";
-import { hasUsableFraterniteesAddress, isFraterniteesHqAddress } from "@/lib/application/fraternitees/address-rules";
+import {
+  hasUsableWorkspaceAddress,
+  resolveSuppressedGeocodingAddress,
+} from "@/lib/application/runtime/geocoding-policy";
+import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { geocodeAccountCandidate, resolveGeocodingPlan, type GeocodeCandidate } from "@/lib/infrastructure/adapters/geocoding/geocoding";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -23,27 +27,6 @@ function readLimit(value: unknown, fallback: number, max: number) {
   return Math.max(1, Math.min(max, Math.floor(parsed)));
 }
 
-function hasUsableAddress(row: AccountGeocodeRow, organizationSlug: string) {
-  if (organizationSlug === "fraternitees") {
-    return hasUsableFraterniteesAddress({
-      addressLine1: row.address_line_1,
-      city: row.city,
-      state: row.state,
-      postalCode: row.postal_code,
-    });
-  }
-
-  if (row.address_line_1?.trim()) {
-    return true;
-  }
-
-  if (row.postal_code?.trim()) {
-    return true;
-  }
-
-  return Boolean(row.city?.trim() && row.state?.trim());
-}
-
 function toCandidate(row: AccountGeocodeRow): GeocodeCandidate {
   return {
     name: row.name ?? `Account ${row.id}`,
@@ -63,6 +46,8 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
   }
 
   const plan = resolveGeocodingPlan({ organizationSlug: organization.slug });
+  const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+  const geocodingConfig = workspace.workspace.geocoding ?? null;
   const limit = readLimit(input.limit, plan.maxPerSync, plan.maxPerSync);
   const supabase = getSupabaseAdminClient() as any;
   const fetchLimit = Math.min(Math.max(limit * 10, 200), 1_000);
@@ -93,13 +78,15 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
       continue;
     }
 
-    if (organization.slug === "fraternitees" && isFraterniteesHqAddress({
+    const suppressedAddress = resolveSuppressedGeocodingAddress({
       addressLine1: row.address_line_1,
       addressLine2: row.address_line_2,
       city: row.city,
       state: row.state,
       postalCode: row.postal_code,
-    })) {
+    }, geocodingConfig);
+
+    if (suppressedAddress) {
       skippedNoAddress += 1;
       await supabase
         .from("account")
@@ -109,7 +96,7 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
           custom_fields: {
             ...row.custom_fields,
             noAddressAvailable: true,
-            addressSuppressedReason: "fraternitees_hq_individual_shipments",
+            addressSuppressedReason: suppressedAddress.reason,
           },
           updated_at: new Date().toISOString(),
         })
@@ -117,9 +104,14 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
       continue;
     }
 
-    if (!hasUsableAddress(row, organization.slug)) {
+    if (!hasUsableWorkspaceAddress({
+      addressLine1: row.address_line_1,
+      city: row.city,
+      state: row.state,
+      postalCode: row.postal_code,
+    }, geocodingConfig)) {
       skippedNoAddress += 1;
-      if (organization.slug === "fraternitees") {
+      if (geocodingConfig?.missingAddressReason) {
         await supabase
           .from("account")
           .update({
@@ -128,7 +120,7 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
             custom_fields: {
               ...row.custom_fields,
               noAddressAvailable: true,
-              addressSuppressedReason: "fraternitees_no_usable_shipping_address",
+              addressSuppressedReason: geocodingConfig.missingAddressReason,
             },
             updated_at: new Date().toISOString(),
           })

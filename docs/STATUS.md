@@ -42,6 +42,9 @@ The repo already has:
 - reusable shared shells for territory/accounts/detail
 - first workspace manifests and package manifests wired into runtime navigation
 - first change-request persistence layer and attachment storage path
+- generic tenant-session cookies and template-aware onboarding instead of shared runtime paths hardcoding PICC/FraterniTees session cookies
+- workspace-driven account-detail copy and territory color/filter behavior
+- workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules
 
 The repo does not yet fully have:
 - a complete primitive extraction across every tenant surface
@@ -55,6 +58,7 @@ The main problem is not "add more product." The main problem is:
 
 - continue shipping for current tenants
 - while reducing how much tenant behavior is hardcoded in shared code
+- without letting shared runtime defaults quietly snap back to PICC-first assumptions
 
 If that does not happen, onboarding future tenants will stay founder-driven.
 

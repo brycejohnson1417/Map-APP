@@ -1,10 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import {
-  FRATERNITEES_SESSION_COOKIE,
-  isFraterniteesEmail,
-  saveFraterniteesConnectors,
-} from "@/lib/application/fraternitees/onboarding-service";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { saveFraterniteesConnectors } from "@/lib/application/fraternitees/onboarding-service";
 
 interface ConnectorPayload {
   printavo?: {
@@ -18,10 +14,8 @@ function cleanString(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const email = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
-
-  if (!isFraterniteesEmail(email)) {
+  const email = await getTenantSessionEmailForSlug("fraternitees");
+  if (!email) {
     return NextResponse.json({ ok: false, error: "Fraternitees session required." }, { status: 401 });
   }
 

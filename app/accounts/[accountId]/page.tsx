@@ -105,10 +105,11 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
     notFound();
   }
 
-  const isFraternitees = workspace.accountDetailSections.includes("score_summary");
+  const accountDetailModule = workspace.workspace.modules.accountDetail;
   const accountDetailSections = new Set(workspace.accountDetailSections);
-  const leadScore = detail.account.fraterniteesLeadScore;
-  const fraterniteesTrend = isFraternitees
+  const usesLeadScoreSummary = accountDetailSections.has("score_summary");
+  const leadScore = detail.account.leadScoreSummary;
+  const fraterniteesTrend = usesLeadScoreSummary
     ? buildFraterniteesLeadTrendSummary(
         detail.allOrders.map((order) => ({
           customerName: detail.account.name,
@@ -123,6 +124,11 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
         },
       )
     : null;
+  const heroDescription =
+    accountDetailModule?.heroDescription ??
+    "This page shows the same account, order, contact, and activity data used across the workspace.";
+  const recentOrdersHeading = accountDetailModule?.recentOrdersHeading ?? "Recent orders";
+  const updatedLabel = accountDetailModule?.updatedLabel ?? "CRM updated";
   const sourceCrmHref = getSourceCrmHref(detail);
   const address = [
     detail.account.addressLine1,
@@ -151,11 +157,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                 Account detail
               </p>
               <h1 className="mt-2 text-4xl font-semibold tracking-[-0.04em] md:text-6xl">{detail.account.name}</h1>
-              <p className="mt-3 max-w-3xl text-base leading-8 text-[var(--text-secondary)]">
-                {isFraternitees
-                  ? "This page shows the same Printavo organization, lead score, order, contact, and activity data used by the territory map."
-                  : "This page shows the same account, rep, referral, order, contact, and activity data used by the territory map."}
-              </p>
+              <p className="mt-3 max-w-3xl text-base leading-8 text-[var(--text-secondary)]">{heroDescription}</p>
             </div>
             {sourceCrmHref ? (
               <a
@@ -192,11 +194,11 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
               <div className="flex items-center gap-3">
                 <MapPin className="h-5 w-5 text-[var(--accent-primary)]" />
                 <h2 className="text-xl font-semibold tracking-[-0.03em]">
-                  {isFraternitees ? "Score summary" : "Map agreement"}
+                  {usesLeadScoreSummary ? "Score summary" : "Map agreement"}
                 </h2>
               </div>
               <dl className="mt-5">
-                {isFraternitees ? (
+                {usesLeadScoreSummary ? (
                   <>
                     <DetailRow label="Lead score" value={`${fieldValue(leadScore?.score)} / ${leadScore?.grade ?? "Unscored"}`} />
                     <DetailRow label="Lead priority" value={fieldValue(leadScore?.priority ?? detail.account.status)} />
@@ -229,7 +231,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                 <h2 className="text-xl font-semibold tracking-[-0.03em]">Identity and location</h2>
               </div>
               <dl className="mt-5">
-                {!isFraternitees ? (
+                {!usesLeadScoreSummary ? (
                   <>
                     <DetailRow label="Licensed location ID" value={fieldValue(detail.account.licensedLocationId)} />
                     <DetailRow label="License number" value={fieldValue(detail.account.licenseNumber)} />
@@ -238,7 +240,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
                 <DetailRow label="Address" value={address || "None"} />
                 <DetailRow label="Coordinates" value={`${fieldValue(detail.account.latitude)}, ${fieldValue(detail.account.longitude)}`} />
                 <DetailRow label="Customer since" value={formatDate(detail.account.customerSinceDate)} />
-                <DetailRow label={isFraternitees ? "Printavo updated" : "CRM updated"} value={formatDate(detail.account.crmUpdatedAt)} />
+                <DetailRow label={updatedLabel} value={formatDate(detail.account.crmUpdatedAt)} />
               </dl>
               <div className="mt-5 flex flex-wrap gap-2">
                 {detail.identities.map((identity) => (
@@ -254,7 +256,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
           ) : null}
         </section>
 
-        {accountDetailSections.has("score_trend") && isFraternitees && fraterniteesTrend ? (
+        {accountDetailSections.has("score_trend") && usesLeadScoreSummary && fraterniteesTrend ? (
           <TrendSummaryPanel
             summary={fraterniteesTrend}
             description="Compare the current 12 months against the previous 12 months using the same FraterniTees score model."
@@ -265,9 +267,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
           {accountDetailSections.has("orders") ? (
             <div className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
             <div className="border-b border-[var(--border-subtle)] p-6">
-              <h2 className="text-xl font-semibold tracking-[-0.03em]">
-                Recent {orgSlug === "fraternitees" ? "Printavo" : "Nabis"} orders
-              </h2>
+              <h2 className="text-xl font-semibold tracking-[-0.03em]">{recentOrdersHeading}</h2>
             </div>
             <div className="divide-y divide-[var(--border-subtle)]">
               {detail.recentOrders.length ? (

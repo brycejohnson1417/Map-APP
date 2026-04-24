@@ -193,6 +193,7 @@ export interface TerritoryAccountPin {
   lastOrderDate: string | null;
   lastSampleDeliveryDate: string | null;
   daysOverdue: number | null;
+  leadScoreSummary: FraterniteesLeadScoreSummary | null;
   fraterniteesLeadScore: FraterniteesLeadScoreSummary | null;
 }
 

@@ -32,6 +32,7 @@ const packageManifests = [
 ] as PackageManifest[];
 
 const workspaceTemplateById = new Map(workspaceTemplates.map((workspace) => [workspace.id, workspace]));
+const workspaceTemplateByDefaultSlug = new Map(workspaceTemplates.map((workspace) => [workspace.defaultOrgSlug, workspace.id]));
 const packageManifestById = new Map(packageManifests.map((manifest) => [manifest.id, manifest]));
 
 function normalizeDomain(value: string) {
@@ -39,13 +40,7 @@ function normalizeDomain(value: string) {
 }
 
 function slugFallbackTemplateId(slug: string) {
-  if (slug === "fraternitees") {
-    return "fraternity-sales";
-  }
-  if (slug === "picc") {
-    return "wholesale-territory-ops";
-  }
-  return "field-ops-starter";
+  return workspaceTemplateByDefaultSlug.get(slug) ?? "field-ops-starter";
 }
 
 function deepMerge<T extends object>(base: T, override: Record<string, unknown> | undefined): T {

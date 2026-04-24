@@ -60,14 +60,19 @@
     },
     "accountDetail": {
       "variant": "starter_detail",
-      "sections": ["identity_location", "contacts", "orders", "activities"]
+      "sections": ["identity_location", "contacts", "orders", "activities"],
+      "heroDescription": "This page shows the same account, order, contact, and activity data used across the workspace.",
+      "recentOrdersHeading": "Recent orders",
+      "updatedLabel": "CRM updated"
     },
     "territory": {
       "variant": "field_console",
       "includeUnmappedAccounts": false,
       "filtersAlwaysAvailable": true,
       "enabledFlags": [],
-      "leadGradeFilter": false
+      "leadGradeFilter": false,
+      "defaultColorMode": "rep",
+      "colorModes": ["rep", "status", "orders"]
     },
     "integrations": {
       "variant": "generic_onboarding",

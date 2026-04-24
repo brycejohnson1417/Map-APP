@@ -89,11 +89,7 @@ function resolveTenantGoogleMapsServerKey(organizationSlug: string | null | unde
     return scoped;
   }
 
-  if (organizationSlug === "picc") {
-    return process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim() || null;
-  }
-
-  return null;
+  return process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim() || null;
 }
 
 function sleep(ms: number) {

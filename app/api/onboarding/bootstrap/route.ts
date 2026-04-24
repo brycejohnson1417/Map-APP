@@ -1,27 +1,14 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  PICC_SESSION_EMAIL_COOKIE,
-  TENANT_SESSION_EMAIL_COOKIE,
-  TENANT_SESSION_SLUG_COOKIE,
-  TENANT_SESSION_TEMPLATE_COOKIE,
+  writeTenantSessionCookies,
 } from "@/lib/application/auth/tenant-access";
-import { FRATERNITEES_SESSION_COOKIE } from "@/lib/application/fraternitees/onboarding-service";
 import { bootstrapOrganization } from "@/lib/application/runtime/bootstrap-service";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { findWorkspaceTemplateById } from "@/lib/platform/workspace/registry";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
 
 const organizations = new OrganizationRepository();
-
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: 60 * 60 * 24 * 14,
-};
 
 const schema = z.object({
   templateId: z.string().min(1),
@@ -80,16 +67,11 @@ export async function POST(request: Request) {
     },
   });
 
-  const cookieStore = await cookies();
-  cookieStore.set(TENANT_SESSION_EMAIL_COOKIE, email, cookieOptions);
-  cookieStore.set(TENANT_SESSION_SLUG_COOKIE, organization.slug, cookieOptions);
-  cookieStore.set(TENANT_SESSION_TEMPLATE_COOKIE, template.id, cookieOptions);
-  if (template.defaultOrgSlug === "fraternitees") {
-    cookieStore.set(FRATERNITEES_SESSION_COOKIE, email, cookieOptions);
-  }
-  if (template.defaultOrgSlug === "picc") {
-    cookieStore.set(PICC_SESSION_EMAIL_COOKIE, email, cookieOptions);
-  }
+  await writeTenantSessionCookies({
+    email,
+    slug: organization.slug,
+    templateId: template.id,
+  });
 
   const redirectTo = template.connectors.length
     ? orgScopedHref("/integrations", organization.slug)

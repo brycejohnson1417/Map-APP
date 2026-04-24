@@ -62,19 +62,51 @@
       "variant": "fraternity_sales",
       "sections": ["score_summary", "identity_location", "score_trend", "contacts", "orders", "activities"],
       "trendWindowMonths": 12,
-      "comparisonWindowMonths": 12
+      "comparisonWindowMonths": 12,
+      "heroDescription": "This page shows the same Printavo organization, lead score, order, contact, and activity data used by the territory map.",
+      "recentOrdersHeading": "Recent Printavo orders",
+      "updatedLabel": "Printavo updated"
     },
     "territory": {
       "variant": "lead_map",
       "includeUnmappedAccounts": true,
       "filtersAlwaysAvailable": true,
       "enabledFlags": ["no_address_available", "dnc_flagged"],
-      "leadGradeFilter": true
+      "leadGradeFilter": true,
+      "defaultColorMode": "score",
+      "colorModes": ["score", "status", "orders"]
     },
     "integrations": {
       "variant": "fraternity_integrations",
       "allowRoutePlanning": false
     }
+  },
+  "geocoding": {
+    "placeholderAddressPatterns": [
+      "^pick ?up( |$)",
+      "(^| )pick ?up( |$)",
+      "^for pick ?up$",
+      "^local pick ?up$",
+      "^night shift pick ?up$",
+      "^fraternitees$",
+      "^ftees?$",
+      "^individual$",
+      "^individual shipping$",
+      "^delivery$",
+      "^split$",
+      "^ship from night shift$"
+    ],
+    "suppressedAddresses": [
+      {
+        "addressLine1": "1379 Ashley River Rd",
+        "addressLine2": "Suite 100",
+        "city": "Charleston",
+        "state": "South Carolina",
+        "postalCode": "29407",
+        "reason": "fraternitees_hq_individual_shipments"
+      }
+    ],
+    "missingAddressReason": "fraternitees_no_usable_shipping_address"
   },
   "scoring": {
     "fraterniteesLeadV1": {

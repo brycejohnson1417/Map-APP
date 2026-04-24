@@ -126,6 +126,8 @@ Current strengths:
 - working tenant-specific flows for PICC and FraterniTees
 - runtime data mapped into shared types
 - tenant-scoped settings and connector state
+- generic tenant-session routing for shared runtime APIs
+- workspace-driven route defaults, account-detail labels, territory color/filter behavior, and geocoding policy
 
 Current weakness:
 - some tenant behavior still lives directly in shared UI/service code instead of package/config boundaries
@@ -152,6 +154,7 @@ Next direction:
 3. Keep tenant-specific business behavior moving toward package/config space.
 4. If a second tenant needs a behavior, it is probably a primitive candidate.
 5. If a tenant request can only be solved with more shared branching, stop and reconsider the model.
+6. Shared auth/session code should not know tenant-specific cookie names or tenant-specific default routes.
 
 ## AI boundary rules
 

@@ -45,7 +45,8 @@ The repo already contains working product surfaces, not just scaffolding:
 
 The repo is also mid-transition:
 
-- tenant differences still exist in shared code paths
+- most shared auth/session and route-scoping now run through generic tenant session cookies and workspace manifests
+- tenant differences still exist in some shared code paths, but the remaining work is now concentrated in reusable primitive/read-model extraction rather than tenant-specific login/session hacks
 - the primitive catalog is only partially extracted into reusable runtime components
 - workspace/package manifests exist but not every tenant behavior is driven by them yet
 - the change-request system exists, but preview/policy automation is still next

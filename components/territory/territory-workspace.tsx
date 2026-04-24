@@ -25,7 +25,9 @@ import type {
   TerritoryMarkerRuntime,
   TerritoryRuntimeDashboard,
 } from "@/lib/domain/runtime";
+import type { WorkspaceDefinition, WorkspaceTerritoryColorMode } from "@/lib/domain/workspace";
 import { resolveTenantPluginSettings } from "@/lib/application/runtime/plugin-settings";
+import { orgScopedHref } from "@/lib/presentation/org-slug";
 
 type GoogleNamespace = any;
 type GoogleMap = any;
@@ -73,6 +75,7 @@ interface AccountResponse {
 interface TerritoryWorkspaceProps {
   orgSlug: string;
   initialDashboard: TerritoryRuntimeDashboard;
+  territoryConfig: WorkspaceDefinition["modules"]["territory"] | null;
 }
 
 const googleMapsScriptPromises = new Map<string, Promise<GoogleNamespace>>();
@@ -186,7 +189,7 @@ function getOrderColor(lastOrderDate: string | null | undefined) {
   return "#d53e2a";
 }
 
-function getScoreColor(score: TerritoryAccountPin["fraterniteesLeadScore"]) {
+function getScoreColor(score: TerritoryAccountPin["leadScoreSummary"]) {
   switch (score?.grade) {
     case "A":
       return "#15825f";
@@ -203,7 +206,7 @@ function getScoreColor(score: TerritoryAccountPin["fraterniteesLeadScore"]) {
 
 function getPinColor(pin: TerritoryAccountPin, mode: ColorMode) {
   if (mode === "score") {
-    return getScoreColor(pin.fraterniteesLeadScore);
+    return getScoreColor(pin.leadScoreSummary);
   }
   if (mode === "status") {
     return getStatusColor(pin.status);
@@ -217,7 +220,7 @@ function getPinColor(pin: TerritoryAccountPin, mode: ColorMode) {
 
 function getPinLabel(pin: TerritoryAccountPin, mode: ColorMode) {
   if (mode === "score") {
-    const grade = pin.fraterniteesLeadScore?.grade ?? "Unscored";
+    const grade = pin.leadScoreSummary?.grade ?? "Unscored";
     return grade === "Unscored" ? "?" : grade;
   }
   if (mode === "orders") {
@@ -312,14 +315,6 @@ function buildParams(filters: Filters) {
   return params;
 }
 
-function orgScopedClientHref(path: string, orgSlug: string) {
-  if (orgSlug === "picc") {
-    return path;
-  }
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}org=${encodeURIComponent(orgSlug)}`;
-}
-
 interface Filters {
   search: string;
   rep: string;
@@ -329,7 +324,7 @@ interface Filters {
   flag: "" | "missing_referral_source" | "missing_sample_delivery" | "no_address_available" | "dnc_flagged";
 }
 
-type ColorMode = "rep" | "status" | "orders" | "score";
+type ColorMode = WorkspaceTerritoryColorMode;
 
 const emptyFilters: Filters = {
   search: "",
@@ -388,7 +383,7 @@ function PinRow({
   onFocus: () => void;
   onToggleRoute: () => void;
 }) {
-  const score = pin.fraterniteesLeadScore;
+  const score = pin.leadScoreSummary;
   const location = [pin.city, pin.state].filter(Boolean).join(", ") || "No location";
   return (
     <div
@@ -445,12 +440,30 @@ function PinRow({
   );
 }
 
-export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorkspaceProps) {
-  const isFraternitees = orgSlug === "fraternitees";
+const colorModeLabels: Record<ColorMode, string> = {
+  rep: "Rep",
+  score: "Score",
+  status: "Status",
+  orders: "Orders",
+};
+
+export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig }: TerritoryWorkspaceProps) {
+  const supportsLeadGradeFilter = territoryConfig?.leadGradeFilter ?? false;
+  const enabledFlags = new Set(territoryConfig?.enabledFlags ?? []);
+  const availableColorModes =
+    territoryConfig?.colorModes?.length
+      ? territoryConfig.colorModes
+      : supportsLeadGradeFilter
+        ? (["score", "status", "orders"] satisfies ColorMode[])
+        : (["rep", "status", "orders"] satisfies ColorMode[]);
+  const defaultColorMode =
+    territoryConfig?.defaultColorMode && availableColorModes.includes(territoryConfig.defaultColorMode)
+      ? territoryConfig.defaultColorMode
+      : availableColorModes[0] ?? "rep";
   const pluginSettings = resolveTenantPluginSettings(orgSlug, initialDashboard.organization.settings);
   const routePlanningEnabled = pluginSettings.routePlanning.enabled;
   const [view, setView] = useState<"map" | "list">("map");
-  const [colorMode, setColorMode] = useState<ColorMode>(isFraternitees ? "score" : "rep");
+  const [colorMode, setColorMode] = useState<ColorMode>(defaultColorMode);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [data, setData] = useState<TerritoryPinsResponse>({
     ok: true,
@@ -1209,7 +1222,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
               />
             </label>
-            {isFraternitees ? (
+            {supportsLeadGradeFilter ? (
               <SelectFilter
                 label="Score"
                 value={filters.leadGrade}
@@ -1224,33 +1237,22 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
               </>
             )}
             <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1">
-              {(isFraternitees
-                ? [
-                    ["score", "Score"],
-                    ["status", "Status"],
-                    ["orders", "Orders"],
-                  ]
-                : [
-                    ["rep", "Rep"],
-                    ["status", "Status"],
-                    ["orders", "Orders"],
-                  ]
-              ).map(([mode, label]) => (
+              {availableColorModes.map((mode) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setColorMode(mode as ColorMode)}
+                  onClick={() => setColorMode(mode)}
                   className={classNames(
                     "rounded-lg px-3 py-2 text-sm font-semibold",
                     colorMode === mode ? "bg-[var(--text-primary)] text-white" : "text-[var(--text-secondary)]",
                   )}
                   style={colorMode === mode ? { color: "#fff" } : undefined}
                 >
-                  {label}
+                  {colorModeLabels[mode]}
                 </button>
               ))}
             </div>
-            {isFraternitees ? (
+            {enabledFlags.has("dnc_flagged") ? (
               <button
                 type="button"
                 onClick={() => updateFilter("flag", filters.flag === "dnc_flagged" ? "" : "dnc_flagged")}
@@ -1264,7 +1266,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                 <Filter className="h-4 w-4" />
                 DNC Flagged ({formatNumber(data.counts.dncFlagged)})
               </button>
-            ) : (
+            ) : null}
+            {enabledFlags.has("missing_referral_source") ? (
               <button
                 type="button"
                 onClick={() => updateFilter("flag", filters.flag === "missing_referral_source" ? "" : "missing_referral_source")}
@@ -1278,7 +1281,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                 <Filter className="h-4 w-4" />
                 No referral ({formatNumber(data.counts.noReferralSource)})
               </button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => updateFilter("flag", filters.flag === "no_address_available" ? "" : "no_address_available")}
@@ -1409,8 +1412,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
               {selectedPin ? (
                 <p className="mt-2 text-sm text-[var(--text-secondary)]">
                   {[selectedPin.city, selectedPin.state].filter(Boolean).join(", ") || "No location"} /{" "}
-                  {selectedPin.fraterniteesLeadScore
-                    ? `Score ${selectedPin.fraterniteesLeadScore.score ?? "-"} (${selectedPin.fraterniteesLeadScore.grade})`
+                  {selectedPin.leadScoreSummary
+                    ? `Score ${selectedPin.leadScoreSummary.score ?? "-"} (${selectedPin.leadScoreSummary.grade})`
                     : selectedPin.salesRepNames.join(", ") || "No rep"}
                 </p>
               ) : null}
@@ -1454,33 +1457,33 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                       <dt className="text-[var(--text-tertiary)]">Status</dt>
                       <dd className="font-semibold">{selectedPin.status ?? "None"}</dd>
                     </div>
-                    {isFraternitees ? (
+                    {supportsLeadGradeFilter ? (
                       <>
                         <div className="flex justify-between gap-4">
                           <dt className="text-[var(--text-tertiary)]">Lead score</dt>
                           <dd className="font-semibold">
-                            {selectedPin.fraterniteesLeadScore?.score ?? "-"} / {selectedPin.fraterniteesLeadScore?.grade ?? "Unscored"}
+                            {selectedPin.leadScoreSummary?.score ?? "-"} / {selectedPin.leadScoreSummary?.grade ?? "Unscored"}
                           </dd>
                         </div>
                         <div className="flex justify-between gap-4">
                           <dt className="text-[var(--text-tertiary)]">Close rate</dt>
                           <dd className="font-semibold">
-                            {selectedPin.fraterniteesLeadScore?.closeRate === null || selectedPin.fraterniteesLeadScore?.closeRate === undefined
+                            {selectedPin.leadScoreSummary?.closeRate === null || selectedPin.leadScoreSummary?.closeRate === undefined
                               ? "-"
-                              : `${Math.round(selectedPin.fraterniteesLeadScore.closeRate * 100)}%`}
+                              : `${Math.round(selectedPin.leadScoreSummary.closeRate * 100)}%`}
                           </dd>
                         </div>
                         <div className="flex justify-between gap-4">
                           <dt className="text-[var(--text-tertiary)]">Closed / lost</dt>
                           <dd className="font-semibold">
-                            {selectedPin.fraterniteesLeadScore?.closedOrders ?? 0} / {selectedPin.fraterniteesLeadScore?.lostOrders ?? 0}
+                            {selectedPin.leadScoreSummary?.closedOrders ?? 0} / {selectedPin.leadScoreSummary?.lostOrders ?? 0}
                           </dd>
                         </div>
                       </>
                     ) : (
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[var(--text-tertiary)]">Referral</dt>
-                        <dd className="text-right font-semibold">{selectedPin.referralSource ?? "None"}</dd>
+                        <div className="flex justify-between gap-4">
+                          <dt className="text-[var(--text-tertiary)]">Referral</dt>
+                          <dd className="text-right font-semibold">{selectedPin.referralSource ?? "None"}</dd>
                       </div>
                     )}
                     <div className="flex justify-between gap-4">
@@ -1499,7 +1502,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                     <div className="rounded-2xl border border-[var(--border-subtle)] p-4">
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-semibold">Account detail</p>
-                        <a href={orgScopedClientHref(`/accounts/${detail.account.id}`, orgSlug)} className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent-primary-strong)]">
+                        <a href={orgScopedHref(`/accounts/${detail.account.id}`, orgSlug)} className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent-primary-strong)]">
                           Open
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
@@ -1515,7 +1518,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard }: TerritoryWorks
                           <dt className="text-[var(--text-tertiary)]">Contacts</dt>
                           <dd className="font-semibold">{formatNumber(detail.contacts.length)}</dd>
                         </div>
-                        {!isFraternitees ? (
+                        {!supportsLeadGradeFilter ? (
                           <div className="flex justify-between gap-4">
                             <dt className="text-[var(--text-tertiary)]">License</dt>
                             <dd className="max-w-[60%] truncate text-right font-semibold">{detail.account.licenseNumber ?? "None"}</dd>

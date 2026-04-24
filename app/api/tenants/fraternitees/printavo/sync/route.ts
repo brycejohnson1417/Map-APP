@@ -1,10 +1,8 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
-  FRATERNITEES_SESSION_COOKIE,
   ensureFraterniteesWorkspace,
-  isFraterniteesEmail,
 } from "@/lib/application/fraternitees/onboarding-service";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { importFraterniteesOrdersToRuntime } from "@/lib/application/fraternitees/runtime-import-service";
 import { scoreFraterniteesLeads } from "@/lib/application/fraternitees/lead-scoring";
 import { fetchPrintavoLeadOrdersBatch } from "@/lib/infrastructure/adapters/printavo/client";
@@ -179,10 +177,8 @@ async function writeBackfillCursor(input: {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const sessionEmail = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
-
-  if (!isFraterniteesEmail(sessionEmail)) {
+  const sessionEmail = await getTenantSessionEmailForSlug("fraternitees");
+  if (!sessionEmail) {
     return NextResponse.json({ ok: false, error: "Fraternitees session required." }, { status: 401 });
   }
 
@@ -319,10 +315,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const sessionEmail = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
-
-  if (!isFraterniteesEmail(sessionEmail)) {
+  const sessionEmail = await getTenantSessionEmailForSlug("fraternitees");
+  if (!sessionEmail) {
     return NextResponse.json({ ok: false, error: "Fraternitees session required." }, { status: 401 });
   }
 

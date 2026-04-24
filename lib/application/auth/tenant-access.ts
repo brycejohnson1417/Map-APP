@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
@@ -8,8 +9,15 @@ import { orgScopedHref } from "@/lib/presentation/org-slug";
 
 export const TENANT_SESSION_EMAIL_COOKIE = "tenant_session_email";
 export const TENANT_SESSION_SLUG_COOKIE = "tenant_session_slug";
-export const PICC_SESSION_EMAIL_COOKIE = "picc_session_email";
 export const TENANT_SESSION_TEMPLATE_COOKIE = "tenant_session_template";
+
+export const tenantSessionCookieOptions = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: 60 * 60 * 24 * 14,
+};
 
 export interface TenantAccess {
   slug: string | null;
@@ -163,14 +171,26 @@ export async function emailHasTenantAccessToSlug(email: string, slug: string): P
   return false;
 }
 
-export function getTenantCookieSlug(access: TenantAccess) {
-  if (access.slug) {
-    return access.slug;
+export async function writeTenantSessionCookies(input: {
+  email: string;
+  slug?: string | null;
+  templateId: string;
+}) {
+  const cookieStore = await cookies();
+  cookieStore.set(TENANT_SESSION_EMAIL_COOKIE, input.email.trim().toLowerCase(), tenantSessionCookieOptions);
+  cookieStore.set(TENANT_SESSION_TEMPLATE_COOKIE, input.templateId, tenantSessionCookieOptions);
+
+  if (input.slug?.trim()) {
+    cookieStore.set(TENANT_SESSION_SLUG_COOKIE, input.slug.trim(), tenantSessionCookieOptions);
+    return;
   }
 
-  if (!access.selfServe) {
-    return null;
-  }
+  cookieStore.delete(TENANT_SESSION_SLUG_COOKIE);
+}
 
-  return null;
+export async function clearTenantSessionCookies() {
+  const cookieStore = await cookies();
+  cookieStore.delete(TENANT_SESSION_EMAIL_COOKIE);
+  cookieStore.delete(TENANT_SESSION_SLUG_COOKIE);
+  cookieStore.delete(TENANT_SESSION_TEMPLATE_COOKIE);
 }

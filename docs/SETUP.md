@@ -58,6 +58,13 @@ accidentally swapped.
 - `GOOGLE_MAPS_BROWSER_API_KEY`
 - `GOOGLE_MAPS_SERVER_API_KEY`
 
+The runtime now resolves Google Maps keys in this order:
+
+1. organization-scoped environment variables like `<ORG>_GOOGLE_MAPS_*`
+2. generic fallback environment variables `GOOGLE_MAPS_*`
+
+That fallback is no longer reserved to PICC. Any tenant can use the generic key if you intentionally want a shared upgraded maps experience.
+
 ### Optional deployment verification
 - `VERCEL_PROJECT_ID`
 - `VERCEL_TOKEN`
@@ -66,6 +73,7 @@ accidentally swapped.
 - Do not put tenant secrets into committed files.
 - Browser-safe Google Maps keys are still tenant-scoped configuration and should not be shared across organizations.
 - Server-side maps keys, Notion tokens, and Nabis credentials are treated as secrets.
+- `NEXT_PUBLIC_DEFAULT_ORG_SLUG` / `ORG_SLUG` can still define a local default org, but the platform fallback is now `starter` rather than implicitly pointing at PICC.
 
 ## Live Sync Command
 

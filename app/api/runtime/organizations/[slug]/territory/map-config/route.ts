@@ -28,15 +28,11 @@ function readBrowserKeyFromEnvironment(slug: string) {
     return scopedBrowserKey;
   }
 
-  if (slug === "picc") {
-    return (
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-      process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
-      null
-    );
-  }
-
-  return null;
+  return (
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
+    process.env.GOOGLE_MAPS_BROWSER_API_KEY?.trim() ||
+    null
+  );
 }
 
 function readOpenStreetMapConfig(settings: Record<string, unknown>) {

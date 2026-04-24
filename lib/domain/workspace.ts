@@ -1,5 +1,7 @@
 import type { ExternalProvider, FraterniteesLeadGrade } from "@/lib/domain/runtime";
 
+export type WorkspaceTerritoryColorMode = "rep" | "status" | "orders" | "score";
+
 export type WorkspacePrimitiveId =
   | "workspace_shell"
   | "runtime_surface"
@@ -150,6 +152,9 @@ export interface WorkspaceDefinition {
       sections: string[];
       trendWindowMonths?: number;
       comparisonWindowMonths?: number;
+      heroDescription?: string;
+      recentOrdersHeading?: string;
+      updatedLabel?: string;
     };
     territory?: {
       variant: string;
@@ -157,11 +162,25 @@ export interface WorkspaceDefinition {
       filtersAlwaysAvailable: boolean;
       enabledFlags: string[];
       leadGradeFilter: boolean;
+      defaultColorMode?: WorkspaceTerritoryColorMode;
+      colorModes?: WorkspaceTerritoryColorMode[];
     };
     integrations?: {
       variant: string;
       allowRoutePlanning: boolean;
     };
+  };
+  geocoding?: {
+    placeholderAddressPatterns?: string[];
+    suppressedAddresses?: Array<{
+      addressLine1: string;
+      addressLine2?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      reason: string;
+    }>;
+    missingAddressReason?: string;
   };
   scoring?: {
     fraterniteesLeadV1?: FraterniteesScoreModelConfig;

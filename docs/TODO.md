@@ -10,6 +10,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] Extract current tenant scoring/filter/module behavior away from shared branching
 - [ ] Add broader compiled FraterniTees score/trend summaries that can be reused across accounts and territory surfaces
 - [ ] Keep current tenant workflows shipping while tightening platform contracts
+- [ ] continue deleting remaining shared-code tenant branching that is not justified by a primitive or workspace contract
 
 ## Current tenant delivery
 
@@ -33,6 +34,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [ ] define filter/sort registry contract for account and territory surfaces
 - [x] define score-summary and trend-summary runtime contracts
 - [ ] reduce direct interpretation of tenant-specific `custom_fields` in shared components
+- [ ] move more tenant-specific geocoding/address heuristics into explicit workspace policy schemas
 
 ## Control plane and onboarding
 

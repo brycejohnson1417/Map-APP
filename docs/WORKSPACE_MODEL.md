@@ -77,6 +77,8 @@ A workspace definition should eventually be able to answer:
 - which filters and sorts are visible
 - which connectors are required or optional
 - which tenant rules affect map/account/document behavior
+- which geocoding rules suppress or downgrade bad addresses
+- which route-scoping and copy decisions should render without shared-code tenant branches
 
 ## What should become config first
 
@@ -96,9 +98,12 @@ These are already live in the current repo:
 - FraterniTees score weights, grade guards, DNC rule, and trend window
 - account-directory sort and grade options
 - account-detail section registry
+- account-detail hero/orders/updated labels
 - integrations-route behavior per template
 - navigation model per template
 - route-planning plugin default per workspace
+- territory default color modes and visible map color modes
+- geocoding placeholder/suppressed-address policy for FraterniTees
 
 ## What should stay code
 

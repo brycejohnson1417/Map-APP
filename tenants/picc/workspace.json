@@ -61,14 +61,19 @@
     },
     "accountDetail": {
       "variant": "wholesale_ops",
-      "sections": ["map_agreement", "identity_location", "contacts", "orders", "activities", "ppp_savings", "mock_order_proposal"]
+      "sections": ["map_agreement", "identity_location", "contacts", "orders", "activities", "ppp_savings", "mock_order_proposal"],
+      "heroDescription": "This page shows the same account, rep, referral, order, contact, and activity data used by the territory map.",
+      "recentOrdersHeading": "Recent Nabis orders",
+      "updatedLabel": "CRM updated"
     },
     "territory": {
       "variant": "field_console",
       "includeUnmappedAccounts": false,
       "filtersAlwaysAvailable": true,
       "enabledFlags": ["missing_referral_source", "missing_sample_delivery"],
-      "leadGradeFilter": false
+      "leadGradeFilter": false,
+      "defaultColorMode": "rep",
+      "colorModes": ["rep", "status", "orders"]
     },
     "integrations": {
       "variant": "runtime_controls",

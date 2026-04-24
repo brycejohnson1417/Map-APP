@@ -7,7 +7,6 @@ import type { IntegrationInstallation } from "@/lib/domain/runtime";
 
 export const FRATERNITEES_ORG_SLUG = "fraternitees";
 export const FRATERNITEES_ORG_NAME = "FraterniTees";
-export const FRATERNITEES_SESSION_COOKIE = "fraternitees_session_email";
 
 const integrations = new IntegrationRepository();
 
@@ -91,8 +90,4 @@ export async function saveFraterniteesConnectors(input: {
   }
 
   return ensureFraterniteesWorkspace(input.email);
-}
-
-export function isFraterniteesEmail(email: string) {
-  return /^[^\s@]+@fraternitees\.com$/i.test(email.trim());
 }

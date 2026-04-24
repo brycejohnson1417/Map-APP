@@ -250,6 +250,7 @@ function rowMatchesLeadGrade(row: AccountRow, leadGrade: FraterniteesLeadGrade |
 
 function mapPinRow(row: AccountRow, config?: FraterniteesScoreModelConfig): TerritoryAccountPin {
   const daysOverdue = row.custom_fields?.daysOverdue;
+  const leadScoreSummary = mapFraterniteesLeadScore(row.custom_fields, config);
 
   return {
     id: row.id,
@@ -267,7 +268,8 @@ function mapPinRow(row: AccountRow, config?: FraterniteesScoreModelConfig): Terr
     lastOrderDate: row.last_order_date,
     lastSampleDeliveryDate: row.last_sample_delivery_date,
     daysOverdue: typeof daysOverdue === "number" ? daysOverdue : null,
-    fraterniteesLeadScore: mapFraterniteesLeadScore(row.custom_fields, config),
+    leadScoreSummary,
+    fraterniteesLeadScore: leadScoreSummary,
   };
 }
 

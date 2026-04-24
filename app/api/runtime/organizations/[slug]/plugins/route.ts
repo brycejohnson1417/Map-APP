@@ -1,12 +1,5 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import {
-  PICC_SESSION_EMAIL_COOKIE,
-  TENANT_SESSION_EMAIL_COOKIE,
-  TENANT_SESSION_SLUG_COOKIE,
-  emailHasTenantAccessToSlug,
-} from "@/lib/application/auth/tenant-access";
-import { FRATERNITEES_SESSION_COOKIE } from "@/lib/application/fraternitees/onboarding-service";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import {
   mergeTenantPluginSetting,
   resolveTenantPluginSettings,
@@ -23,25 +16,7 @@ interface PluginsRouteContext {
 }
 
 async function hasTenantAccess(slug: string) {
-  const cookieStore = await cookies();
-  const tenantEmail = cookieStore.get(TENANT_SESSION_EMAIL_COOKIE)?.value ?? "";
-  const tenantSlug = cookieStore.get(TENANT_SESSION_SLUG_COOKIE)?.value ?? "";
-  const directFraterniteesEmail = cookieStore.get(FRATERNITEES_SESSION_COOKIE)?.value ?? "";
-  const directPiccEmail = cookieStore.get(PICC_SESSION_EMAIL_COOKIE)?.value ?? "";
-
-  if (tenantSlug === slug && tenantEmail) {
-    return emailHasTenantAccessToSlug(tenantEmail, slug);
-  }
-
-  if (directFraterniteesEmail) {
-    return emailHasTenantAccessToSlug(directFraterniteesEmail, slug);
-  }
-
-  if (directPiccEmail) {
-    return emailHasTenantAccessToSlug(directPiccEmail, slug);
-  }
-
-  return false;
+  return Boolean(await getTenantSessionEmailForSlug(slug));
 }
 
 export async function GET(_request: Request, context: PluginsRouteContext) {
