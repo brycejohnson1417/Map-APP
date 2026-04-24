@@ -154,6 +154,15 @@ function commentMarkerStyle(comment: CommentAnnotation) {
 }
 
 function commentComposerStyle(comment: CommentAnnotation) {
+  if (typeof window !== "undefined" && window.innerWidth < 768) {
+    const top = Math.min(72, Math.max(24, comment.y * 100));
+    return {
+      left: "50%",
+      top: `${top}%`,
+      transform: "translate(-50%, 18px)",
+    };
+  }
+
   const alignRight = comment.x > 0.72;
   const alignBottom = comment.y > 0.7;
 
@@ -195,6 +204,7 @@ export function ChangeRequestCaptureLauncher({
   const [businessContext, setBusinessContext] = useState("");
   const [comments, setComments] = useState<CommentAnnotation[]>([]);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -226,6 +236,7 @@ export function ChangeRequestCaptureLauncher({
     setBusinessContext("");
     setComments([]);
     setActiveCommentId(null);
+    setDetailsOpen(false);
     setError(null);
   }, []);
 
@@ -365,46 +376,54 @@ export function ChangeRequestCaptureLauncher({
     open && typeof document !== "undefined" ? (
       <div
         data-change-request-ui="true"
-        className="fixed inset-0 z-[140] bg-[rgba(15,23,42,0.14)] backdrop-blur-[1px]"
+        className="fixed inset-0 z-[140]"
       >
-        <div className="absolute inset-x-0 top-0 z-[2] border-b border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl md:px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(36,103,221,0.12)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#2467dd]">
-                <MessageSquareText className="h-3.5 w-3.5" />
-                Commenting
-              </div>
-              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                Click anywhere on the screen to leave a comment. The page is locked until you discard or submit this request.
-              </p>
+        <div className="pointer-events-none absolute left-3 top-3 z-[4] hidden md:block md:left-5 md:top-4">
+          <div className="pointer-events-auto max-w-[220px] rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-3 py-2.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] md:max-w-[340px] md:px-3.5 md:py-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(36,103,221,0.12)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2467dd]">
+              <MessageSquareText className="h-3.5 w-3.5" />
+              Commenting
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-sm font-semibold text-[var(--text-secondary)]">
-                {comments.length} comment{comments.length === 1 ? "" : "s"}
-              </div>
-              <button
-                type="button"
-                onClick={closeMode}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]"
-              >
-                <X className="h-4 w-4" />
-                Discard
-              </button>
-              <button
-                type="button"
-                onClick={() => void submitRequest()}
-                disabled={submitting}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                style={{ color: "#fff" }}
-              >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-                Submit change request
-              </button>
-            </div>
+            <p className="mt-2 hidden text-sm leading-5 text-[var(--text-secondary)] md:block">
+              Click anywhere on the screen to leave a comment. The page is locked until you discard or submit this request.
+            </p>
           </div>
         </div>
 
-        <div className="absolute inset-0 pt-[96px] md:pt-[88px]">
+        <div className="pointer-events-none absolute right-3 top-3 z-[4] md:right-5 md:top-4">
+          <div className="pointer-events-auto ml-auto flex w-fit max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-2.5 py-2.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] md:max-w-none md:px-3 md:py-3">
+            <div className="px-1 text-sm font-semibold text-[var(--text-secondary)]">
+              {comments.length} comment{comments.length === 1 ? "" : "s"}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((current) => !current)}
+              className="hidden items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3.5 py-2.5 text-sm font-semibold text-[var(--text-primary)] md:inline-flex"
+            >
+              {detailsOpen ? "Hide details" : "Details"}
+            </button>
+            <button
+              type="button"
+              onClick={closeMode}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2.5 text-sm font-semibold text-[var(--text-primary)] md:px-3.5"
+            >
+              <X className="h-4 w-4" />
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitRequest()}
+              disabled={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ color: "#fff" }}
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+              Submit
+            </button>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 pt-[88px] md:pt-[84px]">
           <div
             ref={canvasRef}
             className="absolute inset-0 cursor-crosshair"
@@ -432,13 +451,15 @@ export function ChangeRequestCaptureLauncher({
 
             {activeComment ? (
               <div
-                className="absolute z-[3] w-[min(360px,calc(100vw-2rem))] rounded-[1.5rem] border border-[rgba(21,25,35,0.12)] bg-[rgba(21,25,35,0.96)] p-4 text-white shadow-[0_24px_60px_rgba(15,23,42,0.35)]"
+                className="absolute z-[3] w-[min(280px,calc(100vw-1rem))] rounded-[1.35rem] border border-[rgba(21,25,35,0.12)] bg-[rgba(21,25,35,0.96)] p-3.5 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)] md:w-[min(320px,calc(100vw-2rem))]"
                 style={commentComposerStyle(activeComment)}
                 onMouseDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold">Comment {comments.findIndex((comment) => comment.id === activeComment.id) + 1}</p>
+                  <p className="text-sm font-semibold">
+                    Comment {comments.findIndex((comment) => comment.id === activeComment.id) + 1}
+                  </p>
                   <button
                     type="button"
                     onClick={() => removeComment(activeComment.id)}
@@ -449,7 +470,7 @@ export function ChangeRequestCaptureLauncher({
                   </button>
                 </div>
                 <textarea
-                  rows={4}
+                  rows={3}
                   autoFocus
                   value={activeComment.note}
                   onChange={(event) => updateComment(activeComment.id, event.target.value)}
@@ -460,111 +481,135 @@ export function ChangeRequestCaptureLauncher({
             ) : null}
 
             {!comments.length ? (
-              <div className="pointer-events-none absolute left-6 top-6 rounded-full bg-[rgba(21,25,35,0.78)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)]">
+              <div className="pointer-events-none absolute left-5 top-5 rounded-full bg-[rgba(21,25,35,0.78)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.2)]">
                 Click anywhere to add the first comment.
               </div>
             ) : null}
           </div>
 
-          <section
-            className="absolute inset-x-3 bottom-3 z-[4] max-h-[44vh] overflow-hidden rounded-[1.75rem] border border-[rgba(21,25,35,0.1)] bg-[rgba(255,255,255,0.96)] shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl md:inset-x-auto md:left-6 md:w-[min(420px,calc(100vw-3rem))] md:max-h-[420px]"
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-5 py-4">
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Request details</p>
-                <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                  Leave comments on the page, then submit when the markup matches what you want changed.
-                </p>
-              </div>
-              <div className="shrink-0 rounded-full bg-[var(--surface-elevated)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-                {comments.length} note{comments.length === 1 ? "" : "s"}
-              </div>
-            </div>
-
-            <div className="max-h-[calc(44vh-78px)] space-y-4 overflow-auto px-5 py-5 md:max-h-[342px]">
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                  Overall request (optional)
-                </span>
-                <textarea
-                  rows={2}
-                  value={summary}
-                  onChange={(event) => setSummary(event.target.value)}
-                  placeholder="Example: make this section easier to scan during calls."
-                  className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                  Why it matters? (optional)
-                </span>
-                <textarea
-                  rows={2}
-                  value={businessContext}
-                  onChange={(event) => setBusinessContext(event.target.value)}
-                  placeholder="Example: this needs to be clearer for reps while they are live with a customer."
-                  className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                />
-              </label>
-
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">Comments on this page</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {comments.length ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : "No comments yet"}
+          <div className="pointer-events-none absolute bottom-3 left-3 z-[4] md:bottom-5 md:left-5">
+            <section
+              className={classNames(
+                "pointer-events-auto overflow-hidden rounded-[1.5rem] border border-[rgba(21,25,35,0.1)] bg-[rgba(255,255,255,0.96)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]",
+                detailsOpen ? "w-[min(340px,calc(100vw-1.5rem))] md:w-[320px]" : "w-auto",
+              )}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 px-3.5 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Request details</p>
+                  {!detailsOpen ? (
+                    <p className="text-xs leading-5 text-[var(--text-secondary)]">
+                      {comments.length
+                        ? `${comments.length} comment${comments.length === 1 ? "" : "s"} on this page`
+                        : "Tap on the page to add the first comment"}
                     </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 space-y-3">
-                  {comments.map((comment, index) => (
-                    <button
-                      key={comment.id}
-                      type="button"
-                      onClick={() => setActiveCommentId(comment.id)}
-                      className={classNames(
-                        "block w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-left transition",
-                        activeCommentId === comment.id && "border-[#151923] shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#151923] text-sm font-semibold text-white">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Comment {index + 1}</p>
-                          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-                            {comment.note.trim() || "No text yet"}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-
-                  {!comments.length ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                      Click anywhere on the page to add the first comment.
-                    </div>
                   ) : null}
                 </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="shrink-0 rounded-full bg-[var(--surface-elevated)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+                    {comments.length} note{comments.length === 1 ? "" : "s"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetailsOpen((current) => !current)}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
+                  >
+                    {detailsOpen ? "Collapse" : "Expand"}
+                  </button>
+                </div>
               </div>
 
-              {workspace.changeRequests.allowAttachments ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
-                  <Paperclip className="mt-0.5 h-4 w-4 shrink-0" />
-                  <p>
-                    The harness will attach an annotated screenshot and a notes file automatically when you submit.
-                  </p>
+              {detailsOpen ? (
+                <div className="max-h-[min(54vh,380px)] space-y-4 overflow-auto border-t border-[var(--border-subtle)] px-4 py-4">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                      Overall request (optional)
+                    </span>
+                    <textarea
+                      rows={2}
+                      value={summary}
+                      onChange={(event) => setSummary(event.target.value)}
+                      placeholder="Example: make this section easier to scan during calls."
+                      className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                      Why it matters? (optional)
+                    </span>
+                    <textarea
+                      rows={2}
+                      value={businessContext}
+                      onChange={(event) => setBusinessContext(event.target.value)}
+                      placeholder="Example: this needs to be clearer for reps while they are live with a customer."
+                      className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                    />
+                  </label>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Comments on this page</p>
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          {comments.length ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : "No comments yet"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 space-y-3">
+                      {comments.map((comment, index) => (
+                        <button
+                          key={comment.id}
+                          type="button"
+                          onClick={() => setActiveCommentId(comment.id)}
+                          className={classNames(
+                            "block w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3.5 text-left transition",
+                            activeCommentId === comment.id && "border-[#151923] shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#151923] text-sm font-semibold text-white">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">Comment {index + 1}</p>
+                              <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
+                                {comment.note.trim() || "No text yet"}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+
+                      {!comments.length ? (
+                        <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                          Click anywhere on the page to add the first comment.
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {workspace.changeRequests.allowAttachments ? (
+                    <div className="flex items-start gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-sm text-[var(--text-secondary)]">
+                      <Paperclip className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>
+                        The harness will attach an annotated screenshot and a notes file automatically when you submit.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
+                </div>
+              ) : error ? (
+                <div className="border-t border-[var(--border-subtle)] px-4 py-3">
+                  <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p>
                 </div>
               ) : null}
-
-              {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     ) : null;

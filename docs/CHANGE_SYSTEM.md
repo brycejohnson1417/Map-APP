@@ -31,6 +31,7 @@ The current goal is simple:
 - page enters a full-viewport locked comment mode rendered above the runtime, so normal buttons and links cannot be clicked accidentally
 - tenant clicks directly on one or more points on the live page
 - tenant adds a plain-language comment for each marked point
+- comment-mode chrome stays compact so most of the underlying page remains visible while annotating
 - harness submits one request with an annotated screenshot and notes file
 
 ### Normalized internal fields
