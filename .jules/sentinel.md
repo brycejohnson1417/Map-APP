@@ -1,0 +1,4 @@
+## 2024-04-24 - Cross-Site Scripting (XSS) vulnerability in `ppp-savings-panel.tsx`
+**Vulnerability:** The `ppp-savings-panel.tsx` component renders user-provided data directly into the DOM using `dangerouslySetInnerHTML`. The `report.email.html` value comes from the server, where it is constructed from database fields like the recipient name. While the `escapeHtml` function provides some basic escaping, it is generally unsafe to trust a custom implementation for sanitizing HTML output against XSS.
+**Learning:** The application lacked proper sanitization of HTML data before passing it to `dangerouslySetInnerHTML`.
+**Prevention:** We must utilize established security libraries such as `dompurify` or `isomorphic-dompurify` to thoroughly sanitize any HTML strings rendered using `dangerouslySetInnerHTML`.
