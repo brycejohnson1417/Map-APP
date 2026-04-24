@@ -13,6 +13,8 @@ import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "
 const PAGE_SIZE = 50;
 const SUMMARY_BATCH_SIZE = 1000;
 
+type FraterniteesDirectorySort = "score" | "close_rate" | "order_count";
+
 interface AccountRow {
   id: string;
   organization_id: string;
@@ -24,7 +26,38 @@ interface AccountRow {
   custom_fields: Record<string, unknown> | null;
 }
 
-type FraterniteesDirectorySort = "score" | "close_rate" | "order_count";
+interface DirectoryRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  display_name: string;
+  city: string | null;
+  state: string | null;
+  last_order_date: string | null;
+  primary_contact_name: string | null;
+  primary_contact_email: string | null;
+  lead_priority: string | null;
+  lead_score: number | string | null;
+  lead_grade: FraterniteesLeadGrade | null;
+  lead_close_rate: number | string | null;
+  closed_orders: number | string | null;
+  lost_orders: number | string | null;
+  open_orders: number | string | null;
+  total_orders: number | string | null;
+  total_opportunities: number | string | null;
+  closed_revenue: number | string | null;
+  average_closed_order_value: number | string | null;
+  median_closed_order_value: number | string | null;
+  dnc_flagged: boolean | null;
+}
+
+interface SummaryRow {
+  organization_id: string;
+  accounts: number | string | null;
+  scored_accounts: number | string | null;
+  avg_score_non_dnc: number | string | null;
+  dnc_flagged_accounts: number | string | null;
+}
 
 function toNumber(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -138,7 +171,42 @@ function mapAccountRow(row: AccountRow): FraterniteesAccountDirectoryItem {
   };
 }
 
-function applyBaseFilters(
+function mapDirectoryRow(row: DirectoryRow): FraterniteesAccountDirectoryItem {
+  return {
+    id: row.id,
+    name: row.display_name || row.name,
+    city: row.city,
+    state: row.state,
+    primaryContactName: row.primary_contact_name,
+    primaryContactEmail: row.primary_contact_email,
+    leadPriority: row.lead_priority,
+    leadScore: toNumber(row.lead_score),
+    leadGrade: row.lead_grade ?? "Unscored",
+    closeRate: toNumber(row.lead_close_rate),
+    closedOrders: toNumber(row.closed_orders) ?? 0,
+    lostOrders: toNumber(row.lost_orders) ?? 0,
+    openOrders: toNumber(row.open_orders) ?? 0,
+    totalOrders: toNumber(row.total_orders) ?? 0,
+    totalOpportunities: toNumber(row.total_opportunities) ?? 0,
+    closedRevenue: toNumber(row.closed_revenue),
+    averageClosedOrderValue: toNumber(row.average_closed_order_value),
+    medianClosedOrderValue: toNumber(row.median_closed_order_value),
+    dncFlagged: Boolean(row.dnc_flagged),
+    lastOrderDate: row.last_order_date,
+  };
+}
+
+function mapSummaryRow(row: SummaryRow | null, orders: number): FraterniteesAccountDirectorySummary {
+  return {
+    accounts: toNumber(row?.accounts) ?? 0,
+    scoredAccounts: toNumber(row?.scored_accounts) ?? 0,
+    avgScoreNonDnc: toNumber(row?.avg_score_non_dnc),
+    dncFlaggedAccounts: toNumber(row?.dnc_flagged_accounts) ?? 0,
+    orders,
+  };
+}
+
+function applyDirectBaseFilters(
   params: URLSearchParams,
   input: {
     organizationId: string;
@@ -170,7 +238,39 @@ custom_fields->>primaryContactEmail.ilike.*${escaped}*
   return params;
 }
 
-function applyGradeFilter(params: URLSearchParams, grade: FraterniteesLeadGrade | "All Grades") {
+function applyViewBaseFilters(
+  params: URLSearchParams,
+  input: {
+    organizationId: string;
+    query: string;
+    dncOnly: boolean;
+  },
+) {
+  params.set("organization_id", `eq.${input.organizationId}`);
+
+  if (input.dncOnly) {
+    params.set("dnc_flagged", "eq.true");
+  }
+
+  if (input.query) {
+    const escaped = input.query.replaceAll(",", " ").replaceAll("(", " ").replaceAll(")", " ");
+    params.set(
+      "or",
+      `(
+display_name.ilike.*${escaped}*,
+name.ilike.*${escaped}*,
+city.ilike.*${escaped}*,
+state.ilike.*${escaped}*,
+primary_contact_name.ilike.*${escaped}*,
+primary_contact_email.ilike.*${escaped}*
+)`.replace(/\s+/g, ""),
+    );
+  }
+
+  return params;
+}
+
+function applyDirectGradeFilter(params: URLSearchParams, grade: FraterniteesLeadGrade | "All Grades") {
   if (grade === "All Grades") {
     return params;
   }
@@ -217,7 +317,21 @@ function applyGradeFilter(params: URLSearchParams, grade: FraterniteesLeadGrade 
   return params;
 }
 
-function orderClause(sort: FraterniteesDirectorySort) {
+function applyViewGradeFilter(params: URLSearchParams, grade: FraterniteesLeadGrade | "All Grades") {
+  if (grade === "All Grades") {
+    return params;
+  }
+
+  if (grade === "Unscored") {
+    params.set("lead_grade", "eq.Unscored");
+    return params;
+  }
+
+  params.set("lead_grade", `eq.${grade}`);
+  return params;
+}
+
+function directOrderClause(sort: FraterniteesDirectorySort) {
   if (sort === "close_rate") {
     return "custom_fields->closeRate.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
   }
@@ -229,7 +343,19 @@ function orderClause(sort: FraterniteesDirectorySort) {
   return "custom_fields->leadScore.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
 }
 
-async function fetchSummarySnapshot(organization: Organization): Promise<FraterniteesAccountDirectorySummary> {
+function viewOrderClause(sort: FraterniteesDirectorySort) {
+  if (sort === "close_rate") {
+    return "lead_close_rate.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
+  }
+
+  if (sort === "order_count") {
+    return "total_orders.desc.nullslast,lead_close_rate.desc.nullslast,display_name.asc";
+  }
+
+  return "lead_score.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
+}
+
+async function fetchDirectSummarySnapshot(organization: Organization): Promise<FraterniteesAccountDirectorySummary> {
   const [accounts, scoredAccounts, dncFlaggedAccounts, orders] = await Promise.all([
     runtimeExactCount("account", organization.id),
     runtimeExactCount("account", organization.id, { "custom_fields->leadScore": "not.is.null" }),
@@ -276,14 +402,30 @@ async function fetchSummarySnapshot(organization: Organization): Promise<Fratern
   };
 }
 
-async function fetchFilteredCount(input: {
+async function fetchViewSummarySnapshot(organization: Organization): Promise<FraterniteesAccountDirectorySummary> {
+  const [summaryResponse, orders] = await Promise.all([
+    runtimeRestRequest<SummaryRow[]>(
+      "fraternitees_account_directory_summary_view",
+      new URLSearchParams({
+        organization_id: `eq.${organization.id}`,
+        select: "organization_id,accounts,scored_accounts,avg_score_non_dnc,dnc_flagged_accounts",
+        limit: "1",
+      }),
+    ),
+    runtimeExactCount("order_record", organization.id),
+  ]);
+
+  return mapSummaryRow(summaryResponse.data[0] ?? null, orders);
+}
+
+async function fetchDirectFilteredCount(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
 }) {
-  const params = applyGradeFilter(
-    applyBaseFilters(
+  const params = applyDirectGradeFilter(
+    applyDirectBaseFilters(
       new URLSearchParams({
         select: "id",
         limit: "1",
@@ -304,7 +446,35 @@ async function fetchFilteredCount(input: {
   return result.count;
 }
 
-async function fetchItems(input: {
+async function fetchViewFilteredCount(input: {
+  organizationId: string;
+  query: string;
+  grade: FraterniteesLeadGrade | "All Grades";
+  dncOnly: boolean;
+}) {
+  const params = applyViewGradeFilter(
+    applyViewBaseFilters(
+      new URLSearchParams({
+        select: "id",
+        limit: "1",
+      }),
+      input,
+    ),
+    input.grade,
+  );
+
+  const result = await runtimeRestRequest<null>("fraternitees_account_directory_view", params, {
+    method: "HEAD",
+    headers: {
+      Prefer: "count=exact",
+      Range: "0-0",
+    },
+  });
+
+  return result.count;
+}
+
+async function fetchDirectItems(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
@@ -313,11 +483,11 @@ async function fetchItems(input: {
   page: number;
 }) {
   const offset = (input.page - 1) * PAGE_SIZE;
-  const params = applyGradeFilter(
-    applyBaseFilters(
+  const params = applyDirectGradeFilter(
+    applyDirectBaseFilters(
       new URLSearchParams({
         select: "id,organization_id,name,display_name,city,state,last_order_date,custom_fields",
-        order: orderClause(input.sort),
+        order: directOrderClause(input.sort),
         limit: String(PAGE_SIZE),
         offset: String(offset),
       }),
@@ -328,6 +498,158 @@ async function fetchItems(input: {
 
   const result = await runtimeRestRequest<AccountRow[]>("account", params);
   return result.data.map(mapAccountRow);
+}
+
+async function fetchViewItems(input: {
+  organizationId: string;
+  query: string;
+  grade: FraterniteesLeadGrade | "All Grades";
+  dncOnly: boolean;
+  sort: FraterniteesDirectorySort;
+  page: number;
+}) {
+  const offset = (input.page - 1) * PAGE_SIZE;
+  const params = applyViewGradeFilter(
+    applyViewBaseFilters(
+      new URLSearchParams({
+        select:
+          "id,organization_id,name,display_name,city,state,last_order_date,primary_contact_name,primary_contact_email,lead_priority,lead_score,lead_grade,lead_close_rate,closed_orders,lost_orders,open_orders,total_orders,total_opportunities,closed_revenue,average_closed_order_value,median_closed_order_value,dnc_flagged",
+        order: viewOrderClause(input.sort),
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      }),
+      input,
+    ),
+    input.grade,
+  );
+
+  const result = await runtimeRestRequest<DirectoryRow[]>("fraternitees_account_directory_view", params);
+  return result.data.map(mapDirectoryRow);
+}
+
+function buildDirectoryPage(input: {
+  organization: Organization;
+  summary: FraterniteesAccountDirectorySummary;
+  items: FraterniteesAccountDirectoryItem[];
+  query: string;
+  grade: FraterniteesLeadGrade | "All Grades";
+  dncOnly: boolean;
+  sort: FraterniteesDirectorySort;
+  page: number;
+  totalItems: number;
+}) {
+  const totalPages = Math.max(1, Math.ceil(input.totalItems / PAGE_SIZE));
+  const normalizedPage = Math.min(input.page, totalPages);
+  const startItem = input.totalItems === 0 ? 0 : (normalizedPage - 1) * PAGE_SIZE + 1;
+  const endItem = input.totalItems === 0 ? 0 : Math.min(input.totalItems, startItem + input.items.length - 1);
+
+  return {
+    organization: input.organization,
+    summary: input.summary,
+    items: input.items,
+    filters: {
+      query: input.query,
+      grade: input.grade,
+      dncOnly: input.dncOnly,
+      sort: input.sort,
+      page: normalizedPage,
+      pageSize: PAGE_SIZE,
+    },
+    pagination: {
+      page: normalizedPage,
+      pageSize: PAGE_SIZE,
+      totalItems: input.totalItems,
+      totalPages,
+      hasPreviousPage: normalizedPage > 1,
+      hasNextPage: normalizedPage < totalPages,
+      startItem,
+      endItem,
+    },
+  } satisfies FraterniteesAccountDirectoryPage;
+}
+
+async function getFraterniteesAccountDirectoryViaViews(input: {
+  organization: Organization;
+  query: string;
+  grade: FraterniteesLeadGrade | "All Grades";
+  dncOnly: boolean;
+  sort: FraterniteesDirectorySort;
+  page: number;
+}) {
+  const [summary, totalItems] = await Promise.all([
+    fetchViewSummarySnapshot(input.organization),
+    fetchViewFilteredCount({
+      organizationId: input.organization.id,
+      query: input.query,
+      grade: input.grade,
+      dncOnly: input.dncOnly,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const normalizedPage = Math.min(input.page, totalPages);
+  const items = await fetchViewItems({
+    organizationId: input.organization.id,
+    query: input.query,
+    grade: input.grade,
+    dncOnly: input.dncOnly,
+    sort: input.sort,
+    page: normalizedPage,
+  });
+
+  return buildDirectoryPage({
+    organization: input.organization,
+    summary,
+    items,
+    query: input.query,
+    grade: input.grade,
+    dncOnly: input.dncOnly,
+    sort: input.sort,
+    page: normalizedPage,
+    totalItems,
+  });
+}
+
+async function getFraterniteesAccountDirectoryViaDirect(input: {
+  organization: Organization;
+  query: string;
+  grade: FraterniteesLeadGrade | "All Grades";
+  dncOnly: boolean;
+  sort: FraterniteesDirectorySort;
+  page: number;
+}) {
+  const [summary, totalItems] = await Promise.all([
+    fetchDirectSummarySnapshot(input.organization),
+    fetchDirectFilteredCount({
+      organizationId: input.organization.id,
+      query: input.query,
+      grade: input.grade,
+      dncOnly: input.dncOnly,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const normalizedPage = Math.min(input.page, totalPages);
+  const items = await fetchDirectItems({
+    organizationId: input.organization.id,
+    query: input.query,
+    grade: input.grade,
+    dncOnly: input.dncOnly,
+    sort: input.sort,
+    page: normalizedPage,
+  });
+
+  return buildDirectoryPage({
+    organization: input.organization,
+    summary,
+    items,
+    query: input.query,
+    grade: input.grade,
+    dncOnly: input.dncOnly,
+    sort: input.sort,
+    page: normalizedPage,
+    totalItems,
+  });
 }
 
 export async function getFraterniteesAccountDirectory(
@@ -345,50 +667,23 @@ export async function getFraterniteesAccountDirectory(
   const sort = normalizeSort(params.sort);
   const page = normalizePage(params.page);
 
-  const [summary, totalItems] = await Promise.all([
-    fetchSummarySnapshot(organization),
-    fetchFilteredCount({
-      organizationId: organization.id,
-      query,
-      grade,
-      dncOnly,
-    }),
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-  const normalizedPage = Math.min(page, totalPages);
-  const items = await fetchItems({
-    organizationId: organization.id,
-    query,
-    grade,
-    dncOnly,
-    sort,
-    page: normalizedPage,
-  });
-  const startItem = totalItems === 0 ? 0 : (normalizedPage - 1) * PAGE_SIZE + 1;
-  const endItem = totalItems === 0 ? 0 : Math.min(totalItems, startItem + items.length - 1);
-
-  return {
-    organization,
-    summary,
-    items,
-    filters: {
+  try {
+    return await getFraterniteesAccountDirectoryViaViews({
+      organization,
       query,
       grade,
       dncOnly,
       sort,
-      page: normalizedPage,
-      pageSize: PAGE_SIZE,
-    },
-    pagination: {
-      page: normalizedPage,
-      pageSize: PAGE_SIZE,
-      totalItems,
-      totalPages,
-      hasPreviousPage: normalizedPage > 1,
-      hasNextPage: normalizedPage < totalPages,
-      startItem,
-      endItem,
-    },
-  };
+      page,
+    });
+  } catch {
+    return getFraterniteesAccountDirectoryViaDirect({
+      organization,
+      query,
+      grade,
+      dncOnly,
+      sort,
+      page,
+    });
+  }
 }
