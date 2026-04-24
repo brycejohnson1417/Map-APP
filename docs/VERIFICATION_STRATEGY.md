@@ -48,6 +48,7 @@ Current smoke checks:
 - `/runtime/:slug` when `NEXT_PUBLIC_DEFAULT_ORG_SLUG` or `ORG_SLUG` is set
 - `/api/runtime/organizations/:slug`
 - `/api/runtime/organizations/:slug/sync-jobs`
+- authenticated create/delete of a tenant-scoped change request when a tenant org slug is available
 
 ### 4. Service and adapter tests
 Purpose:

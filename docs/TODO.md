@@ -56,6 +56,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] define maintainer queue flow for escalated work
 - [ ] add follow-up conversation threads without exposing harness jargon to tenants
 - [ ] add stronger live replay of saved comment anchors when screenshots are missing or the layout changes later
+- [ ] harden screenshot capture beyond the current fallback path so modern CSS color syntax does not routinely skip preview images
 
 ## Verification and quality
 

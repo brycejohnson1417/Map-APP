@@ -11,6 +11,11 @@ import { ChangeRequestRepository } from "@/lib/infrastructure/supabase/change-re
 
 const repository = new ChangeRequestRepository();
 
+function attachmentErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message || "One or more request attachments could not be saved.";
+}
+
 function normalizeText(value: string | null | undefined) {
   return value?.trim() || null;
 }
@@ -83,6 +88,7 @@ export async function createChangeRequest(input: {
   attachments?: File[];
   captureContext?: ChangeRequestCaptureContext | null;
 }) {
+  const warnings: string[] = [];
   const normalizedTitle = input.title.trim();
   const normalizedProblem = input.problem.trim();
   const normalizedOutcome = input.requestedOutcome.trim();
@@ -114,16 +120,23 @@ export async function createChangeRequest(input: {
       if (!attachment || attachment.size <= 0) {
         continue;
       }
-      await repository.uploadAttachment({
-        organizationId: input.organizationId,
-        changeRequestId: request.id,
-        file: attachment,
-      });
+      try {
+        await repository.uploadAttachment({
+          organizationId: input.organizationId,
+          changeRequestId: request.id,
+          file: attachment,
+        });
+      } catch (error) {
+        warnings.push(attachmentErrorMessage(error));
+      }
     }
   }
 
   const [created] = await repository.listByOrganizationId(input.organizationId, 50);
-  return created ?? request;
+  return {
+    request: created ?? request,
+    warnings,
+  };
 }
 
 export async function updateChangeRequest(input: {
@@ -138,6 +151,7 @@ export async function updateChangeRequest(input: {
   attachments?: File[];
   status?: ChangeRequestStatus | null;
 }) {
+  const warnings: string[] = [];
   const existing = await repository.findByIdForOrganization(input.requestId, input.organizationId);
   if (!existing) {
     throw new Error("Change request not found.");
@@ -179,15 +193,22 @@ export async function updateChangeRequest(input: {
       if (!attachment || attachment.size <= 0) {
         continue;
       }
-      await repository.uploadAttachment({
-        organizationId: input.organizationId,
-        changeRequestId: input.requestId,
-        file: attachment,
-      });
+      try {
+        await repository.uploadAttachment({
+          organizationId: input.organizationId,
+          changeRequestId: input.requestId,
+          file: attachment,
+        });
+      } catch (error) {
+        warnings.push(attachmentErrorMessage(error));
+      }
     }
   }
 
-  return (await repository.findByIdForOrganization(input.requestId, input.organizationId)) ?? updated;
+  return {
+    request: (await repository.findByIdForOrganization(input.requestId, input.organizationId)) ?? updated,
+    warnings,
+  };
 }
 
 export async function deleteChangeRequest(input: {

@@ -103,8 +103,14 @@ export class ChangeRequestRepository {
     const supabase = getSupabaseAdminClient() as any;
     const signedUrls = await Promise.all(
       attachmentRows.map(async (attachment) => {
-        const { data } = await supabase.storage.from(ATTACHMENT_BUCKET).createSignedUrl(attachment.storage_path, 60 * 60);
-        return [attachment.id, data?.signedUrl ?? null] as const;
+        try {
+          const { data } = await supabase.storage
+            .from(ATTACHMENT_BUCKET)
+            .createSignedUrl(attachment.storage_path, 60 * 60);
+          return [attachment.id, data?.signedUrl ?? null] as const;
+        } catch {
+          return [attachment.id, null] as const;
+        }
       }),
     );
     const signedUrlMap = new Map(signedUrls);
@@ -142,7 +148,7 @@ export class ChangeRequestRepository {
         current_url: input.currentUrl ?? null,
         surface: input.surface ?? null,
         classification: input.classification,
-        status: input.status ?? "new",
+        status: input.status ?? "queued",
         problem: input.problem,
         requested_outcome: input.requestedOutcome,
         business_context: input.businessContext ?? null,

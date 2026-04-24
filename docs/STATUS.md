@@ -47,6 +47,8 @@ The repo already has:
 - comment-mode chrome compacted so the live page stays visible during desktop and mobile annotation
 - change-request submission now degrades cleanly when browser screenshot capture hits unsupported CSS color formats
 - mobile change-request submission now also degrades cleanly if later screenshot annotation generation fails after capture
+- change-request creation now writes the queue item with `queued` status on the current schema instead of using the old `new` status that would 500 on create
+- change-request create/update APIs now return JSON errors and treat attachment upload as best-effort so queue items are not blocked by attachment failures
 - change-request capture now creates one queue item per on-screen comment, with tenant-visible edit/delete/add-details flows on collapsible request cards
 - shared app-frame mobile navigation now uses an explicit menu instead of relying on horizontal nav overflow
 - mobile territory rendering now uses a true single-mode view so list mode does not keep a live Leaflet map mounted underneath it
@@ -56,6 +58,7 @@ The repo already has:
 - generic tenant-session cookies and template-aware onboarding instead of shared runtime paths hardcoding PICC/FraterniTees session cookies
 - workspace-driven account-detail copy and territory color/filter behavior
 - workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules
+- smoke verification now creates and deletes a real tenant-scoped change request so queue regressions fail before deploy
 
 The repo does not yet fully have:
 - a complete primitive extraction across every tenant surface

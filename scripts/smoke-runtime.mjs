@@ -1,5 +1,7 @@
 const baseUrl = process.env.SMOKE_BASE_URL?.trim();
 const defaultOrgSlug = process.env.NEXT_PUBLIC_DEFAULT_ORG_SLUG?.trim() || process.env.ORG_SLUG?.trim();
+const testTenantEmail = process.env.TEST_TENANT_EMAIL?.trim() || "qa@fraternitees.com";
+const testTenantTemplate = process.env.TEST_TENANT_TEMPLATE_ID?.trim() || "fraternity-sales";
 
 if (!baseUrl) {
   throw new Error("SMOKE_BASE_URL is required");
@@ -19,6 +21,14 @@ async function assertOk(pathname, expectedStatus = 200) {
   }
 
   return response;
+}
+
+function tenantCookieHeader(orgSlug) {
+  return [
+    `tenant_session_email=${encodeURIComponent(testTenantEmail)}`,
+    `tenant_session_slug=${encodeURIComponent(orgSlug)}`,
+    `tenant_session_template=${encodeURIComponent(testTenantTemplate)}`,
+  ].join("; ");
 }
 
 async function main() {
@@ -53,8 +63,76 @@ async function main() {
     const pinsBody = await pinsResponse.json();
     const firstAccountId = Array.isArray(pinsBody.pins) ? pinsBody.pins[0]?.id : null;
     if (firstAccountId) {
-      await assertOk(`/accounts/${firstAccountId}`);
+      await assertOk(`/accounts/${firstAccountId}?org=${defaultOrgSlug}`);
       await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/accounts/${firstAccountId}`);
+    }
+
+    const changeRequestForm = new FormData();
+    const requestTitle = `Smoke test request ${new Date().toISOString()}`;
+    changeRequestForm.set("title", requestTitle);
+    changeRequestForm.set("problem", "Verify that the tenant comment queue accepts a request.");
+    changeRequestForm.set("requestedOutcome", "Queue the request successfully and return a JSON payload.");
+    changeRequestForm.set("businessContext", "Smoke verification should catch queue regressions before production use.");
+    changeRequestForm.set("acceptanceCriteria", "The request is created, listed, and deleted successfully.");
+    changeRequestForm.set("currentUrl", new URL(`/accounts?org=${defaultOrgSlug}`, baseUrl).toString());
+    changeRequestForm.set("surface", "accounts");
+    changeRequestForm.set(
+      "captureContext",
+      JSON.stringify({
+        capturedAt: new Date().toISOString(),
+        viewport: {
+          width: 1280,
+          height: 720,
+          scrollX: 0,
+          scrollY: 0,
+          devicePixelRatio: 2,
+        },
+        marker: {
+          viewportX: 0.5,
+          viewportY: 0.5,
+          pageX: 0.5,
+          pageY: 0.5,
+        },
+        target: null,
+      }),
+    );
+
+    const changeRequestResponse = await fetch(
+      new URL(`/api/runtime/organizations/${defaultOrgSlug}/change-requests`, baseUrl),
+      {
+        method: "POST",
+        headers: {
+          cookie: tenantCookieHeader(defaultOrgSlug),
+        },
+        body: changeRequestForm,
+      },
+    );
+
+    if (changeRequestResponse.status !== 200) {
+      const body = await changeRequestResponse.text();
+      throw new Error(`Change request creation failed with ${changeRequestResponse.status}. Body: ${body.slice(0, 400)}`);
+    }
+
+    const changeRequestBody = await changeRequestResponse.json();
+    if (!changeRequestBody.ok || !changeRequestBody.request?.id) {
+      throw new Error("Change request creation did not return a request id.");
+    }
+    if (changeRequestBody.request.status !== "queued") {
+      throw new Error(`Expected queued change request status, got ${changeRequestBody.request.status}`);
+    }
+
+    const deleteResponse = await fetch(
+      new URL(`/api/runtime/organizations/${defaultOrgSlug}/change-requests/${changeRequestBody.request.id}`, baseUrl),
+      {
+        method: "DELETE",
+        headers: {
+          cookie: tenantCookieHeader(defaultOrgSlug),
+        },
+      },
+    );
+    if (deleteResponse.status !== 200) {
+      const body = await deleteResponse.text();
+      throw new Error(`Change request cleanup failed with ${deleteResponse.status}. Body: ${body.slice(0, 400)}`);
     }
   }
 

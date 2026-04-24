@@ -72,24 +72,32 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     .getAll("attachments")
     .filter((candidate): candidate is File => candidate instanceof File && candidate.size > 0);
 
-  const created = await createChangeRequest({
-    organizationId: workspace.organization.id,
-    requestedByEmail: sessionEmail,
-    workspace: workspace.workspace,
-    title,
-    currentUrl: readText(formData, "currentUrl") || null,
-    surface: readText(formData, "surface") || null,
-    classification: (readText(formData, "classification") || null) as ChangeRequestClassification | null,
-    problem,
-    requestedOutcome,
-    businessContext: readText(formData, "businessContext") || null,
-    acceptanceCriteria: readText(formData, "acceptanceCriteria") || null,
-    attachments,
-    captureContext: readCaptureContext(formData),
-  });
+  try {
+    const created = await createChangeRequest({
+      organizationId: workspace.organization.id,
+      requestedByEmail: sessionEmail,
+      workspace: workspace.workspace,
+      title,
+      currentUrl: readText(formData, "currentUrl") || null,
+      surface: readText(formData, "surface") || null,
+      classification: (readText(formData, "classification") || null) as ChangeRequestClassification | null,
+      problem,
+      requestedOutcome,
+      businessContext: readText(formData, "businessContext") || null,
+      acceptanceCriteria: readText(formData, "acceptanceCriteria") || null,
+      attachments,
+      captureContext: readCaptureContext(formData),
+    });
 
-  return NextResponse.json({
-    ok: true,
-    request: created,
-  });
+    return NextResponse.json({
+      ok: true,
+      request: created.request,
+      warnings: created.warnings,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Unable to create change request." },
+      { status: 400 },
+    );
+  }
 }

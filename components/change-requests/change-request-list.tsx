@@ -25,6 +25,13 @@ interface RequestDraft {
   attachments: File[];
 }
 
+interface ChangeRequestMutationResponse {
+  ok: boolean;
+  error?: string;
+  request?: ChangeRequestRecord;
+  warnings?: string[];
+}
+
 function statusClass(status: ChangeRequestRecord["status"]) {
   if (status === "resolved") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -114,6 +121,30 @@ function buildRequestTitle(problem: string, fallback: string) {
   return trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
 }
 
+async function readMutationResponse(response: Response): Promise<ChangeRequestMutationResponse> {
+  const text = await response.text();
+  if (!text) {
+    return {
+      ok: false,
+      error: response.ok ? "The server returned an empty response." : `The server returned ${response.status}.`,
+    };
+  }
+
+  try {
+    return JSON.parse(text) as ChangeRequestMutationResponse;
+  } catch {
+    return {
+      ok: false,
+      error: response.ok ? "The server returned an unreadable response." : `The server returned ${response.status}.`,
+    };
+  }
+}
+
+function isRetriableAttachmentTransportError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /string did not match the expected pattern|failed to fetch|networkerror|load failed|body stream/i.test(message);
+}
+
 export function ChangeRequestList({
   initialRequests,
   orgSlug,
@@ -201,31 +232,56 @@ export function ChangeRequestList({
     setErrorByRequest((current) => ({ ...current, [request.id]: null }));
 
     try {
-      const formData = new FormData();
-      formData.set("title", buildRequestTitle(problem, request.title));
-      formData.set("problem", problem);
-      formData.set("requestedOutcome", requestedOutcome);
-      formData.set("businessContext", draft.businessContext.trim());
-      formData.set("acceptanceCriteria", draft.acceptanceCriteria.trim());
-      for (const attachment of draft.attachments) {
-        formData.append("attachments", attachment);
+      let attachmentFallbackNotice: string | null = null;
+      const buildFormData = (attachments: File[]) => {
+        const formData = new FormData();
+        formData.set("title", buildRequestTitle(problem, request.title));
+        formData.set("problem", problem);
+        formData.set("requestedOutcome", requestedOutcome);
+        formData.set("businessContext", draft.businessContext.trim());
+        formData.set("acceptanceCriteria", draft.acceptanceCriteria.trim());
+        for (const attachment of attachments) {
+          formData.append("attachments", attachment);
+        }
+        return formData;
+      };
+
+      let response: Response;
+      try {
+        response = await fetch(
+          `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests/${encodeURIComponent(request.id)}`,
+          {
+            method: "PATCH",
+            body: buildFormData(draft.attachments),
+          },
+        );
+      } catch (error) {
+        if (draft.attachments.length && isRetriableAttachmentTransportError(error)) {
+          response = await fetch(
+            `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests/${encodeURIComponent(request.id)}`,
+            {
+              method: "PATCH",
+              body: buildFormData([]),
+            },
+          );
+          attachmentFallbackNotice = "Request updated. Attachments were skipped because this browser could not upload them.";
+        } else {
+          throw error;
+        }
       }
 
-      const response = await fetch(
-        `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests/${encodeURIComponent(request.id)}`,
-        {
-          method: "PATCH",
-          body: formData,
-        },
-      );
-      const payload = (await response.json()) as { ok: boolean; error?: string; request?: ChangeRequestRecord };
+      const payload = await readMutationResponse(response);
       if (!response.ok || !payload.ok || !payload.request) {
         throw new Error(payload.error ?? "Unable to save request.");
       }
 
       setRequests((current) => current.map((item) => (item.id === request.id ? payload.request! : item)));
       cancelEditing(request.id);
-      setNotice("Request updated.");
+      setNotice(
+        payload.warnings?.length
+          ? `Request updated. ${payload.warnings.join(" ")}`
+          : attachmentFallbackNotice ?? "Request updated.",
+      );
     } catch (error) {
       setErrorByRequest((current) => ({
         ...current,

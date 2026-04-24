@@ -38,6 +38,8 @@ The current goal is simple:
 - on mobile, comment mode keeps the page visible and pushes detail capture into the later queue-edit flow instead of forcing a large form over the screen
 - if screenshot capture fails in a browser-specific rendering edge case, the request still submits with the notes file instead of blocking the queue
 - if later screenshot annotation generation fails after capture, the request still submits and warns that screenshots were skipped
+- if browser attachment upload fails during submit, the request retries without attachments instead of losing the queue item
+- server-side attachment persistence is now best-effort: queue creation succeeds first, attachment upload warnings are returned separately
 - harness submits one request per completed comment with an annotated screenshot when capture succeeds, or notes-only metadata when screenshot capture falls back
 
 ### Normalized internal fields

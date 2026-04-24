@@ -26,14 +26,48 @@ interface CommentAnnotation {
   captureContext: ChangeRequestCaptureContext;
 }
 
+interface ChangeRequestMutationResponse {
+  ok: boolean;
+  error?: string;
+  request?: ChangeRequestRecord;
+  warnings?: string[];
+}
+
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
+async function readMutationResponse(response: Response): Promise<ChangeRequestMutationResponse> {
+  const text = await response.text();
+  if (!text) {
+    return {
+      ok: false,
+      error: response.ok ? "The server returned an empty response." : `The server returned ${response.status}.`,
+    };
+  }
+
+  try {
+    return JSON.parse(text) as ChangeRequestMutationResponse;
+  } catch {
+    return {
+      ok: false,
+      error: response.ok ? "The server returned an unreadable response." : `The server returned ${response.status}.`,
+    };
+  }
+}
+
+function isRetriableAttachmentTransportError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /string did not match the expected pattern|failed to fetch|networkerror|load failed|body stream/i.test(message);
+}
+
 async function captureVisibleViewport() {
+  const computedBackground = getComputedStyle(document.body).backgroundColor;
+  const safeBackgroundColor =
+    computedBackground && !/^color\(/i.test(computedBackground) ? computedBackground : "#f5f7fb";
   const { default: html2canvas } = await import("html2canvas");
   const canvas = await html2canvas(document.body, {
-    backgroundColor: getComputedStyle(document.body).backgroundColor || "#f5f7fb",
+    backgroundColor: safeBackgroundColor,
     logging: false,
     useCORS: true,
     scale: Math.min(window.devicePixelRatio || 1, 2),
@@ -444,18 +478,23 @@ export function ChangeRequestCaptureLauncher({
         const requestedOutcome =
           summary.trim() || `Update the marked area on the ${surfaceContext.label} so it matches this request: ${comment.note.trim()}`;
         const acceptanceCriteria = `The marked area on the ${surfaceContext.label} matches this request comment.`;
-        const formData = new FormData();
-        formData.set("title", requestTitle);
-        formData.set("surface", surfaceContext.surface);
-        formData.set("problem", comment.note.trim());
-        formData.set("requestedOutcome", requestedOutcome);
-        formData.set(
-          "businessContext",
-          businessContext.trim() || `Submitted from the ${surfaceContext.label} using the inline comment mode.`,
-        );
-        formData.set("acceptanceCriteria", acceptanceCriteria);
-        formData.set("currentUrl", currentUrl);
-        formData.set("captureContext", JSON.stringify(comment.captureContext));
+        const requestAttachments: File[] = [];
+        const buildFormData = (attachments: File[]) => {
+          const formData = new FormData();
+          formData.set("title", requestTitle);
+          formData.set("surface", surfaceContext.surface);
+          formData.set("problem", comment.note.trim());
+          formData.set("requestedOutcome", requestedOutcome);
+          formData.set(
+            "businessContext",
+            businessContext.trim() || `Submitted from the ${surfaceContext.label} using the inline comment mode.`,
+          );
+          formData.set("acceptanceCriteria", acceptanceCriteria);
+          formData.set("currentUrl", currentUrl);
+          formData.set("captureContext", JSON.stringify(comment.captureContext));
+          attachments.forEach((attachment) => formData.append("attachments", attachment));
+          return formData;
+        };
 
         if (workspace.changeRequests.allowAttachments) {
           try {
@@ -465,11 +504,10 @@ export function ChangeRequestCaptureLauncher({
                 [comment],
                 `${surfaceContext.surface}-${timestamp}-${index + 1}.png`,
               );
-              formData.append("attachments", screenshotFile);
+              requestAttachments.push(screenshotFile);
             }
 
-            formData.append(
-              "attachments",
+            requestAttachments.push(
               createAnnotationNotesFile({
                 currentUrl,
                 surfaceLabel: surfaceContext.label,
@@ -484,17 +522,36 @@ export function ChangeRequestCaptureLauncher({
           }
         }
 
-        const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
-          method: "POST",
-          body: formData,
-        });
-        const payload = (await response.json()) as { ok: boolean; error?: string; request?: ChangeRequestRecord };
+        let response: Response;
+        try {
+          response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
+            method: "POST",
+            body: buildFormData(requestAttachments),
+          });
+        } catch (caught) {
+          if (requestAttachments.length && isRetriableAttachmentTransportError(caught)) {
+            captureWarning =
+              captureWarning ??
+              "Requests were added without screenshots because this browser could not upload the generated attachments.";
+            response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
+              method: "POST",
+              body: buildFormData([]),
+            });
+          } else {
+            throw caught;
+          }
+        }
+
+        const payload = await readMutationResponse(response);
         if (!response.ok || !payload.ok || !payload.request) {
           throw new Error(
             createdCount
               ? `${payload.error ?? "Unable to submit request."} ${createdCount} request${createdCount === 1 ? "" : "s"} already reached the queue.`
               : payload.error ?? "Unable to submit request.",
           );
+        }
+        if (payload.warnings?.length) {
+          captureWarning = captureWarning ?? payload.warnings.join(" ");
         }
 
         createdCount += 1;

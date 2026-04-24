@@ -58,7 +58,7 @@ export async function PATCH(
       status: (readText(formData, "status") || null) as ChangeRequestStatus | null,
     });
 
-    return NextResponse.json({ ok: true, request: updated });
+    return NextResponse.json({ ok: true, request: updated.request, warnings: updated.warnings });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unable to update request." },
