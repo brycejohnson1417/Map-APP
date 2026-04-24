@@ -31,6 +31,7 @@ The current goal is simple:
 
 ### Tenant-facing capture flow
 - tenant opens `Comment a request`
+- shared launch CTA is now simply `Comment` across the header and queue surfaces so tenants do not see competing copy for the same action
 - page enters a full-viewport locked comment mode rendered above the runtime, so normal buttons and links cannot be clicked accidentally
 - tenant clicks directly on one or more points on the live page
 - tenant adds a plain-language comment for each marked point

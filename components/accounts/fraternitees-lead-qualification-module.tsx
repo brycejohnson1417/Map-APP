@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
 import type { FraterniteesAccountDirectoryItem, FraterniteesAccountDirectoryPage } from "@/lib/domain/runtime";
 import { FilterToolbar } from "@/components/primitives/filter-toolbar";
 import { ScorecardGrid } from "@/components/primitives/scorecard-grid";
@@ -87,6 +87,47 @@ function statusLine(account: FraterniteesAccountDirectoryItem) {
   const contact = [account.primaryContactName, account.primaryContactEmail].filter(Boolean).join(" - ");
   const location = [account.city, account.state].filter(Boolean).join(", ");
   return contact || location || account.leadPriority || "No contact or location saved";
+}
+
+function scoreTrendMeta(account: FraterniteesAccountDirectoryItem) {
+  if (!account.scoreTrend) {
+    return {
+      label: "No trend yet",
+      className: "border-slate-200 bg-slate-50 text-slate-500",
+      icon: Minus,
+    };
+  }
+
+  const delta = account.scoreTrend.delta;
+  if (account.scoreTrend.direction === "up") {
+    return {
+      label: delta === null ? "Trending up" : `Trending up ${delta > 0 ? "+" : ""}${delta}`,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      icon: TrendingUp,
+    };
+  }
+
+  if (account.scoreTrend.direction === "down") {
+    return {
+      label: delta === null ? "Trending down" : `Trending down ${delta}`,
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+      icon: TrendingDown,
+    };
+  }
+
+  if (account.scoreTrend.direction === "flat") {
+    return {
+      label: delta === null ? "Flat" : `Flat ${delta > 0 ? "+" : ""}${delta}`,
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+      icon: Minus,
+    };
+  }
+
+  return {
+    label: "Insufficient history",
+    className: "border-slate-200 bg-slate-50 text-slate-500",
+    icon: Minus,
+  };
 }
 
 export function FraterniteesLeadQualificationModule({
@@ -215,6 +256,8 @@ export function FraterniteesLeadQualificationModule({
         <div className="divide-y divide-slate-200">
           {items.map((account) => {
             const aov = account.averageClosedOrderValue ?? account.medianClosedOrderValue ?? null;
+            const trendMeta = scoreTrendMeta(account);
+            const TrendIcon = trendMeta.icon;
 
             return (
               <Link
@@ -230,10 +273,16 @@ export function FraterniteesLeadQualificationModule({
                   <span className={`inline-flex h-12 w-12 items-center justify-center rounded-lg text-2xl font-black ring-1 ${gradeClass(account.leadGrade)}`}>
                     {account.leadGrade === "Unscored" ? "-" : account.leadGrade}
                   </span>
-                  <p className="text-sm font-semibold text-slate-500">
-                    <span className="block text-lg font-bold text-slate-900">{account.leadScore ?? "-"}</span>
-                    pts
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">
+                      <span className="block text-lg font-bold text-slate-900">{account.leadScore ?? "-"}</span>
+                      pts
+                    </p>
+                    <span className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${trendMeta.className}`}>
+                      <TrendIcon className="h-3.5 w-3.5" />
+                      {trendMeta.label}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-600">
                   <p>

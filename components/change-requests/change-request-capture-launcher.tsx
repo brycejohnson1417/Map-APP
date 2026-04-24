@@ -905,7 +905,7 @@ export function ChangeRequestCaptureLauncher({
           )}
         >
           {open ? <CheckCircle2 className="h-4 w-4" /> : <MessageSquareText className="h-4 w-4" />}
-          {open ? "Commenting" : compact ? "Comment" : "Comment a request"}
+          {open ? "Commenting" : "Comment"}
         </button>
       </div>
       {notice ? createPortal(

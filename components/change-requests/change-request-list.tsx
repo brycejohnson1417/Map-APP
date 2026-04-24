@@ -352,7 +352,7 @@ export function ChangeRequestList({
             style={{ color: "#fff" }}
           >
             <MessageSquareText className="h-4 w-4" />
-            Comment this screen
+            Comment
           </button>
         </div>
       </div>

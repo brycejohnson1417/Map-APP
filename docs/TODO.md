@@ -8,7 +8,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] Define the first stable primitive catalog from real PICC + FraterniTees behavior
 - [x] Define the first workspace/package manifest shape
 - [x] Extract current tenant scoring/filter/module behavior away from shared branching
-- [ ] Add broader compiled FraterniTees score/trend summaries that can be reused across accounts and territory surfaces
+- [ ] Add broader compiled FraterniTees score/trend summaries that can be reused across accounts and territory surfaces beyond the current account-detail and account-directory row badges
 - [ ] Keep current tenant workflows shipping while tightening platform contracts
 - [ ] continue deleting remaining shared-code tenant branching that is not justified by a primitive or workspace contract
 
@@ -22,6 +22,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] update grading to weight order volume, close rate, and revenue more explicitly
 - [x] add sort controls for close rate and order count
 - [x] add 2-year trend view on account detail
+- [x] show current 2-year score-trend direction directly in the account directory rows
 - [x] capture the scoring/trend logic as a reusable primitive candidate
 - [x] move score config, sort options, and account-detail sections into workspace config
 - [ ] push more map filter/facet behavior into explicit registry config

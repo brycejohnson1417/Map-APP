@@ -31,6 +31,7 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 - lead-qualification accounts module with workspace-driven score/sort config
 - lead score + DNC + no-address-aware territory experience
 - account-detail trend comparison over the last 2 years
+- account-directory row-level score-trend badges for the current 2-year score direction
 - self-serve domain handoff so teammates on the same company domain can resolve back into the same workspace after bootstrap
 
 ## Current architectural reality
@@ -59,6 +60,8 @@ The repo already has:
 - workspace-driven account-detail copy and territory color/filter behavior
 - workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules
 - smoke verification now creates and deletes a real tenant-scoped change request so queue regressions fail before deploy
+- FraterniTees account search now preserves multi-word search input instead of stripping whitespace inside the Supabase `or(...)` filter
+- the change-request queue CTA now matches the shared header launcher copy so tenants see one consistent `Comment` action
 
 The repo does not yet fully have:
 - a complete primitive extraction across every tenant surface

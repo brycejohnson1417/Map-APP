@@ -10,7 +10,7 @@ import type {
 } from "@/lib/domain/runtime";
 import type { FraterniteesScoreModelConfig } from "@/lib/domain/workspace";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
-import { gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
+import { buildFraterniteesLeadTrendSummary, gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -62,6 +62,15 @@ interface SummaryRow {
   dnc_flagged_accounts: number | string | null;
 }
 
+interface TrendOrderRow {
+  account_id: string;
+  external_order_id: string | null;
+  order_number: string | null;
+  status: string | null;
+  order_total: number | string | null;
+  order_created_at: string | null;
+}
+
 function toNumber(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -98,6 +107,21 @@ function normalizePage(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+}
+
+function buildSearchFilter(query: string, fields: string[]) {
+  const escaped = query
+    .replaceAll(",", " ")
+    .replaceAll("(", " ")
+    .replaceAll(")", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!escaped) {
+    return null;
+  }
+
+  return `(${fields.map((field) => `${field}.ilike.*${escaped}*`).join(",")})`;
 }
 
 function extractAccountMetrics(
@@ -174,6 +198,7 @@ function mapAccountRow(row: AccountRow, config?: FraterniteesScoreModelConfig): 
     medianClosedOrderValue: metrics.medianClosedOrderValue,
     dncFlagged: metrics.dncFlagged,
     lastOrderDate: row.last_order_date,
+    scoreTrend: null,
   };
 }
 
@@ -199,6 +224,7 @@ function mapDirectoryRow(row: DirectoryRow): FraterniteesAccountDirectoryItem {
     medianClosedOrderValue: toNumber(row.median_closed_order_value),
     dncFlagged: Boolean(row.dnc_flagged),
     lastOrderDate: row.last_order_date,
+    scoreTrend: null,
   };
 }
 
@@ -227,18 +253,17 @@ function applyDirectBaseFilters(
   }
 
   if (input.query) {
-    const escaped = input.query.replaceAll(",", " ").replaceAll("(", " ").replaceAll(")", " ");
-    params.set(
-      "or",
-      `(
-display_name.ilike.*${escaped}*,
-name.ilike.*${escaped}*,
-city.ilike.*${escaped}*,
-state.ilike.*${escaped}*,
-custom_fields->>primaryContactName.ilike.*${escaped}*,
-custom_fields->>primaryContactEmail.ilike.*${escaped}*
-)`.replace(/\s+/g, ""),
-    );
+    const filter = buildSearchFilter(input.query, [
+      "display_name",
+      "name",
+      "city",
+      "state",
+      "custom_fields->>primaryContactName",
+      "custom_fields->>primaryContactEmail",
+    ]);
+    if (filter) {
+      params.set("or", filter);
+    }
   }
 
   return params;
@@ -259,18 +284,17 @@ function applyViewBaseFilters(
   }
 
   if (input.query) {
-    const escaped = input.query.replaceAll(",", " ").replaceAll("(", " ").replaceAll(")", " ");
-    params.set(
-      "or",
-      `(
-display_name.ilike.*${escaped}*,
-name.ilike.*${escaped}*,
-city.ilike.*${escaped}*,
-state.ilike.*${escaped}*,
-primary_contact_name.ilike.*${escaped}*,
-primary_contact_email.ilike.*${escaped}*
-)`.replace(/\s+/g, ""),
-    );
+    const filter = buildSearchFilter(input.query, [
+      "display_name",
+      "name",
+      "city",
+      "state",
+      "primary_contact_name",
+      "primary_contact_email",
+    ]);
+    if (filter) {
+      params.set("or", filter);
+    }
   }
 
   return params;
@@ -597,6 +621,83 @@ const fetchCachedViewItems = unstable_cache(
   { revalidate: 120 },
 );
 
+async function fetchAccountTrendMap(input: {
+  organizationId: string;
+  items: FraterniteesAccountDirectoryItem[];
+  config?: FraterniteesScoreModelConfig;
+}) {
+  const accountIds = [...new Set(input.items.map((item) => item.id).filter(Boolean))];
+  if (!accountIds.length) {
+    return new Map<string, FraterniteesAccountDirectoryItem["scoreTrend"]>();
+  }
+
+  const params = new URLSearchParams({
+    organization_id: `eq.${input.organizationId}`,
+    select: "account_id,external_order_id,order_number,status,order_total,order_created_at",
+    order: "order_created_at.desc.nullslast",
+    limit: "5000",
+  });
+  params.set("account_id", `in.(${accountIds.join(",")})`);
+
+  const { data } = await runtimeRestRequest<TrendOrderRow[]>("order_record", params);
+  const accountNameById = new Map(input.items.map((item) => [item.id, item.name]));
+  const ordersByAccount = new Map<string, TrendOrderRow[]>();
+
+  for (const row of data) {
+    if (!row.account_id) {
+      continue;
+    }
+    const current = ordersByAccount.get(row.account_id) ?? [];
+    current.push(row);
+    ordersByAccount.set(row.account_id, current);
+  }
+
+  return new Map(
+    accountIds.map((accountId) => {
+      const orders = ordersByAccount.get(accountId) ?? [];
+      if (!orders.length) {
+        return [accountId, null] as const;
+      }
+
+      const trend = buildFraterniteesLeadTrendSummary(
+        orders.map((order) => ({
+          customerName: accountNameById.get(accountId) ?? "Account",
+          status: order.status,
+          total: toNumber(order.order_total),
+          orderDate: order.order_created_at,
+          externalOrderId: order.external_order_id,
+          orderNumber: order.order_number,
+        })),
+        { config: input.config },
+      );
+
+      return [
+        accountId,
+        {
+          direction: trend.direction,
+          delta: trend.delta,
+        },
+      ] as const;
+    }),
+  );
+}
+
+async function applyScoreTrends(input: {
+  organizationId: string;
+  items: FraterniteesAccountDirectoryItem[];
+  config?: FraterniteesScoreModelConfig;
+}) {
+  if (!input.items.length) {
+    return input.items;
+  }
+
+  const trendMap = await fetchAccountTrendMap(input);
+  return input.items.map((item) => ({
+    ...item,
+    scoreTrend: trendMap.get(item.id) ?? null,
+  }));
+}
+
 function buildDirectoryPage(input: {
   organization: Organization;
   summary: FraterniteesAccountDirectorySummary;
@@ -647,6 +748,7 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   sort: FraterniteesDirectorySort;
   page: number;
   pageSize: number;
+  config?: FraterniteesScoreModelConfig;
 }) {
   const [summary, totalItems] = await Promise.all([
     fetchCachedViewSummarySnapshot(input.organization.slug),
@@ -664,11 +766,16 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     normalizedPage,
     input.pageSize,
   );
+  const itemsWithTrends = await applyScoreTrends({
+    organizationId: input.organization.id,
+    items,
+    config: input.config,
+  });
 
   return buildDirectoryPage({
     organization: input.organization,
     summary,
-    items,
+    items: itemsWithTrends,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,
@@ -712,11 +819,16 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
     pageSize: input.pageSize,
     config: input.config,
   });
+  const itemsWithTrends = await applyScoreTrends({
+    organizationId: input.organization.id,
+    items,
+    config: input.config,
+  });
 
   return buildDirectoryPage({
     organization: input.organization,
     summary,
-    items,
+    items: itemsWithTrends,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,
@@ -754,6 +866,7 @@ export async function getFraterniteesAccountDirectory(
       sort,
       page,
       pageSize,
+      config,
     });
   } catch {
     return getFraterniteesAccountDirectoryViaDirect({

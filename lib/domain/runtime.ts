@@ -282,6 +282,10 @@ export interface FraterniteesAccountDirectoryItem {
   medianClosedOrderValue: number | null;
   dncFlagged: boolean;
   lastOrderDate: string | null;
+  scoreTrend: {
+    direction: "up" | "down" | "flat" | "insufficient_data";
+    delta: number | null;
+  } | null;
 }
 
 export interface FraterniteesAccountDirectorySummary {
