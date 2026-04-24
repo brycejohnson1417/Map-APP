@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type * as Leaflet from "leaflet";
 import {
@@ -383,7 +383,8 @@ const emptyFilters: Filters = {
   flag: "",
 };
 
-function SelectFilter({
+// ⚡ Bolt: Memoize filter component to prevent re-renders when other filters change
+const SelectFilter = React.memo(function SelectFilter({
   label,
   value,
   options,
@@ -412,9 +413,10 @@ function SelectFilter({
       <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-[var(--text-tertiary)]" />
     </label>
   );
-}
+});
 
-function PinRow({
+// ⚡ Bolt: Memoize row component to prevent 1000+ re-renders when parent state changes
+const PinRow = React.memo(function PinRow({
   pin,
   active,
   selected,
@@ -486,7 +488,7 @@ function PinRow({
       ) : null}
     </div>
   );
-}
+});
 
 const colorModeLabels: Record<ColorMode, string> = {
   rep: "Rep",
@@ -1043,11 +1045,12 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     );
   }, [mapReady, routePlanningEnabled, routeStops]);
 
-  function updateFilter<Key extends keyof Filters>(key: Key, value: Filters[Key]) {
+  const updateFilter = useCallback(<Key extends keyof Filters>(key: Key, value: Filters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }));
-  }
+  }, []);
 
-  function focusPin(pin: TerritoryAccountPin) {
+  // ⚡ Bolt: Memoize callbacks so React.memo child list items don't re-render on every list rerender
+  const focusPin = useCallback((pin: TerritoryAccountPin) => {
     setSelectedId(pin.id);
     setView("map");
     setDetailsOpen(!isNarrowViewport);
@@ -1063,14 +1066,14 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
 
       handle.map.setView([pin.latitude, pin.longitude], Math.max(handle.map.getZoom(), 14), { animate: true });
     }
-  }
+  }, [isNarrowViewport]);
 
-  function toggleRouteStop(pinId: string) {
+  const toggleRouteStop = useCallback((pinId: string) => {
     if (!routePlanningEnabled) {
       return;
     }
     setRouteStopIds((current) => (current.includes(pinId) ? current.filter((id) => id !== pinId) : [...current, pinId]));
-  }
+  }, [routePlanningEnabled]);
 
   function openFiltersPanel() {
     setConsoleOpen(true);
