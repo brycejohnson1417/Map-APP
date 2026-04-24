@@ -44,6 +44,7 @@ The repo already has:
 - first change-request persistence layer, attachment storage path, and screen-comment intake flow
 - full-viewport locked comment mode rendered above the live runtime so on-screen comment capture can safely intercept page clicks
 - comment-mode chrome compacted so the live page stays visible during desktop and mobile annotation
+- change-request submission now degrades cleanly when browser screenshot capture hits unsupported CSS color formats
 - generic tenant-session cookies and template-aware onboarding instead of shared runtime paths hardcoding PICC/FraterniTees session cookies
 - workspace-driven account-detail copy and territory color/filter behavior
 - workspace-driven geocoding policy hooks for tenant-specific no-address and suppressed-address rules

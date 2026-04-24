@@ -32,6 +32,7 @@ The current goal is simple:
 - tenant clicks directly on one or more points on the live page
 - tenant adds a plain-language comment for each marked point
 - comment-mode chrome stays compact so most of the underlying page remains visible while annotating
+- if screenshot capture fails in a browser-specific rendering edge case, the request still submits with the notes file instead of blocking the queue
 - harness submits one request with an annotated screenshot and notes file
 
 ### Normalized internal fields

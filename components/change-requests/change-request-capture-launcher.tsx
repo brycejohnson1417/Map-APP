@@ -206,6 +206,7 @@ export function ChangeRequestCaptureLauncher({
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captureNotice, setCaptureNotice] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -238,6 +239,7 @@ export function ChangeRequestCaptureLauncher({
     setActiveCommentId(null);
     setDetailsOpen(false);
     setError(null);
+    setCaptureNotice(null);
   }, []);
 
   const openCaptureStudio = useCallback(() => {
@@ -272,6 +274,7 @@ export function ChangeRequestCaptureLauncher({
     const id = crypto.randomUUID();
     setComments((current) => [...current, { id, ...point, note: "" }]);
     setActiveCommentId(id);
+    setDetailsOpen(true);
     setError(null);
   }
 
@@ -288,20 +291,27 @@ export function ChangeRequestCaptureLauncher({
 
   async function submitRequest() {
     const completedComments = comments.filter((comment) => comment.note.trim());
+    const incompleteComment = comments.find((comment) => !comment.note.trim());
+
     if (!completedComments.length) {
+      setDetailsOpen(true);
       setError("Add at least one comment before you submit.");
       return;
     }
 
-    if (completedComments.length !== comments.length) {
+    if (incompleteComment) {
+      setActiveCommentId(incompleteComment.id);
+      setDetailsOpen(true);
       setError("Every comment needs text before you submit.");
       return;
     }
 
     setSubmitting(true);
     setError(null);
+    setCaptureNotice(null);
 
     try {
+      let captureWarning: string | null = null;
       const currentUrl = `${window.location.origin}${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
       const title = createChangeRequestTitle({
         label: surfaceContext.label,
@@ -330,14 +340,23 @@ export function ChangeRequestCaptureLauncher({
       formData.set("currentUrl", currentUrl);
 
       if (workspace.changeRequests.allowAttachments) {
-        const capture = await captureVisibleViewport();
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const screenshotFile = await createAnnotatedScreenshotFile(
-          capture,
-          completedComments,
-          `${surfaceContext.surface}-${timestamp}.png`,
-        );
-        formData.append("attachments", screenshotFile);
+
+        try {
+          const capture = await captureVisibleViewport();
+          const screenshotFile = await createAnnotatedScreenshotFile(
+            capture,
+            completedComments,
+            `${surfaceContext.surface}-${timestamp}.png`,
+          );
+          formData.append("attachments", screenshotFile);
+        } catch (caught) {
+          const message = caught instanceof Error ? caught.message : "Unable to generate the annotated screenshot.";
+          captureWarning = /unsupported color function "color"/i.test(message)
+            ? "Request submitted without the screenshot because this browser returned a CSS color format the capture renderer could not read."
+            : `Request submitted without the screenshot: ${message}`;
+        }
+
         formData.append(
           "attachments",
           createAnnotationNotesFile({
@@ -348,6 +367,10 @@ export function ChangeRequestCaptureLauncher({
             comments: completedComments,
           }),
         );
+
+        if (captureWarning) {
+          setCaptureNotice(captureWarning);
+        }
       }
 
       const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests`, {
@@ -360,7 +383,11 @@ export function ChangeRequestCaptureLauncher({
       }
 
       onCreated?.(payload.request);
-      setNotice("Request added to the queue.");
+      setNotice(
+        captureWarning
+          ? `Request added to the queue. ${captureWarning}`
+          : "Request added to the queue.",
+      );
       setOpen(false);
       resetState();
       router.refresh();
@@ -392,9 +419,11 @@ export function ChangeRequestCaptureLauncher({
 
         <div className="pointer-events-none absolute right-3 top-3 z-[4] md:right-5 md:top-4">
           <div className="pointer-events-auto ml-auto flex w-fit max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border border-[rgba(21,25,35,0.08)] bg-[rgba(255,255,255,0.94)] px-2.5 py-2.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] md:max-w-none md:px-3 md:py-3">
-            <div className="px-1 text-sm font-semibold text-[var(--text-secondary)]">
-              {comments.length} comment{comments.length === 1 ? "" : "s"}
-            </div>
+            {detailsOpen ? (
+              <div className="px-1 text-sm font-semibold text-[var(--text-secondary)]">
+                {comments.length} comment{comments.length === 1 ? "" : "s"}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => setDetailsOpen((current) => !current)}
@@ -475,8 +504,16 @@ export function ChangeRequestCaptureLauncher({
                   value={activeComment.note}
                   onChange={(event) => updateComment(activeComment.id, event.target.value)}
                   placeholder="Add a comment about what should change here."
-                  className="mt-3 w-full rounded-xl border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.08)] px-4 py-3 text-sm font-medium text-white outline-none placeholder:text-[rgba(255,255,255,0.56)]"
+                  className={classNames(
+                    "mt-3 w-full rounded-xl border bg-[rgba(255,255,255,0.08)] px-4 py-3 text-sm font-medium text-white outline-none placeholder:text-[rgba(255,255,255,0.56)]",
+                    !activeComment.note.trim()
+                      ? "border-[rgba(255,179,167,0.7)]"
+                      : "border-[rgba(255,255,255,0.14)]",
+                  )}
                 />
+                {!activeComment.note.trim() ? (
+                  <p className="mt-2 text-xs font-semibold text-[#ffb3a7]">Add text before you submit this request.</p>
+                ) : null}
               </div>
             ) : null}
 
@@ -568,6 +605,7 @@ export function ChangeRequestCaptureLauncher({
                           className={classNames(
                             "block w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3.5 text-left transition",
                             activeCommentId === comment.id && "border-[#151923] shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
+                            !comment.note.trim() && "border-[rgba(226,71,47,0.35)]",
                           )}
                         >
                           <div className="flex items-center gap-3">
@@ -579,6 +617,11 @@ export function ChangeRequestCaptureLauncher({
                               <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
                                 {comment.note.trim() || "No text yet"}
                               </p>
+                              {!comment.note.trim() ? (
+                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-danger)]">
+                                  Needs text before submit
+                                </p>
+                              ) : null}
                             </div>
                           </div>
                         </button>
@@ -602,14 +645,29 @@ export function ChangeRequestCaptureLauncher({
                   ) : null}
 
                   {error ? <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p> : null}
+                  {captureNotice ? (
+                    <p className="text-sm font-semibold text-[var(--accent-secondary-strong)]">{captureNotice}</p>
+                  ) : null}
                 </div>
               ) : error ? (
                 <div className="border-t border-[var(--border-subtle)] px-4 py-3">
                   <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p>
                 </div>
+              ) : captureNotice ? (
+                <div className="border-t border-[var(--border-subtle)] px-4 py-3">
+                  <p className="text-sm font-semibold text-[var(--accent-secondary-strong)]">{captureNotice}</p>
+                </div>
               ) : null}
             </section>
           </div>
+
+          {error ? (
+            <div className="pointer-events-none absolute right-3 top-[76px] z-[5] md:right-5 md:top-[88px]">
+              <div className="pointer-events-auto max-w-[min(360px,calc(100vw-1.5rem))] rounded-2xl border border-[rgba(226,71,47,0.18)] bg-[rgba(255,245,243,0.98)] px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+                <p className="text-sm font-semibold text-[var(--accent-danger)]">{error}</p>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     ) : null;
