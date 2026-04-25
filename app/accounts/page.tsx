@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, MapPin, Search, Users } from "lucide-react";
-import { FraterniteesLeadQualificationModule } from "@/components/accounts/fraternitees-lead-qualification-module";
+import {
+  FraterniteesLeadQualificationModule,
+  type FraterniteesAccountsView,
+} from "@/components/accounts/fraternitees-lead-qualification-module";
 import { getFraterniteesAccountDirectory } from "@/lib/application/fraternitees/account-directory-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { AppFrame } from "@/components/layout/app-frame";
@@ -17,9 +20,15 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
+function normalizeAccountsView(value: string | string[] | undefined): FraterniteesAccountsView {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "leaderboard" ? "leaderboard" : "scoring";
+}
+
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
+  const activeView = normalizeAccountsView(resolvedSearchParams.view);
   const workspace = await getWorkspaceExperienceBySlug(orgSlug);
   const isLeadQualificationDirectory = workspace.accountDirectoryVariant === "lead_qualification";
   const fraterniteesDirectory =
@@ -61,6 +70,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
             <FraterniteesLeadQualificationModule
               orgSlug={orgSlug}
               directory={fraterniteesDirectory!}
+              activeView={activeView}
               gradeOptions={workspace.workspace.modules.accounts?.gradeOptions?.map(String)}
               sortOptions={workspace.workspace.modules.accounts?.sortOptions}
             />

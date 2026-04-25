@@ -64,7 +64,8 @@ test("core runtime pages load", async ({ page, context, baseURL }) => {
 
   await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
   await expect(page.getByRole("heading", { name: /accounts/i }).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: /trailing 12-month spend/i })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /scoring engine/i })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /account leaderboard/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /comment a request/i })).toHaveCount(0);
 
   await page.goto(`/change-requests?org=${encodeURIComponent(orgSlug)}`);
@@ -87,6 +88,22 @@ test("core runtime pages load", async ({ page, context, baseURL }) => {
   }
 
   await territoryPage.close();
+});
+
+test("accounts page separates scoring and leaderboard into tabs", async ({ page }) => {
+  const orgSlug = testTenantOrgSlug();
+
+  await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
+  await expect(page.getByRole("tab", { name: /scoring engine/i })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: /^scoring engine$/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /trailing 12-month spend/i })).toHaveCount(0);
+
+  await page.getByRole("tab", { name: /account leaderboard/i }).click();
+  await expect(page).toHaveURL(new RegExp(`/accounts\\?org=${orgSlug}.*view=leaderboard`));
+  await expect(page.getByRole("tab", { name: /account leaderboard/i })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: /account leaderboard/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /trailing 12-month spend/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^scoring engine$/i })).toHaveCount(0);
 });
 
 test("authenticated tenant can enter comment mode and place a locked-page comment", async ({ page, context, baseURL }) => {
@@ -313,13 +330,13 @@ test.describe("mobile annotation mode", () => {
     await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
     await page.getByRole("button", { name: /^comment$/i }).click();
 
-    const scoreCard = page.getByText(/total organizations/i).first();
-    const scoreCardBox = await scoreCard.boundingBox();
-    if (!scoreCardBox) {
-      throw new Error("Mobile submit fallback test could not find the target card.");
+    const moduleHeading = page.getByRole("heading", { name: /^scoring engine$/i });
+    const moduleHeadingBox = await moduleHeading.boundingBox();
+    if (!moduleHeadingBox) {
+      throw new Error("Mobile submit fallback test could not find the scoring engine heading.");
     }
 
-    await page.mouse.click(scoreCardBox.x + scoreCardBox.width * 0.7, scoreCardBox.y + scoreCardBox.height * 0.5);
+    await page.mouse.click(moduleHeadingBox.x + moduleHeadingBox.width * 0.7, moduleHeadingBox.y + moduleHeadingBox.height * 0.6);
     await page.getByPlaceholder(/add a comment about what should change here/i).fill("Mobile screenshot fallback should not block submit.");
     await page.getByRole("button", { name: /^submit$/i }).click();
 

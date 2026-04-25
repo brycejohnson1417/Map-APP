@@ -37,7 +37,7 @@ The repo already contains working product surfaces, not just scaffolding:
 - workspace-driven navigation and integration surfaces
 - in-app screen-comment change capture with annotated screenshots and queue visibility
 - PICC-specific PPP savings and mock-order proposal workflows
-- FraterniTees-specific Printavo onboarding, sync, daily auto-sync, lead scoring, top-customer spend analysis, and mobile-ready map/account experiences
+- FraterniTees-specific Printavo onboarding, sync, verified daily auto-sync, lead scoring, tabbed accounts workspace, top-customer spend analysis, and mobile-ready map/account experiences
 - first-class workspace/package manifests under `tenants/` and `packages/`
 - first primitive components for scorecards, filter bars, and trend panels
 - tenant-scoped integration state and plugin toggles
