@@ -27,6 +27,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] add tenant-scoped daily Printavo auto-sync controls and cron wiring
 - [x] split the accounts workspace into tabs so the scoring engine and top-customer leaderboard do not stack
 - [x] exercise the production Printavo daily cron route instead of leaving it as unproven wiring
+- [x] show the latest Printavo sync timestamp directly on the FraterniTees accounts header
 - [x] fix the mobile territory console/filter/pin-detail flow so large maps default to list mode and focused accounts still open from rows or pins
 - [x] capture the scoring/trend logic as a reusable primitive candidate
 - [x] move score config, sort options, and account-detail sections into workspace config

@@ -11,6 +11,10 @@ interface FraterniteesLeadQualificationModuleProps {
   orgSlug: string;
   directory: FraterniteesAccountDirectoryPage;
   activeView?: FraterniteesAccountsView;
+  syncStatus?: {
+    lastSuccessfulSyncAt?: string | null;
+    lastAttemptedSyncAt?: string | null;
+  } | null;
   gradeOptions?: readonly string[];
   sortOptions?: ReadonlyArray<{ value: string; label: string }>;
 }
@@ -38,6 +42,20 @@ function formatPercent(value: number | null | undefined) {
 
 function formatDate(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "None";
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return "Never";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function accountsPageHref(input: {
@@ -398,6 +416,7 @@ export function FraterniteesLeadQualificationModule({
   orgSlug,
   directory,
   activeView = "scoring",
+  syncStatus,
   gradeOptions: configuredGradeOptions,
   sortOptions: configuredSortOptions,
 }: FraterniteesLeadQualificationModuleProps) {
@@ -423,6 +442,9 @@ export function FraterniteesLeadQualificationModule({
             <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-emerald-600">
               <ShieldCheck className="h-5 w-5" />
               {connectionHealthy ? "Healthy" : "Needs sync"}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              Last sync: {formatDateTime(syncStatus?.lastSuccessfulSyncAt ?? syncStatus?.lastAttemptedSyncAt ?? null)}
             </p>
           </div>
           <Link
@@ -488,12 +510,14 @@ export function FraterniteesLeadQualificationModule({
             role="tab"
             aria-selected={activeView === "scoring"}
             className={`flex min-h-20 flex-col justify-center rounded-md px-4 py-3 text-left transition ${
-              activeView === "scoring" ? "bg-slate-950 text-white shadow-sm" : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+              activeView === "scoring"
+                ? "border border-[#f26a00]/30 bg-[#fff4eb] text-slate-950 shadow-sm ring-1 ring-[#f26a00]/20"
+                : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
             }`}
           >
             <span className="text-xs font-semibold uppercase tracking-[0.24em] opacity-70">Tab</span>
             <span className="mt-1 text-lg font-bold tracking-[-0.02em]">Scoring Engine</span>
-            <span className={`mt-1 text-sm ${activeView === "scoring" ? "text-slate-200" : "text-slate-500"}`}>
+            <span className={`mt-1 text-sm ${activeView === "scoring" ? "text-slate-600" : "text-slate-500"}`}>
               Lead grades, filters, and the account call sheet.
             </span>
           </Link>
@@ -509,12 +533,14 @@ export function FraterniteesLeadQualificationModule({
             role="tab"
             aria-selected={activeView === "leaderboard"}
             className={`flex min-h-20 flex-col justify-center rounded-md px-4 py-3 text-left transition ${
-              activeView === "leaderboard" ? "bg-slate-950 text-white shadow-sm" : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+              activeView === "leaderboard"
+                ? "border border-[#f26a00]/30 bg-[#fff4eb] text-slate-950 shadow-sm ring-1 ring-[#f26a00]/20"
+                : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
             }`}
           >
             <span className="text-xs font-semibold uppercase tracking-[0.24em] opacity-70">Tab</span>
             <span className="mt-1 text-lg font-bold tracking-[-0.02em]">Account Leaderboard</span>
-            <span className={`mt-1 text-sm ${activeView === "leaderboard" ? "text-slate-200" : "text-slate-500"}`}>
+            <span className={`mt-1 text-sm ${activeView === "leaderboard" ? "text-slate-600" : "text-slate-500"}`}>
               Top 100 customers by trailing 12-month spend.
             </span>
           </Link>

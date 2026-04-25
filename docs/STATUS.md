@@ -32,6 +32,7 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 - production cron route exercised successfully for FraterniTees daily Printavo sync
 - lead-qualification accounts module with workspace-driven score/sort config
 - tabbed FraterniTees accounts workspace that separates the scoring engine from the top-customer leaderboard
+- FraterniTees accounts header now shows the latest Printavo sync timestamp directly in the API connection card
 - lead score + DNC + no-address-aware territory experience
 - top-100 trailing 12-month spend leaderboard on the accounts surface
 - account-detail trend comparison over the last 2 years

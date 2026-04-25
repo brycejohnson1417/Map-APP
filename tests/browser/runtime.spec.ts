@@ -66,6 +66,7 @@ test("core runtime pages load", async ({ page, context, baseURL }) => {
   await expect(page.getByRole("heading", { name: /accounts/i }).first()).toBeVisible();
   await expect(page.getByRole("tab", { name: /scoring engine/i })).toBeVisible();
   await expect(page.getByRole("tab", { name: /account leaderboard/i })).toBeVisible();
+  await expect(page.getByText(/last sync:/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /comment a request/i })).toHaveCount(0);
 
   await page.goto(`/change-requests?org=${encodeURIComponent(orgSlug)}`);
@@ -96,6 +97,7 @@ test("accounts page separates scoring and leaderboard into tabs", async ({ page 
   await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
   await expect(page.getByRole("tab", { name: /scoring engine/i })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("heading", { name: /^scoring engine$/i })).toBeVisible();
+  await expect(page.getByText(/last sync:/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: /trailing 12-month spend/i })).toHaveCount(0);
 
   await page.getByRole("tab", { name: /account leaderboard/i }).click();

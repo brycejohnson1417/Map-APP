@@ -5,6 +5,7 @@ import {
   type FraterniteesAccountsView,
 } from "@/components/accounts/fraternitees-lead-qualification-module";
 import { getFraterniteesAccountDirectory } from "@/lib/application/fraternitees/account-directory-service";
+import { readPrintavoSyncStatus } from "@/lib/application/fraternitees/printavo-sync-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { AppFrame } from "@/components/layout/app-frame";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
@@ -33,6 +34,8 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
   const isLeadQualificationDirectory = workspace.accountDirectoryVariant === "lead_qualification";
   const fraterniteesDirectory =
     isLeadQualificationDirectory ? await getFraterniteesAccountDirectory(orgSlug, resolvedSearchParams) : null;
+  const fraterniteesSyncStatus =
+    fraterniteesDirectory?.organization.id ? await readPrintavoSyncStatus(fraterniteesDirectory.organization.id) : null;
   const dashboard =
     isLeadQualificationDirectory ? null : await getTerritoryRuntimeDashboard(orgSlug, resolvedSearchParams);
   const query = firstParamValue(resolvedSearchParams.q) ?? "";
@@ -71,6 +74,7 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
               orgSlug={orgSlug}
               directory={fraterniteesDirectory!}
               activeView={activeView}
+              syncStatus={fraterniteesSyncStatus}
               gradeOptions={workspace.workspace.modules.accounts?.gradeOptions?.map(String)}
               sortOptions={workspace.workspace.modules.accounts?.sortOptions}
             />
