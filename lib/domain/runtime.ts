@@ -296,10 +296,24 @@ export interface FraterniteesAccountDirectorySummary {
   orders: number;
 }
 
+export interface FraterniteesTopCustomerSpendItem {
+  accountId: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  leadGrade: FraterniteesLeadGrade;
+  leadScore: number | null;
+  closeRate: number | null;
+  closedOrdersLast12: number;
+  closedRevenueLast12: number;
+  lastOrderDate: string | null;
+}
+
 export interface FraterniteesAccountDirectoryPage {
   organization: Organization;
   summary: FraterniteesAccountDirectorySummary;
   items: FraterniteesAccountDirectoryItem[];
+  topCustomersLast12Months: FraterniteesTopCustomerSpendItem[];
   filters: {
     query: string;
     grade: FraterniteesLeadGrade | "All Grades";

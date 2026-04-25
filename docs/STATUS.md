@@ -28,10 +28,13 @@ At the same time, it is not yet at the point where tenant onboarding and tenant 
 #### FraterniTees
 - Printavo login/setup flow
 - Printavo sync and preview flow
+- tenant-scoped daily Printavo auto-sync settings and cron path
 - lead-qualification accounts module with workspace-driven score/sort config
 - lead score + DNC + no-address-aware territory experience
+- top-100 trailing 12-month spend leaderboard on the accounts surface
 - account-detail trend comparison over the last 2 years
 - account-directory row-level score-trend badges for the current 2-year score direction
+- mobile territory list-first flow for large pin sets, with mobile selected-account detail sheets when a row or pin is focused
 - self-serve domain handoff so teammates on the same company domain can resolve back into the same workspace after bootstrap
 
 ## Current architectural reality
@@ -53,6 +56,7 @@ The repo already has:
 - change-request capture now creates one queue item per on-screen comment, with tenant-visible edit/delete/add-details flows on collapsible request cards
 - shared app-frame mobile navigation now uses an explicit menu instead of relying on horizontal nav overflow
 - mobile territory rendering now uses a true single-mode view so list mode does not keep a live Leaflet map mounted underneath it
+- mobile territory console/filter controls now render in normal flow instead of hiding rows under floating chrome, and mobile pin/list focus now opens a dedicated selected-account sheet
 - runtime credential resolution for paid providers now prefers tenant integration installs and tenant-scoped env keys, with generic global fallbacks removed from tenant-facing map/geocoding/Nabis runtime paths
 - `npm run check:tenant-isolation` now fails if tenant runtime code reaches for generic shared Google Maps, Nabis, Notion, Printavo, HubSpot, Salesforce, or HighLevel-style credential env names
 - tenant-mutating runtime routes for change requests, Notion sync queueing, geocoding, printavo sync, and account check-ins now consistently require tenant-session auth
@@ -62,6 +66,7 @@ The repo already has:
 - smoke verification now creates and deletes a real tenant-scoped change request so queue regressions fail before deploy
 - FraterniTees account search now preserves multi-word search input instead of stripping whitespace inside the Supabase `or(...)` filter
 - the change-request queue CTA now matches the shared header launcher copy so tenants see one consistent `Comment` action
+- browser verification can now click a real mobile territory canvas pin through a Playwright-only map hook instead of relying on SVG marker DOM that does not exist when Leaflet is rendering circles on canvas
 
 The repo does not yet fully have:
 - a complete primitive extraction across every tenant surface

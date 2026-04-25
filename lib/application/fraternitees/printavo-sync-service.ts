@@ -163,11 +163,23 @@ export async function readPrintavoSyncStatus(organizationId: string) {
   const backfillCursor =
     (cursors.data ?? []).find((cursor: { scope: string }) => cursor.scope === BACKFILL_SCOPE) ??
     (cursors.data ?? []).find((cursor: { scope: string }) => cursor.scope === LEGACY_BACKFILL_SCOPE);
+  const lastSuccessfulSyncAt = (cursors.data ?? [])
+    .map((cursor: { last_successful_sync_at?: string | null }) => cursor.last_successful_sync_at ?? null)
+    .filter((value: string | null): value is string => Boolean(value))
+    .sort()
+    .at(-1) ?? null;
+  const lastAttemptedSyncAt = (cursors.data ?? [])
+    .map((cursor: { last_attempted_sync_at?: string | null }) => cursor.last_attempted_sync_at ?? null)
+    .filter((value: string | null): value is string => Boolean(value))
+    .sort()
+    .at(-1) ?? null;
 
   return {
     accounts: accounts.count ?? 0,
     orders: orders.count ?? 0,
     backfill: backfillCursor?.cursor_payload ?? {},
+    lastSuccessfulSyncAt,
+    lastAttemptedSyncAt,
     cursors: cursors.data ?? [],
   };
 }

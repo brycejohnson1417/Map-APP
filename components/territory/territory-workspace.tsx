@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type * as Leaflet from "leaflet";
 import {
@@ -440,7 +440,13 @@ function PinRow({
         active && "bg-[rgba(25,88,214,0.08)]",
       )}
     >
-      <button type="button" className="min-w-0 text-left" onClick={onFocus}>
+      <button
+        type="button"
+        className="min-w-0 text-left"
+        onClick={onFocus}
+        aria-label={`Open ${pin.name}`}
+        data-testid={`territory-pin-row-${pin.id}`}
+      >
         <div className="flex items-start gap-3">
           <span
             className="mt-1 h-3 w-3 shrink-0 rounded-full"
@@ -495,6 +501,16 @@ const colorModeLabels: Record<ColorMode, string> = {
   orders: "Orders",
 };
 
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function readNarrowViewport() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig }: TerritoryWorkspaceProps) {
   const supportsLeadGradeFilter = territoryConfig?.leadGradeFilter ?? false;
   const enabledFlags = new Set(territoryConfig?.enabledFlags ?? []);
@@ -510,7 +526,9 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       : availableColorModes[0] ?? "rep";
   const pluginSettings = resolveTenantPluginSettings(orgSlug, initialDashboard.organization.settings);
   const routePlanningEnabled = pluginSettings.routePlanning.enabled;
-  const [view, setView] = useState<"map" | "list">("map");
+  const initialIsNarrowViewport = readNarrowViewport();
+  const initialPreferListView = initialIsNarrowViewport && initialDashboard.counts.geocodedPins > 1200;
+  const [view, setView] = useState<"map" | "list">(initialPreferListView ? "list" : "map");
   const [colorMode, setColorMode] = useState<ColorMode>(defaultColorMode);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [data, setData] = useState<TerritoryPinsResponse>({
@@ -535,10 +553,11 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const [notice, setNotice] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [consoleOpen, setConsoleOpen] = useState(true);
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  const [consoleOpen, setConsoleOpen] = useState(!initialIsNarrowViewport);
+  const [detailsOpen, setDetailsOpen] = useState(!initialIsNarrowViewport);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
-  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(initialIsNarrowViewport);
 
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapHandle | null>(null);
@@ -548,7 +567,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const routeLineRef = useRef<LayerCleanup | null>(null);
   const directionsRendererRef = useRef<GoogleDirectionsRenderer | null>(null);
   const lastFitSignatureRef = useRef<string>("");
-  const mobileViewAutoSwitchedRef = useRef(false);
+  const mobileViewAutoSwitchedRef = useRef(initialPreferListView);
 
   const pins = data.pins;
   const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
@@ -565,33 +584,88 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const mobileListMode = isNarrowViewport && view === "list";
   const shouldRenderInteractiveMap = Boolean(mapConfig?.configured) && !mobileListMode;
 
-  useEffect(() => {
+  const focusPin = useCallback((pin: TerritoryAccountPin) => {
+    setSelectedId(pin.id);
+    setView("map");
+    setDetailsOpen(!isNarrowViewport);
+    setMobileDetailOpen(isNarrowViewport);
+    setConsoleOpen(false);
+    setFiltersOpen(false);
+    const handle = mapRef.current;
+    if (handle && pin.latitude !== null && pin.longitude !== null) {
+      if (handle.provider === "google_maps") {
+        handle.map.panTo({ lat: pin.latitude, lng: pin.longitude });
+        handle.map.setZoom(Math.max(handle.map.getZoom() ?? 12, 14));
+        return;
+      }
+
+      handle.map.setView([pin.latitude, pin.longitude], Math.max(handle.map.getZoom(), 14), { animate: true });
+    }
+  }, [isNarrowViewport]);
+
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
 
     const mediaQuery = window.matchMedia("(max-width: 767px)");
     const applyViewport = () => {
-      setIsNarrowViewport(mediaQuery.matches);
-      if (mediaQuery.matches) {
+      const narrow = mediaQuery.matches;
+      setIsNarrowViewport(narrow);
+      if (narrow) {
         setConsoleOpen(false);
         setDetailsOpen(false);
+        setMobileDetailOpen(false);
+        if (mappablePinCount > 1200) {
+          setView("list");
+          mobileViewAutoSwitchedRef.current = true;
+        }
+      } else {
+        setMobileDetailOpen(false);
       }
     };
 
     applyViewport();
     mediaQuery.addEventListener("change", applyViewport);
     return () => mediaQuery.removeEventListener("change", applyViewport);
-  }, []);
+  }, [mappablePinCount]);
 
   useEffect(() => {
-    if (!isNarrowViewport || mappablePinCount <= 1200 || mobileViewAutoSwitchedRef.current) {
-      return;
+    if (!isNarrowViewport || !selectedPin || view !== "map") {
+      setMobileDetailOpen(false);
+    }
+  }, [isNarrowViewport, selectedPin, view]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.navigator.webdriver) {
+      return undefined;
     }
 
-    setView("list");
-    mobileViewAutoSwitchedRef.current = true;
-  }, [isNarrowViewport, mappablePinCount]);
+    (window as any).__MAP_APP_TEST = {
+      getFirstMappablePinId() {
+        return pins.find(hasUsableCoordinates)?.id ?? null;
+      },
+      getLeafletClickPointForPin(pinId: string) {
+        const handle = mapRef.current;
+        const element = mapElementRef.current;
+        const pin = pins.find((entry) => entry.id === pinId);
+        if (!handle || handle.provider !== "openstreetmap" || !element || !pin || !hasUsableCoordinates(pin)) {
+          return null;
+        }
+
+        const point = handle.map.latLngToContainerPoint([pin.latitude as number, pin.longitude as number]);
+        const rect = element.getBoundingClientRect();
+        return {
+          x: rect.left + point.x,
+          y: rect.top + point.y,
+        };
+      },
+    };
+
+    return () => {
+      delete (window as any).__MAP_APP_TEST;
+    };
+  }, [pins]);
 
   useEffect(() => {
     if (shouldRenderInteractiveMap) {
@@ -807,7 +881,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
           zIndex: selected ? 1000 : 1,
         });
 
-        marker.addListener("click", () => setSelectedId(pin.id));
+        marker.addListener("click", () => focusPin(pin));
         markerRefs.current.push(() => marker.setMap(null));
         bounds.extend(marker.getPosition());
         fitSignatureParts.push(`${pin.id}:${pin.latitude}:${pin.longitude}`);
@@ -855,7 +929,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
               .addTo(map);
           })();
 
-      marker.on("click", () => setSelectedId(pin.id));
+      marker.on("click", () => focusPin(pin));
       markerRefs.current.push(() => marker.remove());
       bounds.extend([pin.latitude as number, pin.longitude as number]);
       fitSignatureParts.push(`${pin.id}:${pin.latitude}:${pin.longitude}`);
@@ -866,7 +940,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       map.fitBounds(bounds, { padding: [48, 48] });
       lastFitSignatureRef.current = nextFitSignature;
     }
-  }, [colorMode, mapReady, pins, selectedId, useLiteMarkers]);
+  }, [colorMode, focusPin, mapReady, pins, selectedId, useLiteMarkers]);
 
   useEffect(() => {
     const handle = mapRef.current;
@@ -1047,24 +1121,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
-  function focusPin(pin: TerritoryAccountPin) {
-    setSelectedId(pin.id);
-    setView("map");
-    setDetailsOpen(!isNarrowViewport);
-    setConsoleOpen(false);
-    setFiltersOpen(false);
-    const handle = mapRef.current;
-    if (handle && pin.latitude !== null && pin.longitude !== null) {
-      if (handle.provider === "google_maps") {
-        handle.map.panTo({ lat: pin.latitude, lng: pin.longitude });
-        handle.map.setZoom(Math.max(handle.map.getZoom() ?? 12, 14));
-        return;
-      }
-
-      handle.map.setView([pin.latitude, pin.longitude], Math.max(handle.map.getZoom(), 14), { animate: true });
-    }
-  }
-
   function toggleRouteStop(pinId: string) {
     if (!routePlanningEnabled) {
       return;
@@ -1073,6 +1129,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   }
 
   function openFiltersPanel() {
+    setMobileDetailOpen(false);
     setConsoleOpen(true);
     setFiltersOpen(true);
   }
@@ -1225,9 +1282,15 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     );
 
   return (
-    <div className="relative h-[calc(100dvh-65px)] min-h-0 overflow-hidden bg-[#d9ded6] text-[var(--text-primary)] md:min-h-[620px]">
+    <div className="relative flex h-[calc(100dvh-65px)] min-h-0 flex-col overflow-hidden bg-[#d9ded6] text-[var(--text-primary)] md:min-h-[620px]">
       {!consoleOpen ? (
-        <div className="absolute left-3 top-3 z-30 flex flex-wrap gap-2 sm:left-4 sm:top-4">
+        <div
+          className={classNames(
+            isNarrowViewport
+              ? "z-30 flex flex-wrap gap-2 border-b border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--background)_88%,transparent)] px-3 py-3 backdrop-blur-xl"
+              : "absolute left-3 top-3 z-30 flex flex-wrap gap-2 sm:left-4 sm:top-4",
+          )}
+        >
           <button
             type="button"
             onClick={() => setConsoleOpen(true)}
@@ -1253,7 +1316,13 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       ) : null}
 
       {consoleOpen ? (
-      <div className="absolute left-3 top-3 z-30 flex w-[min(calc(100%-1.5rem),28rem)] flex-col gap-2 sm:left-4 sm:top-4">
+      <div
+        className={classNames(
+          isNarrowViewport
+            ? "z-30 flex flex-col gap-2 border-b border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--background)_88%,transparent)] px-3 py-3 backdrop-blur-xl"
+            : "absolute left-3 top-3 z-30 flex w-[min(calc(100%-1.5rem),28rem)] flex-col gap-2 sm:left-4 sm:top-4",
+        )}
+      >
         <div className="rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_92%,transparent)] p-3 shadow-[var(--shadow-soft)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -1443,8 +1512,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         </button>
       ) : null}
 
-      <div className={classNames("grid h-full w-full gap-0", detailsOpen ? "xl:grid-cols-[minmax(0,1fr)_420px]" : "xl:grid-cols-1")}>
-        <main className="relative min-h-[560px] xl:min-h-0">
+      <div className={classNames("grid min-h-0 flex-1 w-full gap-0", detailsOpen ? "xl:grid-cols-[minmax(0,1fr)_420px]" : "xl:grid-cols-1")}>
+        <main className={classNames("relative xl:min-h-0", isNarrowViewport ? "min-h-0 flex flex-1 flex-col" : "min-h-[560px]")}>
           <div className={classNames("absolute inset-0", view === "list" ? "z-0" : "z-10")}>
             {mapSurface}
             {view === "map" ? (
@@ -1731,6 +1800,100 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         </aside>
         ) : null}
       </div>
+
+      {isNarrowViewport && selectedPin && mobileDetailOpen ? (
+        <div className="absolute inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_96%,transparent)] shadow-[0_-18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+          <div className="max-h-[52dvh] overflow-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Selected account</p>
+                <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.03em]">{selectedPin.name}</h2>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                  {[selectedPin.city, selectedPin.state].filter(Boolean).join(", ") || "No location"} /{" "}
+                  {selectedPin.leadScoreSummary
+                    ? `Score ${selectedPin.leadScoreSummary.score ?? "-"} (${selectedPin.leadScoreSummary.grade})`
+                    : selectedPin.status ?? "No score yet"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {detailLoading ? <Loader2 className="h-4 w-4 animate-spin text-[var(--text-tertiary)]" /> : null}
+                <button
+                  type="button"
+                  onClick={() => setMobileDetailOpen(false)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] text-[var(--text-secondary)]"
+                  aria-label="Hide selected account details"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Close rate</p>
+                <p className="mt-1 text-base font-semibold">
+                  {selectedPin.leadScoreSummary?.closeRate === null || selectedPin.leadScoreSummary?.closeRate === undefined
+                    ? "-"
+                    : `${Math.round(selectedPin.leadScoreSummary.closeRate * 100)}%`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Closed / lost</p>
+                <p className="mt-1 text-base font-semibold">
+                  {selectedPin.leadScoreSummary?.closedOrders ?? 0} / {selectedPin.leadScoreSummary?.lostOrders ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Revenue</p>
+                <p className="mt-1 text-base font-semibold">{formatMoney(detail?.orderSummary.totalRevenue ?? 0)}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Last order</p>
+                <p className="mt-1 text-base font-semibold">{formatDate(selectedPin.lastOrderDate)}</p>
+              </div>
+            </div>
+
+            <dl className="mt-4 space-y-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--text-tertiary)]">Status</dt>
+                <dd className="text-right font-semibold">{selectedPin.status ?? "None"}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--text-tertiary)]">Contacts</dt>
+                <dd className="text-right font-semibold">{detail ? formatNumber(detail.contacts.length) : "-"}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--text-tertiary)]">Orders</dt>
+                <dd className="text-right font-semibold">
+                  {detail ? formatNumber(detail.orderSummary.totalOrders) : formatNumber(selectedPin.leadScoreSummary?.totalOrders ?? 0)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href={orgScopedHref(`/accounts/${selectedPin.id}`, orgSlug)}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-3 text-sm font-semibold text-white"
+                style={{ color: "#fff" }}
+              >
+                Open account
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              {directionsHref ? (
+                <a
+                  href={directionsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Directions
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {notice ? (
         <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 text-sm font-semibold shadow-[var(--shadow-soft)]">

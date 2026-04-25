@@ -23,6 +23,9 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [x] add sort controls for close rate and order count
 - [x] add 2-year trend view on account detail
 - [x] show current 2-year score-trend direction directly in the account directory rows
+- [x] add a top-100 trailing 12-month spend leaderboard for customer-protection workflows
+- [x] add tenant-scoped daily Printavo auto-sync controls and cron wiring
+- [x] fix the mobile territory console/filter/pin-detail flow so large maps default to list mode and focused accounts still open from rows or pins
 - [x] capture the scoring/trend logic as a reusable primitive candidate
 - [x] move score config, sort options, and account-detail sections into workspace config
 - [ ] push more map filter/facet behavior into explicit registry config
@@ -46,6 +49,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 - [ ] expand self-serve connector save/sync behavior for more providers
 - [x] remove tenant-facing paid-provider runtime fallbacks to generic global env keys
 - [x] require tenant-session auth on tenant-mutating runtime routes instead of leaving isolated write holes
+- [ ] generalize tenant-scoped recurring connector sync beyond the first FraterniTees Printavo automation slice
 - [ ] move remaining provider bootstrap and operator tooling onto installation-first, tenant-scoped credential resolution everywhere
 
 ## Change system
@@ -63,6 +67,7 @@ This is the live execution backlog. It should reflect what the repo actually nee
 
 - [ ] add targeted tests around FraterniTees scoring and trend logic
 - [ ] add browser/runtime verification for tenant-specific account list flows
+- [x] add browser verification for mobile territory row focus plus canvas-pin focus
 - [x] add browser verification for authenticated screen-comment capture flows
 - [x] add a static tenant-isolation verification step so generic paid-provider env usage in runtime code fails fast
 - [ ] keep the docs and backlog aligned after every major slice

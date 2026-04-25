@@ -6,15 +6,21 @@ import type {
   FraterniteesAccountDirectoryPage,
   FraterniteesAccountDirectorySummary,
   FraterniteesLeadGrade,
+  FraterniteesTopCustomerSpendItem,
   Organization,
 } from "@/lib/domain/runtime";
 import type { FraterniteesScoreModelConfig } from "@/lib/domain/workspace";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
-import { buildFraterniteesLeadTrendSummary, gradeFraterniteesLead } from "@/lib/application/fraternitees/lead-scoring";
+import {
+  buildFraterniteesLeadTrendSummary,
+  classifyFraterniteesStatus,
+  gradeFraterniteesLead,
+} from "@/lib/application/fraternitees/lead-scoring";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
 const DEFAULT_PAGE_SIZE = 50;
 const SUMMARY_BATCH_SIZE = 1000;
+const TOP_CUSTOMER_LIMIT = 100;
 
 type FraterniteesDirectorySort = "score" | "close_rate" | "order_count";
 
@@ -69,6 +75,16 @@ interface TrendOrderRow {
   status: string | null;
   order_total: number | string | null;
   order_created_at: string | null;
+}
+
+interface TopCustomerAccountRow {
+  id: string;
+  name: string;
+  display_name: string | null;
+  city: string | null;
+  state: string | null;
+  last_order_date: string | null;
+  custom_fields: Record<string, unknown> | null;
 }
 
 function toNumber(value: unknown) {
@@ -236,6 +252,12 @@ function mapSummaryRow(row: SummaryRow | null, orders: number): FraterniteesAcco
     dncFlaggedAccounts: toNumber(row?.dnc_flagged_accounts) ?? 0,
     orders,
   };
+}
+
+function shiftUtcMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setUTCMonth(next.getUTCMonth() + months);
+  return next;
 }
 
 function applyDirectBaseFilters(
@@ -698,10 +720,109 @@ async function applyScoreTrends(input: {
   }));
 }
 
+async function fetchTopCustomersLast12Months(input: {
+  organizationId: string;
+  config?: FraterniteesScoreModelConfig;
+  limit?: number;
+}): Promise<FraterniteesTopCustomerSpendItem[]> {
+  const limit = input.limit ?? TOP_CUSTOMER_LIMIT;
+  const cutoff = shiftUtcMonths(new Date(), -12).toISOString();
+  const orderParams = new URLSearchParams({
+    organization_id: `eq.${input.organizationId}`,
+    select: "account_id,status,order_total,order_created_at",
+    order: "order_created_at.desc.nullslast",
+    limit: "50000",
+  });
+  orderParams.set("order_created_at", `gte.${cutoff}`);
+
+  const { data: orderRows } = await runtimeRestRequest<TrendOrderRow[]>("order_record", orderParams);
+  const aggregates = new Map<
+    string,
+    { closedRevenueLast12: number; closedOrdersLast12: number; lastOrderDate: string | null }
+  >();
+
+  for (const order of orderRows) {
+    if (!order.account_id || classifyFraterniteesStatus(order.status) !== "closed") {
+      continue;
+    }
+
+    const current = aggregates.get(order.account_id) ?? {
+      closedRevenueLast12: 0,
+      closedOrdersLast12: 0,
+      lastOrderDate: null,
+    };
+    current.closedRevenueLast12 += toNumber(order.order_total) ?? 0;
+    current.closedOrdersLast12 += 1;
+    if (order.order_created_at && (!current.lastOrderDate || order.order_created_at > current.lastOrderDate)) {
+      current.lastOrderDate = order.order_created_at;
+    }
+    aggregates.set(order.account_id, current);
+  }
+
+  const rankedAccountIds = [...aggregates.entries()]
+    .sort(
+      (left, right) =>
+        right[1].closedRevenueLast12 - left[1].closedRevenueLast12 ||
+        right[1].closedOrdersLast12 - left[1].closedOrdersLast12 ||
+        left[0].localeCompare(right[0]),
+    )
+    .slice(0, limit)
+    .map(([accountId]) => accountId);
+
+  if (!rankedAccountIds.length) {
+    return [];
+  }
+
+  const accountParams = new URLSearchParams({
+    organization_id: `eq.${input.organizationId}`,
+    select: "id,name,display_name,city,state,last_order_date,custom_fields",
+    limit: String(rankedAccountIds.length),
+  });
+  accountParams.set("id", `in.(${rankedAccountIds.join(",")})`);
+
+  const { data: accountRows } = await runtimeRestRequest<TopCustomerAccountRow[]>("account", accountParams);
+  const accountsById = new Map(accountRows.map((row) => [row.id, row]));
+
+  return rankedAccountIds
+    .map((accountId) => {
+      const aggregate = aggregates.get(accountId);
+      const account = accountsById.get(accountId);
+      if (!aggregate || !account) {
+        return null;
+      }
+
+      const metrics = extractAccountMetrics(account.custom_fields, input.config);
+      return {
+        accountId,
+        name: account.display_name || account.name,
+        city: account.city,
+        state: account.state,
+        leadGrade: metrics.leadGrade,
+        leadScore: metrics.leadScore,
+        closeRate: metrics.closeRate,
+        closedOrdersLast12: aggregate.closedOrdersLast12,
+        closedRevenueLast12: Math.round(aggregate.closedRevenueLast12 * 100) / 100,
+        lastOrderDate: aggregate.lastOrderDate ?? account.last_order_date,
+      } satisfies FraterniteesTopCustomerSpendItem;
+    })
+    .filter((item): item is FraterniteesTopCustomerSpendItem => Boolean(item));
+}
+
+const fetchCachedTopCustomersLast12Months = unstable_cache(
+  async (organizationId: string, configJson: string) =>
+    fetchTopCustomersLast12Months({
+      organizationId,
+      config: configJson ? (JSON.parse(configJson) as FraterniteesScoreModelConfig) : undefined,
+    }),
+  ["fraternitees-top-customers-last12"],
+  { revalidate: 300 },
+);
+
 function buildDirectoryPage(input: {
   organization: Organization;
   summary: FraterniteesAccountDirectorySummary;
   items: FraterniteesAccountDirectoryItem[];
+  topCustomersLast12Months: FraterniteesTopCustomerSpendItem[];
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
@@ -719,6 +840,7 @@ function buildDirectoryPage(input: {
     organization: input.organization,
     summary: input.summary,
     items: input.items,
+    topCustomersLast12Months: input.topCustomersLast12Months,
     filters: {
       query: input.query,
       grade: input.grade,
@@ -750,9 +872,10 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems] = await Promise.all([
+  const [summary, totalItems, topCustomersLast12Months] = await Promise.all([
     fetchCachedViewSummarySnapshot(input.organization.slug),
     fetchCachedViewFilteredCount(input.organization.id, input.query, input.grade, input.dncOnly),
+    fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / input.pageSize));
@@ -776,6 +899,7 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     organization: input.organization,
     summary,
     items: itemsWithTrends,
+    topCustomersLast12Months,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,
@@ -796,7 +920,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems] = await Promise.all([
+  const [summary, totalItems, topCustomersLast12Months] = await Promise.all([
     fetchDirectSummarySnapshot(input.organization),
     fetchDirectFilteredCount({
       organizationId: input.organization.id,
@@ -805,6 +929,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
       dncOnly: input.dncOnly,
       config: input.config,
     }),
+    fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / input.pageSize));
@@ -829,6 +954,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
     organization: input.organization,
     summary,
     items: itemsWithTrends,
+    topCustomersLast12Months,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,

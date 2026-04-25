@@ -39,6 +39,11 @@ interface FraterniteesWorkspaceProps {
   sessionEmail: string;
   integrations: IntegrationSummary[];
   pluginSettings?: TenantPluginSettings;
+  autoSyncSettings?: {
+    enabled: boolean;
+    cadenceHours: number;
+    hourUtc: number;
+  };
   setupError?: string | null;
 }
 
@@ -53,6 +58,8 @@ interface PreviewState {
 interface PrintavoSyncStatus {
   accounts: number;
   orders: number;
+  lastSuccessfulSyncAt?: string | null;
+  lastAttemptedSyncAt?: string | null;
   backfill?: {
     hasMore?: boolean;
     completed?: boolean;
@@ -103,6 +110,19 @@ function formatNumber(value: number) {
 
 function formatPercent(value: number | null) {
   return value === null ? "No terminal outcomes" : `${Math.round(value * 100)}%`;
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) {
+    return "No sync yet";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function classNames(...values: Array<string | false | null | undefined>) {
@@ -317,6 +337,7 @@ export function FraterniteesWorkspace({
   sessionEmail,
   integrations,
   pluginSettings,
+  autoSyncSettings,
   setupError,
 }: FraterniteesWorkspaceProps) {
   const savedPrintavoEmail = integrations.find((integration) => integration.provider === "printavo")?.externalAccountId ?? sessionEmail;
@@ -330,6 +351,13 @@ export function FraterniteesWorkspace({
   const [syncStatus, setSyncStatus] = useState<PrintavoSyncStatus | null>(null);
   const [plugins, setPlugins] = useState<TenantPluginSettings>(
     pluginSettings ?? resolveTenantPluginSettings(orgSlug, {}),
+  );
+  const [dailyAutoSync, setDailyAutoSync] = useState(
+    autoSyncSettings ?? {
+      enabled: false,
+      cadenceHours: 24,
+      hourUtc: 5,
+    },
   );
 
   const connectedProviders = useMemo(() => new Set(connected.map((integration) => integration.provider)), [connected]);
@@ -388,6 +416,40 @@ export function FraterniteesWorkspace({
     } catch (caught) {
       setPlugins(previous);
       setNotice(caught instanceof Error ? caught.message : "Plugin update failed");
+    }
+  }
+
+  async function updateDailyAutoSync(enabled: boolean) {
+    const previous = dailyAutoSync;
+    setDailyAutoSync((current) => ({ ...current, enabled }));
+
+    try {
+      const response = await fetch(`/api/runtime/organizations/${encodeURIComponent(orgSlug)}/printavo/automation`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled,
+          hourUtc: dailyAutoSync.hourUtc,
+        }),
+      });
+      const payload = (await response.json()) as {
+        ok: boolean;
+        error?: string;
+        automation?: typeof dailyAutoSync;
+      };
+      if (!response.ok || !payload.ok || !payload.automation) {
+        throw new Error(payload.error ?? "Daily sync update failed");
+      }
+
+      setDailyAutoSync(payload.automation);
+      setNotice(
+        payload.automation.enabled
+          ? "Daily Printavo sync is on. The workspace will pull the latest Printavo data every 24 hours."
+          : "Daily Printavo sync is off. Manual sync remains available.",
+      );
+    } catch (caught) {
+      setDailyAutoSync(previous);
+      setNotice(caught instanceof Error ? caught.message : "Daily sync update failed");
     }
   }
 
@@ -779,6 +841,42 @@ export function FraterniteesWorkspace({
                 </div>
               </div>
             ) : null}
+            <div className="mt-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Automatic daily sync</p>
+                  <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                    {dailyAutoSync.enabled ? "Enabled" : "Manual only"}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                    Runs the latest Printavo sync every {dailyAutoSync.cadenceHours} hours using this tenant&apos;s saved Printavo credentials only.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={dailyAutoSync.enabled}
+                  onClick={() => void updateDailyAutoSync(!dailyAutoSync.enabled)}
+                  className={classNames(
+                    "relative h-7 w-12 shrink-0 rounded-full border transition",
+                    dailyAutoSync.enabled
+                      ? "border-[var(--accent-success)] bg-[var(--accent-success)]"
+                      : "border-[var(--border-strong)] bg-[var(--surface-card)]",
+                  )}
+                >
+                  <span
+                    className={classNames(
+                      "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition",
+                      dailyAutoSync.enabled ? "left-6" : "left-1",
+                    )}
+                  />
+                </button>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-[var(--text-secondary)] sm:grid-cols-2">
+                <p>Schedule: daily at {String(dailyAutoSync.hourUtc).padStart(2, "0")}:00 UTC</p>
+                <p>Last success: {formatDateTime(syncStatus?.lastSuccessfulSyncAt)}</p>
+              </div>
+            </div>
             <div className="mt-5 space-y-3">
               <input
                 type="email"

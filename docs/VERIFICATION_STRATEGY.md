@@ -86,6 +86,7 @@ Current repo command:
 - `SMOKE_BASE_URL=http://localhost:3000 npm run verify:browser`
 - Browser verification can use a seeded tenant fixture via `TEST_TENANT_ORG_SLUG`, `TEST_TENANT_EMAIL`, and `TEST_TENANT_TEMPLATE_ID`. If those are unset, the suite falls back to the local org slug and then to the FraterniTees fixture.
 - Current browser coverage includes authenticated comment capture, screenshot-fallback submission, mobile annotation layout, mobile territory single-mode rendering, and mobile submit fallback when screenshot annotation generation throws.
+- Mobile territory browser verification now also proves both list-row focus and real canvas-pin focus on the FraterniTees map by using a Playwright-only coordinate hook instead of depending on SVG marker DOM.
 
 ## Default Verification Loop
 For normal feature work:
@@ -112,6 +113,15 @@ For the full autonomous loop:
 - this runs the baseline verification and then invokes a fresh Codex review via `npm run review:adversarial`
 
 This makes the agent loop cheap by default and richer when a server is available.
+
+### Important local-server rule
+If you want browser verification against a locally started production server, do **not** point `npm run verify` at that same live server after it is already running. `npm run verify` rebuilds `.next`, which can invalidate the chunk manifest that an existing `next start` process is serving.
+
+For local production-browser verification, use this order instead:
+1. `npm run build`
+2. `npm run start -- --port 3000`
+3. `SMOKE_BASE_URL=http://127.0.0.1:3000 npm run smoke:runtime`
+4. `SMOKE_BASE_URL=http://127.0.0.1:3000 PLAYWRIGHT_VERIFY=1 npm run verify:browser`
 
 ## Verification by Work Type
 

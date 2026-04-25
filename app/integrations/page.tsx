@@ -7,6 +7,7 @@ import { AppFrame } from "@/components/layout/app-frame";
 import { WorkspaceIntegrationsPanel } from "@/components/onboarding/workspace-integrations-panel";
 import { getOrganizationRuntimeSnapshot } from "@/lib/application/runtime/organization-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { resolvePrintavoAutoSyncSettings } from "@/lib/application/fraternitees/printavo-auto-sync-settings";
 import { resolveTenantPluginSettings } from "@/lib/application/runtime/plugin-settings";
 import { orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
@@ -55,6 +56,7 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
             updatedAt: integration.updatedAt,
           }))}
           pluginSettings={resolveTenantPluginSettings(snapshot.organization.slug, snapshot.organization.settings)}
+          autoSyncSettings={resolvePrintavoAutoSyncSettings(snapshot.organization.settings)}
         />
       </AppFrame>
     );

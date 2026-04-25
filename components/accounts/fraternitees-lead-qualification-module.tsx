@@ -33,6 +33,10 @@ function formatPercent(value: number | null | undefined) {
   return value === null || value === undefined ? "N/A" : `${Math.round(value * 100)}%`;
 }
 
+function formatDate(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : "None";
+}
+
 function accountsFilterHref(input: {
   orgSlug: string;
   query?: string;
@@ -136,7 +140,7 @@ export function FraterniteesLeadQualificationModule({
   gradeOptions: configuredGradeOptions,
   sortOptions: configuredSortOptions,
 }: FraterniteesLeadQualificationModuleProps) {
-  const { summary, items, filters, pagination } = directory;
+  const { summary, items, topCustomersLast12Months, filters, pagination } = directory;
   const connectionHealthy = summary.accounts > 0 && summary.orders > 0;
   const resolvedGradeOptions = configuredGradeOptions ?? [...gradeOptions];
   const resolvedSortOptions = configuredSortOptions ?? [...sortOptions];
@@ -201,6 +205,68 @@ export function FraterniteesLeadQualificationModule({
           },
         ]}
       />
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-slate-200 px-5 py-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Top 100 customers</p>
+            <h3 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Trailing 12-month spend</h3>
+          </div>
+          <p className="max-w-2xl text-sm leading-6 text-slate-500">
+            Closed Printavo orders from the last 12 months, ranked by spend so FraterniTees can protect the next merch-chair handoff.
+          </p>
+        </div>
+        <div className="max-h-[30rem] overflow-auto">
+          <div className="grid grid-cols-[1.6fr_0.7fr_0.7fr_0.8fr] gap-3 bg-slate-100 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 max-md:hidden">
+            <p>Organization</p>
+            <p>Spend</p>
+            <p>Closed orders</p>
+            <p>Last order</p>
+          </div>
+          <div className="divide-y divide-slate-200">
+            {topCustomersLast12Months.map((account, index) => (
+              <Link
+                key={account.accountId}
+                href={orgScopedHref(`/accounts/${account.accountId}`, orgSlug)}
+                className="grid gap-3 px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[1.6fr_0.7fr_0.7fr_0.8fr] md:items-center"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-start gap-3">
+                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-slate-950 px-2 text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-slate-950">{account.name}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {[account.city, account.state].filter(Boolean).join(", ") || "No location"} / Score {account.leadScore ?? "-"} ({account.leadGrade})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 md:hidden">Spend</p>
+                  <p className="text-lg font-bold text-slate-900">{formatMoney(account.closedRevenueLast12)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 md:hidden">Closed orders</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {account.closedOrdersLast12} / {formatPercent(account.closeRate)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 md:hidden">Last order</p>
+                  <p className="text-sm font-semibold text-slate-700">{formatDate(account.lastOrderDate)}</p>
+                </div>
+              </Link>
+            ))}
+            {!topCustomersLast12Months.length ? (
+              <div className="px-5 py-6 text-sm font-semibold text-slate-500">
+                No closed orders from the last 12 months are available yet.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       <FilterToolbar
         action="/accounts"

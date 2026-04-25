@@ -37,7 +37,7 @@ The repo already contains working product surfaces, not just scaffolding:
 - workspace-driven navigation and integration surfaces
 - in-app screen-comment change capture with annotated screenshots and queue visibility
 - PICC-specific PPP savings and mock-order proposal workflows
-- FraterniTees-specific Printavo onboarding, sync, lead scoring, and map/account experiences
+- FraterniTees-specific Printavo onboarding, sync, daily auto-sync, lead scoring, top-customer spend analysis, and mobile-ready map/account experiences
 - first-class workspace/package manifests under `tenants/` and `packages/`
 - first primitive components for scorecards, filter bars, and trend panels
 - tenant-scoped integration state and plugin toggles
@@ -136,10 +136,19 @@ If you have a local server running and want runtime smoke checks too:
 SMOKE_BASE_URL=http://localhost:3000 npm run verify
 ```
 
-If you want browser-level verification too:
+If you want browser-level verification too against a deployed URL, use:
 
 ```bash
 SMOKE_BASE_URL=http://localhost:3000 PLAYWRIGHT_VERIFY=1 npm run verify
+```
+
+If you want browser-level verification against a **local production server**, do not rebuild while that server is already running. Use:
+
+```bash
+npm run build
+npm run start -- --port 3000
+SMOKE_BASE_URL=http://127.0.0.1:3000 npm run smoke:runtime
+SMOKE_BASE_URL=http://127.0.0.1:3000 PLAYWRIGHT_VERIFY=1 npm run verify:browser
 ```
 
 ## Key scripts

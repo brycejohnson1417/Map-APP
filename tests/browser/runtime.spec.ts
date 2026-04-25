@@ -55,14 +55,16 @@ async function seedTenantSession({
   ]);
 }
 
-test("core runtime pages load", async ({ page }) => {
+test("core runtime pages load", async ({ page, context, baseURL }) => {
   const orgSlug = testTenantOrgSlug();
+  const base = new URL(baseURL ?? "https://map-app-supabase.vercel.app");
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /sign in to the right workspace/i })).toBeVisible();
 
   await page.goto(`/accounts?org=${encodeURIComponent(orgSlug)}`);
   await expect(page.getByRole("heading", { name: /accounts/i }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /trailing 12-month spend/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /comment a request/i })).toHaveCount(0);
 
   await page.goto(`/change-requests?org=${encodeURIComponent(orgSlug)}`);
@@ -72,14 +74,19 @@ test("core runtime pages load", async ({ page }) => {
   await page.goto("/architecture");
   await expect(page.getByRole("heading", { name: /local-first runtime/i })).toBeVisible();
 
-  await page.goto(`/territory?org=${encodeURIComponent(orgSlug)}`);
-  await expect(page.getByRole("heading", { name: /field console/i })).toBeVisible();
+  const territoryPage = await context.newPage();
+  await territoryPage.goto(new URL(`/territory?org=${encodeURIComponent(orgSlug)}`, base).toString());
+  await expect(territoryPage.getByRole("heading", { name: /field console/i })).toBeVisible();
 
   if (orgSlug) {
-    await page.goto(`/runtime/${orgSlug}`);
-    await expect(page.getByRole("heading", { name: /recent sync jobs/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /recent audit events/i })).toBeVisible();
+    const runtimePage = await context.newPage();
+    await runtimePage.goto(new URL(`/runtime/${orgSlug}`, base).toString());
+    await expect(runtimePage.getByRole("heading", { name: /recent sync jobs/i })).toBeVisible();
+    await expect(runtimePage.getByRole("heading", { name: /recent audit events/i })).toBeVisible();
+    await runtimePage.close();
   }
+
+  await territoryPage.close();
 });
 
 test("authenticated tenant can enter comment mode and place a locked-page comment", async ({ page, context, baseURL }) => {
@@ -222,16 +229,44 @@ test.describe("mobile annotation mode", () => {
     const orgSlug = testTenantOrgSlug();
     await seedTenantSession({ context, baseURL, orgSlug });
 
-    await page.goto(`/territory?org=${encodeURIComponent(orgSlug)}`);
-    await expect(page.getByRole("button", { name: /open workspace navigation/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /field console/i })).toBeVisible();
-    await expect(page.locator(".leaflet-container")).toHaveCount(0);
+  await page.goto(`/territory?org=${encodeURIComponent(orgSlug)}`);
+  await expect(page.getByRole("button", { name: /open workspace navigation/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /field console/i })).toBeVisible();
+  await expect(page.locator(".leaflet-container")).toHaveCount(0);
+
+    const fieldConsoleButton = page.getByRole("button", { name: /field console/i });
+    const firstRowButton = page.locator("[data-testid^='territory-pin-row-']").first();
+    await expect(firstRowButton).toBeVisible();
+    const fieldConsoleBox = await fieldConsoleButton.boundingBox();
+    const firstRowBox = await firstRowButton.boundingBox();
+    if (!fieldConsoleBox || !firstRowBox) {
+      throw new Error("Mobile territory list-mode verification could not read button positions.");
+    }
+    expect(firstRowBox.y).toBeGreaterThan(fieldConsoleBox.y + fieldConsoleBox.height - 4);
+
+    await firstRowButton.click();
+    await expect(page.getByText(/selected account/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: /open account/i })).toBeVisible();
+    await page.getByRole("button", { name: /hide selected account details/i }).click();
 
     await page.getByRole("button", { name: /field console/i }).click();
     await expect(page.getByRole("button", { name: /^list$/i })).toBeVisible();
     await page.getByRole("button", { name: /^map$/i }).click();
     await expect(page.locator(".leaflet-container")).toHaveCount(1);
     await expect(page.locator(".leaflet-control-zoom")).toBeVisible();
+
+    await page.waitForFunction(() => Boolean((window as any).__MAP_APP_TEST?.getFirstMappablePinId?.()));
+    const clickPoint = await page.evaluate(() => {
+      const hooks = (window as any).__MAP_APP_TEST;
+      const pinId = hooks?.getFirstMappablePinId?.();
+      return pinId ? hooks.getLeafletClickPointForPin(pinId) : null;
+    });
+    if (!clickPoint) {
+      throw new Error("Mobile territory map test could not resolve a clickable pin point.");
+    }
+
+    await page.mouse.click(clickPoint.x, clickPoint.y);
+    await expect(page.getByText(/selected account/i)).toBeVisible();
   });
 
   test("mobile comment submit still works when screenshot annotation fails", async ({ page, context, baseURL }) => {
@@ -290,5 +325,14 @@ test.describe("mobile annotation mode", () => {
 
     await expect(page.getByText(/request added to the queue|requests added to the queue/i)).toBeVisible();
     await expect(page.getByText(/without screenshots/i)).toBeVisible();
+  });
+
+  test("integrations surface shows daily printavo sync controls", async ({ page, context, baseURL }) => {
+    const orgSlug = testTenantOrgSlug();
+    await seedTenantSession({ context, baseURL, orgSlug });
+
+    await page.goto(`/integrations?org=${encodeURIComponent(orgSlug)}`);
+    await expect(page.getByText(/automatic daily sync/i)).toBeVisible();
+    await expect(page.getByText(/saved Printavo credentials only/i)).toBeVisible();
   });
 });
