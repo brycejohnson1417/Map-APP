@@ -476,7 +476,16 @@ function scoreGroup(
   const maxOrderValue = sortedOrders.reduce((max, order) => Math.max(max, order.total ?? 0), 0);
   const averageClosedOrderValue = closedValues.length ? closedRevenue / closedValues.length : 0;
   const medianClosedOrderValue = median(closedValues);
-  const lastOrderDate = sortedOrders.map((order) => parseDate(order.orderDate)).find((date): date is Date => Boolean(date)) ?? null;
+
+  let lastOrderDate: Date | null = null;
+  for (const order of sortedOrders) {
+    const date = parseDate(order.orderDate);
+    if (date) {
+      lastOrderDate = date;
+      break;
+    }
+  }
+
   const last12Cutoff = shiftUtcYears(now, -1);
 
   const closedMonthsLast12 = new Set<string>();
@@ -491,10 +500,18 @@ function scoreGroup(
   }
 
   const ghostOrHardLosses = sortedOrders.filter((order) => isGhostOrHardLoss(order.status)).length;
-  const highTicketDate = sortedOrders
-    .filter((order) => (order.total ?? 0) >= config.highTicket.threshold)
-    .map((order) => parseDate(order.orderDate))
-    .find((date): date is Date => Boolean(date));
+
+  let highTicketDate: Date | undefined;
+  for (const order of sortedOrders) {
+    if ((order.total ?? 0) >= config.highTicket.threshold) {
+      const date = parseDate(order.orderDate);
+      if (date) {
+        highTicketDate = date;
+        break;
+      }
+    }
+  }
+
   const hardLossesAfterHighTicket = highTicketDate
     ? sortedOrders.filter((order) => {
         const date = parseDate(order.orderDate);
