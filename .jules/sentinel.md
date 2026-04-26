@@ -1,0 +1,4 @@
+## 2025-02-24 - Cross-Site Scripting (XSS) Vulnerability in React Components
+**Vulnerability:** XSS vulnerability found in `./components/accounts/ppp-savings-panel.tsx` where an email HTML report string (`report.email.html`) was rendered directly using `dangerouslySetInnerHTML` without proper HTML sanitization.
+**Learning:** React requires explicit instruction to render unsanitized HTML for a reason. Directly inserting untrusted or unvalidated content can lead to XSS attacks. In Next.js environments, standard DOMPurify can fail during SSR as it requires a `window` object.
+**Prevention:** Always sanitize inputs directly before using `dangerouslySetInnerHTML`. In Next.js SSR apps, `isomorphic-dompurify` must be used instead of standard `dompurify` to prevent hydration errors and ensure robust sanitization across server and client.
