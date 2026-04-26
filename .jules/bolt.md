@@ -1,0 +1,3 @@
+## 2025-04-26 - Prevent redundant data parsing in `.filter().map().find()` chains
+**Learning:** Found a specific codebase pattern where `sortedOrders.filter(...).map(...).find(...)` chains were causing unnecessary iterations and executing expensive operations (`parseDate()`) on every single item in the original array that matched the filter, even when `find()` would return early on the first valid match. Because `map()` forces iteration of the whole array, any early return from `find()` doesn't prevent those map operations.
+**Action:** Always replace `.filter().map().find()` chains with a single-pass `for...of` loop or a `Array.prototype.reduce/find` combination when the map operation is expensive (like parsing dates). Use early breaks to avoid useless calculations.
