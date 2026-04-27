@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Calculator, ChevronDown, ChevronUp, Copy, Download, Loader2, Mail } from "lucide-react";
+import DOMPurify from "isomorphic-dompurify";
 import type { PppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 
 interface PppSavingsPanelProps {
@@ -77,7 +78,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     if (typeof ClipboardItem !== "undefined" && report.email.html) {
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/html": new Blob([report.email.html], { type: "text/html" }),
+          "text/html": new Blob([DOMPurify.sanitize(report.email.html)], { type: "text/html" }),
           "text/plain": new Blob([draft], { type: "text/plain" }),
         }),
       ]);
@@ -230,7 +231,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: report.email.html }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(report.email.html) }} />
             </div>
           </div>
         </div>
