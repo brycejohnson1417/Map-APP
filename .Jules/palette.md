@@ -1,0 +1,3 @@
+## 2024-05-18 - Missing ARIA attributes on list toggle patterns
+**Learning:** Found a recurring accessibility issue pattern specific to list/accordion components across the app (like `change-request-list`, `change-request-capture-launcher`, and `ppp-savings-panel`). These components frequently use full-row buttons and icon-only suffix buttons to toggle details, but omit `aria-expanded` properties and `aria-label` names for icon-only buttons.
+**Action:** When working on lists that expand/collapse to show details, ensure the toggle control has `aria-expanded` mapping to the state, and that icon-only buttons have descriptive `aria-label`s mapping to their expanding/collapsing action.
