@@ -43,8 +43,8 @@ import type { getScreenprintingWorkspaceSummary } from "@/lib/application/screen
 
 type ScreenprintingWorkspaceSummary = Awaited<ReturnType<typeof getScreenprintingWorkspaceSummary>>;
 type SalesView = "dashboard" | "opportunities" | "accounts" | "reorders" | "goals" | "orders";
-type SocialView = "dashboard" | "accounts" | "account-detail" | "posts" | "alerts" | "calendar" | "conversations" | "campaigns" | "import";
-type ModuleView = "sales" | "social" | "admin";
+export type SocialView = "dashboard" | "accounts" | "account-detail" | "posts" | "alerts" | "calendar" | "conversations" | "campaigns" | "import";
+export type ModuleView = "sales" | "social" | "admin";
 type SalesOrder = ScreenprintingWorkspaceSummary["orders"]["orders"][number];
 type SavedView = ScreenprintingWorkspaceSummary["orders"]["savedViews"][number];
 type SocialAccount = ScreenprintingWorkspaceSummary["socialAccounts"]["accounts"][number];
@@ -415,34 +415,20 @@ function dateAfterDays(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function initialModuleViewFromUrl(): ModuleView {
-  if (typeof window === "undefined") {
-    return "sales";
-  }
-  return new URLSearchParams(window.location.search).get("module") === "social" ? "social" : "sales";
-}
-
-function initialSocialViewFromUrl(): SocialView {
-  if (typeof window === "undefined") {
-    return "dashboard";
-  }
-  const value = new URLSearchParams(window.location.search).get("social");
-  return value === "accounts" ||
-    value === "account-detail" ||
-    value === "posts" ||
-    value === "alerts" ||
-    value === "calendar" ||
-    value === "conversations" ||
-    value === "campaigns" ||
-    value === "import"
-    ? value
-    : "dashboard";
-}
-
-export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: ScreenprintingWorkspaceSummary; orgSlug: string }) {
-  const [moduleView, setModuleView] = useState<ModuleView>(() => initialModuleViewFromUrl());
+export function ScreenprintingWorkspace({
+  summary,
+  orgSlug,
+  initialModuleView = "sales",
+  initialSocialView = "dashboard",
+}: {
+  summary: ScreenprintingWorkspaceSummary;
+  orgSlug: string;
+  initialModuleView?: ModuleView;
+  initialSocialView?: SocialView;
+}) {
+  const [moduleView, setModuleView] = useState<ModuleView>(initialModuleView);
   const [salesView, setSalesView] = useState<SalesView>("dashboard");
-  const [socialView, setSocialView] = useState<SocialView>(() => initialSocialViewFromUrl());
+  const [socialView, setSocialView] = useState<SocialView>(initialSocialView);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(summary.socialAccounts.accounts);
   const [selectedSocialAccountId, setSelectedSocialAccountId] = useState(summary.socialAccounts.accounts[0]?.id ?? null);
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
