@@ -631,10 +631,10 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   }, [mappablePinCount]);
 
   useEffect(() => {
-    if (!isNarrowViewport || !selectedPin || view !== "map") {
+    if (!isNarrowViewport || !selectedPin) {
       setMobileDetailOpen(false);
     }
-  }, [isNarrowViewport, selectedPin, view]);
+  }, [isNarrowViewport, selectedPin]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.navigator.webdriver) {
@@ -1380,7 +1380,10 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
               </button>
               <button
                 type="button"
-                onClick={() => setView("list")}
+                onClick={() => {
+                  setMobileDetailOpen(false);
+                  setView("list");
+                }}
                 className={classNames("inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold", view === "list" && "bg-[var(--text-primary)] text-white")}
                 style={view === "list" ? { color: "#fff" } : undefined}
               >

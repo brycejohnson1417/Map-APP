@@ -40,6 +40,7 @@ import type { WorkspaceRuntimeExperience } from "@/lib/application/workspace/wor
 
 const repository = new ScreenprintingRepository();
 const organizations = new OrganizationRepository();
+const allOrderCache = new Map<string, { expiresAt: number; promise: Promise<ScreenprintingOrder[]> }>();
 
 export class ScreenprintingServiceError extends Error {
   status: number;
@@ -119,6 +120,61 @@ type FixtureBundle = {
 
 const fixture = fixtureData as FixtureBundle;
 
+type ScreenprintingOrder = {
+  id: string;
+  accountId: string | null;
+  externalOrderId: string | null;
+  orderNumber: string | null;
+  customerName: string;
+  jobName: string | null;
+  status: string | null;
+  statusBucket: string;
+  paymentStatus: string | null;
+  paymentBucket: string;
+  orderTotal: number | null;
+  orderCreatedAt: string | null;
+  productionDate: string | null;
+  customerDueDate: string | null;
+  managerName: string | null;
+  teamName: string | null;
+  tags: string[];
+  sourceUrl: string | null;
+  sourcePayloadAvailable: boolean;
+  dataSource: "fixture" | "printavo";
+};
+
+type ScreenprintingOpportunity = {
+  id: string;
+  accountId: string | null;
+  contactId: string | null;
+  sourceOrderId: string | null;
+  pipelineKey: string;
+  stageKey: string;
+  title: string;
+  value: number | null;
+  currency: string;
+  ownerMemberId: string | null;
+  sourceType: string;
+  status: string;
+  dueAt: string | null;
+  metadata: Record<string, unknown>;
+  updatedAt: string;
+};
+
+type ScreenprintingReorderSignal = {
+  id: string;
+  accountId: string;
+  sourceOrderId: string | null;
+  opportunityId: string | null;
+  ruleKey: string;
+  bucket: string;
+  expectedReorderDate: string;
+  lastActionAt: string | null;
+  snoozedUntil: string | null;
+  ownerMemberId: string | null;
+  metadata: Record<string, unknown>;
+};
+
 function hashId(parts: unknown[]) {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 24);
 }
@@ -166,11 +222,12 @@ function sourceUrl(externalOrderId: string | null) {
   return externalOrderId ? `https://www.printavo.com/orders/${encodeURIComponent(externalOrderId)}` : null;
 }
 
-function fixtureOrders(slug: string, config: ScreenprintingConfig) {
+function fixtureOrders(slug: string, config: ScreenprintingConfig): ScreenprintingOrder[] {
   return (fixture.printavo_like_orders ?? [])
     .filter((order) => order.tenant_slug === slug)
     .map((order) => ({
       id: hashId(["fixture_order", order.source_id]),
+      accountId: null,
       externalOrderId: order.source_id,
       orderNumber: order.source_id.replace(/^po_/, ""),
       customerName: order.organization_name,
@@ -180,6 +237,7 @@ function fixtureOrders(slug: string, config: ScreenprintingConfig) {
       paymentStatus: order.payment_status,
       paymentBucket: mapPaymentBucket(config, order.payment_status),
       orderTotal: order.total_cents / 100,
+      orderCreatedAt: order.created_at,
       productionDate: order.production_due_date ?? toDateOnly(order.created_at),
       customerDueDate: order.customer_due_date ?? null,
       managerName: null,
@@ -187,14 +245,16 @@ function fixtureOrders(slug: string, config: ScreenprintingConfig) {
       tags: order.tags ?? [],
       sourceUrl: sourceUrl(order.source_id),
       sourcePayloadAvailable: true,
+      dataSource: "fixture" as const,
     }));
 }
 
-function dbOrders(rows: ScreenprintingOrderRow[], config: ScreenprintingConfig) {
+function dbOrders(rows: ScreenprintingOrderRow[], config: ScreenprintingConfig): ScreenprintingOrder[] {
   return rows.map((row) => {
     const payload = row.source_payload ?? {};
     return {
       id: row.id,
+      accountId: row.account_id,
       externalOrderId: row.external_order_id,
       orderNumber: row.order_number,
       customerName: row.licensed_location_name ?? firstString(payload.customerName) ?? "Unknown customer",
@@ -204,6 +264,7 @@ function dbOrders(rows: ScreenprintingOrderRow[], config: ScreenprintingConfig) 
       paymentStatus: row.payment_status,
       paymentBucket: mapPaymentBucket(config, row.payment_status),
       orderTotal: repository.toNumber(row.order_total),
+      orderCreatedAt: row.order_created_at,
       productionDate: row.delivery_date ?? toDateOnly(row.order_created_at),
       customerDueDate: firstString(payload.customerDueDate),
       managerName: row.sales_rep_name,
@@ -211,11 +272,45 @@ function dbOrders(rows: ScreenprintingOrderRow[], config: ScreenprintingConfig) 
       tags: Array.isArray(payload.tags) ? payload.tags.filter((tag): tag is string => typeof tag === "string") : [],
       sourceUrl: sourceUrl(row.external_order_id),
       sourcePayloadAvailable: Boolean(row.source_payload),
+      dataSource: "printavo" as const,
     };
   });
 }
 
-function opportunityFromRow(row: ScreenprintingOpportunityRow) {
+function orderDateValue(order: ScreenprintingOrder) {
+  return order.orderCreatedAt ?? order.productionDate ?? order.customerDueDate ?? null;
+}
+
+function orderTimestamp(order: ScreenprintingOrder) {
+  const value = orderDateValue(order);
+  if (!value) {
+    return 0;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeName(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function nonCancelledOrderValue(order: ScreenprintingOrder) {
+  return order.statusBucket === "cancelled" ? 0 : order.orderTotal ?? 0;
+}
+
+function activeRevenueOrders(orders: ScreenprintingOrder[]) {
+  return orders.filter((order) => nonCancelledOrderValue(order) > 0);
+}
+
+function orderFallsInPeriod(order: ScreenprintingOrder, start: Date | null, end: Date) {
+  const timestamp = orderTimestamp(order);
+  if (!timestamp) {
+    return false;
+  }
+  return (!start || timestamp >= start.getTime()) && timestamp <= end.getTime();
+}
+
+function opportunityFromRow(row: ScreenprintingOpportunityRow): ScreenprintingOpportunity {
   return {
     id: row.id,
     accountId: row.account_id,
@@ -235,7 +330,7 @@ function opportunityFromRow(row: ScreenprintingOpportunityRow) {
   };
 }
 
-function reorderSignalFromRow(row: ScreenprintingReorderSignalRow) {
+function reorderSignalFromRow(row: ScreenprintingReorderSignalRow): ScreenprintingReorderSignal {
   return {
     id: row.id,
     accountId: row.account_id,
@@ -392,25 +487,39 @@ function requireOrganization(context: { organization: Organization | null }) {
 
 async function listOrdersForContext(context: Awaited<ReturnType<typeof resolveContext>>, input: { q?: string | null; pageSize?: number } = {}) {
   const rows = context.organization ? await repository.listOrders(context.organization.id, input) : [];
-  const orders = rows.length ? dbOrders(rows, context.config) : fixtureOrders(context.slug, context.config);
+  const orders = context.organization ? dbOrders(rows, context.config) : fixtureOrders(context.slug, context.config);
   const q = input.q?.trim().toLowerCase();
   return q
     ? orders.filter((order) => [order.customerName, order.jobName, order.orderNumber].filter(Boolean).join(" ").toLowerCase().includes(q))
     : orders;
 }
 
-function buildFixtureOpportunities(slug: string, config: ScreenprintingConfig) {
+async function listAllOrdersForContext(context: Awaited<ReturnType<typeof resolveContext>>) {
+  if (!context.organization) {
+    return fixtureOrders(context.slug, context.config);
+  }
+  const key = `${context.organization.id}:${context.config.statusMappings.length}:${context.config.paymentMappings.length}`;
+  const cached = allOrderCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise;
+  }
+  const promise = repository.listAllOrderMetricRows(context.organization.id).then((rows) => dbOrders(rows, context.config));
+  allOrderCache.set(key, { expiresAt: Date.now() + 60_000, promise });
+  return promise;
+}
+
+function buildFixtureOpportunities(slug: string, config: ScreenprintingConfig): ScreenprintingOpportunity[] {
   const orders = fixtureOrders(slug, config);
   return orders
     .filter((order) => order.statusBucket === "quoted" || order.statusBucket === "needs_review")
     .map((order) => ({
       id: hashId(["fixture_opportunity", order.id]),
-      accountId: null,
+      accountId: order.accountId,
       contactId: null,
       sourceOrderId: order.id,
       pipelineKey: "sales_pipeline",
       stageKey: order.statusBucket === "quoted" ? "quote_sent" : "needs_review",
-      title: order.jobName,
+      title: order.jobName ?? order.customerName,
       value: order.orderTotal,
       currency: "USD",
       ownerMemberId: null,
@@ -425,7 +534,37 @@ function buildFixtureOpportunities(slug: string, config: ScreenprintingConfig) {
     }));
 }
 
-function buildFixtureReorderSignals(slug: string, config: ScreenprintingConfig) {
+function buildDerivedOpportunities(orders: ScreenprintingOrder[]): ScreenprintingOpportunity[] {
+  return orders
+    .filter((order) => order.statusBucket === "quoted" || order.statusBucket === "needs_review")
+    .sort((left, right) => orderTimestamp(right) - orderTimestamp(left))
+    .slice(0, 300)
+    .map((order) => ({
+      id: hashId(["derived_opportunity", order.id, order.status, order.paymentStatus]),
+      accountId: order.accountId,
+      contactId: null,
+      sourceOrderId: order.id,
+      pipelineKey: "sales_pipeline",
+      stageKey: order.statusBucket === "quoted" ? "proposal_sent" : "needs_review",
+      title: order.jobName ?? order.customerName,
+      value: order.orderTotal,
+      currency: "USD",
+      ownerMemberId: order.managerName,
+      sourceType: "printavo_read_only",
+      status: "open",
+      dueAt: order.customerDueDate ?? order.productionDate,
+      metadata: {
+        derived: true,
+        customerName: order.customerName,
+        orderNumber: order.orderNumber,
+        printavoStatus: order.status,
+        paymentStatus: order.paymentStatus,
+      },
+      updatedAt: order.orderCreatedAt ?? order.productionDate ?? new Date().toISOString(),
+    }));
+}
+
+function buildFixtureReorderSignals(slug: string, config: ScreenprintingConfig): ScreenprintingReorderSignal[] {
   const [defaultRule = { ruleKey: "annual_reorder", cycleDays: 365, category: "default", priority: "medium", enabled: true }] =
     config.reorderRules.filter((rule) => rule.enabled);
   return fixtureOrders(slug, config).map((order) => {
@@ -433,7 +572,7 @@ function buildFixtureReorderSignals(slug: string, config: ScreenprintingConfig) 
     const expectedReorderDate = addDays(baseDate, defaultRule.cycleDays);
     return {
       id: hashId(["fixture_reorder", order.id, defaultRule.ruleKey]),
-      accountId: hashId(["fixture_account", order.customerName]),
+      accountId: order.accountId ?? hashId(["fixture_account", order.customerName]),
       sourceOrderId: order.id,
       opportunityId: null,
       ruleKey: defaultRule.ruleKey,
@@ -452,20 +591,75 @@ function buildFixtureReorderSignals(slug: string, config: ScreenprintingConfig) 
   });
 }
 
+function buildDerivedReorderSignals(orders: ScreenprintingOrder[], config: ScreenprintingConfig): ScreenprintingReorderSignal[] {
+  const enabledRules = config.reorderRules.filter((rule) => rule.enabled);
+  const [defaultRule = { ruleKey: "annual_reorder", cycleDays: 365, category: "default", priority: "medium", enabled: true }] = enabledRules;
+  const latestByCustomer = new Map<string, ScreenprintingOrder>();
+  for (const order of orders) {
+    if (order.statusBucket === "cancelled" || !normalizeName(order.customerName)) {
+      continue;
+    }
+    const key = normalizeName(order.customerName);
+    const previous = latestByCustomer.get(key);
+    if (!previous || orderTimestamp(order) > orderTimestamp(previous)) {
+      latestByCustomer.set(key, order);
+    }
+  }
+
+  return [...latestByCustomer.values()]
+    .map((order) => {
+      const baseDate = toDateOnly(orderDateValue(order)) ?? new Date().toISOString().slice(0, 10);
+      const expectedReorderDate = addDays(baseDate, defaultRule.cycleDays);
+      return {
+        id: hashId(["derived_reorder", order.id, defaultRule.ruleKey]),
+        accountId: order.accountId ?? hashId(["derived_account", order.customerName]),
+        sourceOrderId: order.id,
+        opportunityId: null,
+        ruleKey: defaultRule.ruleKey,
+        bucket: bucketForDate(expectedReorderDate),
+        expectedReorderDate,
+        lastActionAt: null,
+        snoozedUntil: null,
+        ownerMemberId: order.managerName,
+        metadata: {
+          derived: true,
+          category: defaultRule.category,
+          priority: defaultRule.priority,
+          customerName: order.customerName,
+          contactName: order.managerName,
+          lastOrderName: order.jobName,
+          lastOrderTotal: order.orderTotal,
+          lastOrderDate: orderDateValue(order),
+          cycleDays: defaultRule.cycleDays,
+        },
+      };
+    })
+    .sort((left, right) => left.expectedReorderDate.localeCompare(right.expectedReorderDate));
+}
+
 async function listOpportunitiesForContext(context: Awaited<ReturnType<typeof resolveContext>>) {
   const rows = context.organization ? await repository.listOpportunities(context.organization.id) : [];
-  return rows.length ? rows.map(opportunityFromRow) : buildFixtureOpportunities(context.slug, context.config);
+  if (rows.length) {
+    return rows.map(opportunityFromRow);
+  }
+  return context.organization ? buildDerivedOpportunities(await listAllOrdersForContext(context)) : buildFixtureOpportunities(context.slug, context.config);
 }
 
 async function listReordersForContext(context: Awaited<ReturnType<typeof resolveContext>>) {
   const rows = context.organization ? await repository.listReorderSignals(context.organization.id) : [];
-  return rows.length ? rows.map(reorderSignalFromRow) : buildFixtureReorderSignals(context.slug, context.config);
+  if (rows.length) {
+    return rows.map(reorderSignalFromRow);
+  }
+  return context.organization ? buildDerivedReorderSignals(await listAllOrdersForContext(context), context.config) : buildFixtureReorderSignals(context.slug, context.config);
 }
 
-function groupOpportunities(opportunities: ReturnType<typeof opportunityFromRow>[]) {
+function groupOpportunities(opportunities: ScreenprintingOpportunity[]) {
   const stages = [
     { key: "new_lead", label: "New Lead" },
+    { key: "contacted", label: "Contacted" },
+    { key: "proposal_sent", label: "Proposal Sent" },
     { key: "quote_sent", label: "Quote Sent" },
+    { key: "needs_review", label: "Needs Review" },
     { key: "follow_up", label: "Follow Up" },
     { key: "won", label: "Won" },
   ];
@@ -484,6 +678,115 @@ function groupOpportunities(opportunities: ReturnType<typeof opportunityFromRow>
       }),
     },
   ];
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date) {
+  const start = startOfDay(date);
+  const day = start.getDay();
+  start.setDate(start.getDate() - day);
+  return start;
+}
+
+function buildCustomerSummaries(orders: ScreenprintingOrder[]) {
+  const customers = new Map<
+    string,
+    {
+      name: string;
+      accountId: string | null;
+      total: number;
+      orderCount: number;
+      contactCount: number;
+      category: string;
+      managerName: string | null;
+      lastOrderAt: string | null;
+    }
+  >();
+
+  for (const order of orders) {
+    const key = normalizeName(order.customerName);
+    if (!key) {
+      continue;
+    }
+    const current =
+      customers.get(key) ??
+      {
+        name: order.customerName,
+        accountId: order.accountId,
+        total: 0,
+        orderCount: 0,
+        contactCount: 0,
+        category: order.tags[0] ?? order.teamName ?? "Unmapped",
+        managerName: order.managerName,
+        lastOrderAt: null,
+      };
+    current.total += nonCancelledOrderValue(order);
+    current.orderCount += 1;
+    current.contactCount += order.managerName ? 1 : 0;
+    current.accountId = current.accountId ?? order.accountId;
+    current.managerName = current.managerName ?? order.managerName;
+    const orderDate = orderDateValue(order);
+    if (orderDate && (!current.lastOrderAt || new Date(orderDate).getTime() > new Date(current.lastOrderAt).getTime())) {
+      current.lastOrderAt = orderDate;
+      current.category = order.tags[0] ?? order.teamName ?? current.category;
+    }
+    customers.set(key, current);
+  }
+
+  return [...customers.values()].sort((left, right) => right.total - left.total || right.orderCount - left.orderCount);
+}
+
+function buildPeriodMetric(orders: ScreenprintingOrder[], start: Date | null, end: Date) {
+  const scoped = orders.filter((order) => orderFallsInPeriod(order, start, end));
+  const revenueOrders = activeRevenueOrders(scoped);
+  const revenue = revenueOrders.reduce((sum, order) => sum + (order.orderTotal ?? 0), 0);
+  return {
+    orders: scoped.length,
+    revenue,
+    averageOrderValue: revenueOrders.length ? revenue / revenueOrders.length : 0,
+    paidOrders: scoped.filter((order) => order.paymentBucket === "paid").length,
+    unpaidOrders: scoped.filter((order) => order.paymentBucket === "unpaid").length,
+    quotedOrders: scoped.filter((order) => order.statusBucket === "quoted").length,
+    inProductionOrders: scoped.filter((order) => order.statusBucket === "in_production").length,
+    completedOrders: scoped.filter((order) => order.statusBucket === "completed").length,
+    cancelledOrders: scoped.filter((order) => order.statusBucket === "cancelled").length,
+  };
+}
+
+function buildDailySeries(orders: ScreenprintingOrder[], now = new Date()) {
+  const latestOrderTimestamp = Math.max(0, ...orders.map(orderTimestamp));
+  const anchor = latestOrderTimestamp ? new Date(latestOrderTimestamp) : now;
+  const buckets = Array.from({ length: 8 }, (_, index) => {
+    const start = startOfDay(anchor);
+    start.setDate(start.getDate() - (7 - index) * 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    end.setMilliseconds(end.getMilliseconds() - 1);
+    return {
+      label: new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(start),
+      start,
+      end,
+      posts: 0,
+      revenue: 0,
+      orders: 0,
+    };
+  });
+  for (const order of orders) {
+    const timestamp = orderTimestamp(order);
+    if (!timestamp) {
+      continue;
+    }
+    const bucket = buckets.find((candidate) => timestamp >= candidate.start.getTime() && timestamp <= candidate.end.getTime());
+    if (!bucket) {
+      continue;
+    }
+    bucket.orders += 1;
+    bucket.revenue += nonCancelledOrderValue(order);
+  }
+  return buckets.map(({ label, revenue, orders }) => ({ label, revenue, orders }));
 }
 
 export async function getScreenprintingConfigPayload(slug: string) {
@@ -561,31 +864,98 @@ export async function updateScreenprintingConfig(
 
 export async function getScreenprintingSalesDashboard(slug: string) {
   const context = await resolveContext(slug);
-  const orders = await listOrdersForContext(context);
+  const orders = await listAllOrdersForContext(context);
   const opportunities = await listOpportunitiesForContext(context);
   const reorders = await listReordersForContext(context);
-  const completedOrders = orders.filter((order) => order.statusBucket === "completed");
-  const revenue = completedOrders.reduce((sum, order) => sum + (order.orderTotal ?? 0), 0);
-  const customerOrderCounts = new Map<string, number>();
-  for (const order of completedOrders) {
-    customerOrderCounts.set(order.customerName, (customerOrderCounts.get(order.customerName) ?? 0) + 1);
-  }
-  const repeatRevenue = completedOrders
-    .filter((order) => (customerOrderCounts.get(order.customerName) ?? 0) > 1)
+  const revenueOrders = activeRevenueOrders(orders);
+  const revenue = revenueOrders.reduce((sum, order) => sum + (order.orderTotal ?? 0), 0);
+  const customers = buildCustomerSummaries(orders);
+  const repeatCustomers = customers.filter((customer) => customer.orderCount > 1);
+  const customerOrderCounts = new Map(customers.map((customer) => [normalizeName(customer.name), customer.orderCount]));
+  const repeatRevenue = revenueOrders
+    .filter((order) => (customerOrderCounts.get(normalizeName(order.customerName)) ?? 0) > 1)
     .reduce((sum, order) => sum + (order.orderTotal ?? 0), 0);
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const sevenDaysStart = new Date(todayStart);
+  sevenDaysStart.setDate(sevenDaysStart.getDate() - 7);
+  const thirtyDaysStart = new Date(todayStart);
+  thirtyDaysStart.setDate(thirtyDaysStart.getDate() - 30);
+  const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const ytdStart = new Date(now.getFullYear(), 0, 1);
+  const periodMetrics = {
+    today: buildPeriodMetric(orders, todayStart, now),
+    yesterday: buildPeriodMetric(orders, yesterdayStart, todayStart),
+    thisWeek: buildPeriodMetric(orders, startOfWeek(now), now),
+    sevenDays: buildPeriodMetric(orders, sevenDaysStart, now),
+    thirtyDays: buildPeriodMetric(orders, thirtyDaysStart, now),
+    mtd: buildPeriodMetric(orders, mtdStart, now),
+    ytd: buildPeriodMetric(orders, ytdStart, now),
+    allTime: buildPeriodMetric(orders, null, now),
+  };
+  const statusBreakdown = Object.entries(
+    orders.reduce<Record<string, number>>((counts, order) => {
+      counts[order.statusBucket] = (counts[order.statusBucket] ?? 0) + 1;
+      return counts;
+    }, {}),
+  ).map(([bucket, count]) => ({ bucket, count }));
+  const paymentBreakdown = Object.entries(
+    orders.reduce<Record<string, number>>((counts, order) => {
+      counts[order.paymentBucket] = (counts[order.paymentBucket] ?? 0) + 1;
+      return counts;
+    }, {}),
+  ).map(([bucket, count]) => ({ bucket, count }));
+  const managerPerformance = Object.entries(
+    revenueOrders.reduce<Record<string, { revenue: number; orders: number }>>((byManager, order) => {
+      const manager = order.managerName ?? "Unassigned";
+      const current = byManager[manager] ?? { revenue: 0, orders: 0 };
+      current.revenue += order.orderTotal ?? 0;
+      current.orders += 1;
+      byManager[manager] = current;
+      return byManager;
+    }, {}),
+  )
+    .map(([managerName, values]) => ({ managerName, ...values }))
+    .sort((left, right) => right.revenue - left.revenue)
+    .slice(0, 20);
+  const latestOrderCreatedAt =
+    orders
+      .map(orderDateValue)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
 
   return {
     metrics: {
       revenue,
-      averageOrderValue: completedOrders.length ? revenue / completedOrders.length : 0,
+      averageOrderValue: revenueOrders.length ? revenue / revenueOrders.length : 0,
+      averageOrdersPerCustomer: customers.length ? orders.length / customers.length : 0,
+      totalOrders: orders.length,
+      totalCustomers: customers.length,
+      repeatCustomers: repeatCustomers.length,
+      repeatCustomerRate: customers.length ? repeatCustomers.length / customers.length : 0,
       bulkOrders: orders.filter((order) => (order.orderTotal ?? 0) >= 1000).length,
       personalSales: orders.length,
       repeatRevenue,
       dueReorders: reorders.filter((signal) => signal.bucket === "due" || signal.bucket === "overdue").length,
+      quotedOrders: orders.filter((order) => order.statusBucket === "quoted").length,
+      inProductionOrders: orders.filter((order) => order.statusBucket === "in_production").length,
+      completedOrders: orders.filter((order) => order.statusBucket === "completed").length,
+      cancelledOrders: orders.filter((order) => order.statusBucket === "cancelled").length,
+      paidOrders: orders.filter((order) => order.paymentBucket === "paid").length,
+      unpaidOrders: orders.filter((order) => order.paymentBucket === "unpaid").length,
+      latestOrderCreatedAt,
     },
-    ticker: opportunities.slice(0, 5),
-    managerPerformance: [],
-    periodPerformance: [],
+    ticker: opportunities.slice(0, 10),
+    managerPerformance,
+    periodPerformance: buildDailySeries(orders, now),
+    periodMetrics,
+    statusBreakdown,
+    paymentBreakdown,
+    topCustomers: customers.slice(0, 200),
+    printavoSyncStatus: context.organization ? await repository.readPrintavoSyncStatus(context.organization.id) : null,
     dirtyDataWarnings: context.config.fieldTrust
       .filter((field) => field.trustLevel !== "trusted")
       .map((field) => ({ fieldKey: field.fieldKey, warning: field.warning ?? "Review before using as authoritative." })),
@@ -594,7 +964,10 @@ export async function getScreenprintingSalesDashboard(slug: string) {
 
 export async function listScreenprintingOrders(slug: string, input: { q?: string | null; pageSize?: number } = {}) {
   const context = await resolveContext(slug);
-  const orders = await listOrdersForContext(context, input);
+  const [orders, total] = await Promise.all([
+    listOrdersForContext(context, input),
+    context.organization ? repository.countOrders(context.organization.id, { q: input.q }) : Promise.resolve(fixtureOrders(context.slug, context.config).length),
+  ]);
   return {
     orders,
     facets: {
@@ -611,7 +984,7 @@ export async function listScreenprintingOrders(slug: string, input: { q?: string
         }, {}),
       ).map(([name, count]) => ({ name, count })),
     },
-    pagination: { page: 1, pageSize: orders.length, total: orders.length },
+    pagination: { page: 1, pageSize: orders.length, total },
   };
 }
 
@@ -764,6 +1137,9 @@ async function listSocialAccountsForContext(context: Awaited<ReturnType<typeof r
   if (rows.length) {
     return rows.map(socialAccountFromRow);
   }
+  if (context.organization) {
+    return [];
+  }
   const adapter = createManualSocialAdapter({ tenantSlug: context.slug });
   return [...(await adapter.listOwnedAccounts()), ...(await adapter.listWatchedAccounts())].map((account) => ({
     id: account.id,
@@ -790,6 +1166,9 @@ async function listSocialPostsForContext(context: Awaited<ReturnType<typeof reso
   if (rows.length) {
     return rows.map(socialPostFromRow);
   }
+  if (context.organization) {
+    return [];
+  }
   const adapter = createManualSocialAdapter({ tenantSlug: context.slug });
   return (await adapter.fetchPosts()).map((post) => ({
     id: post.id,
@@ -813,6 +1192,9 @@ async function listSocialThreadsForContext(context: Awaited<ReturnType<typeof re
   const rows = context.organization ? await repository.listSocialThreads(context.organization.id) : [];
   if (rows.length) {
     return rows.map(socialThreadFromRow);
+  }
+  if (context.organization) {
+    return [];
   }
   const adapter = createManualSocialAdapter({ tenantSlug: context.slug });
   return (await adapter.fetchThreads()).map((thread) => ({
@@ -1004,7 +1386,9 @@ export async function listScreenprintingAlerts(slug: string) {
   const rows = context.organization ? await repository.listAlerts(context.organization.id) : [];
   const alerts = rows.length
     ? rows.map(alertFromRow)
-    : (await listSocialPostsForContext(context))
+    : context.organization
+      ? []
+      : (await listSocialPostsForContext(context))
         .filter((post) => Array.isArray(post.metadata.alertCandidates) && post.metadata.alertCandidates.length)
         .map((post) => ({
           id: hashId(["fixture_alert", post.id]),
@@ -1086,7 +1470,9 @@ export async function listScreenprintingIdentityResolutions(slug: string) {
   const rows = context.organization ? await repository.listIdentityResolutions(context.organization.id) : [];
   const suggestions = rows.length
     ? rows.map(identityFromRow)
-    : (fixture.social_threads ?? [])
+    : context.organization
+      ? []
+      : (fixture.social_threads ?? [])
         .filter((thread) => thread.tenant_slug === slug)
         .flatMap((thread) =>
           (thread.suggested_links ?? []).map((suggestion) => ({
@@ -1125,7 +1511,7 @@ export async function updateScreenprintingIdentityResolution(slug: string, sugge
 
 export async function getScreenprintingWorkspaceSummary(slug: string) {
   const context = await resolveContext(slug);
-  const [salesDashboard, orders, opportunities, reorders, socialDashboard, socialAccounts, socialPosts, threads, identity] =
+  const [salesDashboard, orders, opportunities, reorders, socialDashboard, socialAccounts, socialPosts, threads, identity, campaigns] =
     await Promise.all([
       getScreenprintingSalesDashboard(slug),
       listScreenprintingOrders(slug, { pageSize: 25 }),
@@ -1136,6 +1522,7 @@ export async function getScreenprintingWorkspaceSummary(slug: string) {
       listScreenprintingSocialPosts(slug),
       listScreenprintingSocialThreads(slug),
       listScreenprintingIdentityResolutions(slug),
+      listScreenprintingCampaigns(slug),
     ]);
 
   return {
@@ -1152,5 +1539,6 @@ export async function getScreenprintingWorkspaceSummary(slug: string) {
     socialPosts,
     threads,
     identity,
+    campaigns,
   };
 }

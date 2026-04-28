@@ -37,7 +37,8 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 
 - [x] Add acceptance tests that use [fixtures/screenprinting/sample-screenprinting-data.json](../fixtures/screenprinting/sample-screenprinting-data.json).
 - [ ] Add targeted tests for mapping-rule evaluation, dirty-data exclusions, reorder signal generation, alert-rule evaluation, and identity-resolution decisions.
-- [ ] Add browser/runtime verification for Screenprinting Sales and Social flows once UI routes exist.
+- [x] Add browser/runtime verification for Screenprinting Sales and Social flows once UI routes exist.
+- [ ] Add authenticated tenant-session E2E tests for Screenprinting manual social import, manual thread logging, campaign creation, alert updates, and identity-resolution approvals.
 - [ ] Convert more FraterniTees score/trend/read-model behavior into reusable primitives and package contracts.
 - [ ] Move remaining tenant-specific map filter/facet behavior into explicit registry config.
 - [ ] Generalize recurring connector sync beyond the first FraterniTees Printavo automation slice.

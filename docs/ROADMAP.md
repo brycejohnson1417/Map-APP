@@ -93,6 +93,7 @@ Definition of done:
 - [x] Printavo remains read-only
 - [x] email remains draft-only
 - [x] tenant mappings drive reporting buckets
+- [x] FraterniTees browser path uses live Printavo-backed counts and does not show fake KPI fallbacks for real saved tenants
 - [x] existing FraterniTees scoring and customer-protection views remain available
 - [x] fixture-backed checks cover mapping, tenant isolation prerequisites, migration shape, and route availability
 
@@ -108,6 +109,7 @@ Definition of done:
 
 - [x] Social dashboard, Accounts Registry, Account Detail, Posts, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist at MVP/API level
 - [x] owned and watched accounts support manual import paths, with API-backed scan represented as permission-gated fallback
+- [x] real saved tenants show real social data or explicit empty/permission states, not silent fixture rows
 - [x] comments/replies are permission-gated
 - [x] messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
 - [x] publishing is disabled by default and remains feature-gated

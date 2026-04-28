@@ -563,6 +563,46 @@
       ]
     },
     {
+      "id": "QA-002",
+      "title": "Screenprinting operational UI browser verification",
+      "status": "done",
+      "phase": "quality",
+      "priority": "P0",
+      "type": "browser-runtime-verification",
+      "dependencies": ["SALES-001", "SOCIAL-001", "IDENTITY-001"],
+      "blocking_foundation": ["SALES-001", "SOCIAL-001", "IDENTITY-001"],
+      "description": "Correct the Screenprinting UI so real tenants do not see fake KPI fallbacks, inert controls, or unlabeled demo data. Verify the FraterniTees browser path against live Printavo-backed data.",
+      "acceptance_criteria": [
+        "FraterniTees Sales dashboard shows real synced Printavo totals, revenue, AOV, customer counts, mapped status buckets, mapped payment buckets, and reorder counts.",
+        "Orders table and order detail modal use real tenant order rows and clearly withhold profitability until catalog/decorator costs are reliable.",
+        "Social dashboard shows real data or explicit empty/permission states; no demo social rows appear for real saved tenants.",
+        "Manual social import, manual thread logging, campaign planning, alert updates, comments/replies, and identity resolution are exposed as operating surfaces with API-backed or explicit disabled/error behavior.",
+        "Every visible button either calls a tenant-scoped API, opens a local workflow, copies/opens draft text, or is disabled with a reason."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify",
+        "Browser/IAB visual verification at /screenprinting?org=fraternitees"
+      ],
+      "docs_to_update": [
+        "docs/STATUS.md",
+        "docs/TODO.md",
+        "docs/tenant-types/screenprinting/SALES_MODULE.md",
+        "docs/tenant-types/screenprinting/SOCIAL_MODULE.md"
+      ],
+      "stop_conditions": [
+        "A surface needs provider write-back to appear functional.",
+        "A real tenant path would require unlabeled fixture data."
+      ],
+      "safe_defaults": [
+        "Use real tenant data or explicit unavailable states.",
+        "Keep Printavo read-only.",
+        "Keep social publishing disabled.",
+        "Label fixture/demo/manual-source rows clearly."
+      ]
+    },
+    {
       "id": "SCALE-001",
       "title": "Second Screenprinting tenant onboarding proof",
       "status": "done",

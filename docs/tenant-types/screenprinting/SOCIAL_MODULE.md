@@ -12,11 +12,21 @@ Tenant-specific differences belong in tenant workspace config, organization over
 
 - Monitoring plus calendar planning is required for MVP.
 - Publishing is not required for MVP.
+- Real saved tenants must not silently fall back to demo social accounts, posts, alerts, campaigns, or identity suggestions. Show real rows, manual-import rows, provider permission states, or explicit empty states.
+- Demo fixtures are allowed only for no-organization development paths and must be visibly labeled as demo data.
 - Comments/replies should be available for owned accounts when API permissions allow.
 - Instagram messages should be linkable to customers and organizations when API access allows; manual logging/linking must exist when API access is unavailable.
 - Tenants may track multiple owned accounts and multiple watched accounts.
 - Tenants may use API-backed import, manual import, or CSV/import workflows depending on platform access.
 - Social activity must link back to customers, organizations, opportunities, campaigns, and sales follow-up without destructive merges.
+
+## Current FraterniTees implementation state
+
+- The `/screenprinting?org=fraternitees` Social workspace shows honest zero/empty states until FraterniTees connects or manually imports social accounts, posts, messages, campaigns, or identity suggestions.
+- Manual account import, connected-account scan fallback, manual Instagram thread logging, campaign creation, alert read updates, comment/reply attempts, and identity-resolution decisions all route through tenant-scoped APIs or show explicit permission/session errors.
+- Publishing remains disabled. The content calendar is read-only and populated from synced or manually logged social posts when present.
+- Messages/comments can be manually logged and then reviewed in identity resolution for non-destructive customer/organization linking.
+- Buttons must either call a tenant-scoped API, open a local workflow, or be disabled with an explicit reason.
 
 ## Required primitives
 

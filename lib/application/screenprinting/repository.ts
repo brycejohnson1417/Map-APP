@@ -171,6 +171,15 @@ export interface ScreenprintingIdentityResolutionRow {
   updated_at: string;
 }
 
+export interface ScreenprintingSyncCursorRow {
+  scope: string;
+  status: string;
+  cursor_payload: Record<string, unknown> | null;
+  last_successful_sync_at: string | null;
+  last_attempted_sync_at: string | null;
+  last_error: string | null;
+}
+
 function isMissingTableError(error: unknown) {
   const message = error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "";
   return /does not exist|schema cache|Could not find the table|PGRST205/i.test(message);
@@ -208,6 +217,44 @@ async function maybeSingle<T>(query: PromiseLike<{ data: T | null; error: unknow
 }
 
 export class ScreenprintingRepository {
+  async countAccounts(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { count, error } = await supabase
+      .from("account")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId);
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        return 0;
+      }
+      throw error;
+    }
+    return count ?? 0;
+  }
+
+  async countOrders(organizationId: string, input: { q?: string | null } = {}) {
+    const supabase = getSupabaseAdminClient() as any;
+    let query = supabase
+      .from("order_record")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("provider", "printavo");
+
+    if (input.q?.trim()) {
+      query = query.or(`licensed_location_name.ilike.%${input.q.trim()}%,order_number.ilike.%${input.q.trim()}%`);
+    }
+
+    const { count, error } = await query;
+    if (error) {
+      if (isMissingTableError(error)) {
+        return 0;
+      }
+      throw error;
+    }
+    return count ?? 0;
+  }
+
   async listOrders(organizationId: string, input: { q?: string | null; pageSize?: number } = {}) {
     const supabase = getSupabaseAdminClient() as any;
     let query = supabase
@@ -225,6 +272,75 @@ export class ScreenprintingRepository {
     }
 
     return maybeSelect<ScreenprintingOrderRow>(query);
+  }
+
+  async listAllOrderMetricRows(organizationId: string, input: { maxRows?: number } = {}) {
+    const supabase = getSupabaseAdminClient() as any;
+    const pageSize = 1000;
+    const maxRows = Math.max(pageSize, Math.min(100_000, Math.floor(input.maxRows ?? 50_000)));
+    const total = Math.min(await this.countOrders(organizationId), maxRows);
+
+    if (total === 0) {
+      return [];
+    }
+
+    const ranges = Array.from({ length: Math.ceil(total / pageSize) }, (_, index) => {
+      const from = index * pageSize;
+      return { from, to: Math.min(from + pageSize - 1, total - 1) };
+    });
+
+    const pages = await Promise.all(
+      ranges.map(({ from, to }) =>
+        maybeSelect<ScreenprintingOrderRow>(
+        supabase
+          .from("order_record")
+          .select(
+            "id,account_id,external_order_id,order_number,licensed_location_name,status,payment_status,order_total,order_created_at,delivery_date,sales_rep_name,source_payload",
+          )
+          .eq("organization_id", organizationId)
+          .eq("provider", "printavo")
+          .order("order_created_at", { ascending: false, nullsFirst: false })
+          .range(from, to),
+      )),
+    );
+
+    return pages.flat();
+  }
+
+  async readPrintavoSyncStatus(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    const [accounts, orders, cursors] = await Promise.all([
+      this.countAccounts(organizationId),
+      this.countOrders(organizationId),
+      maybeSelect<ScreenprintingSyncCursorRow>(
+        supabase
+          .from("sync_cursor")
+          .select("scope,status,cursor_payload,last_successful_sync_at,last_attempted_sync_at,last_error")
+          .eq("organization_id", organizationId)
+          .eq("provider", "printavo")
+          .order("scope", { ascending: true }),
+      ),
+    ]);
+    const lastSuccessfulSyncAt =
+      cursors
+        .map((cursor) => cursor.last_successful_sync_at)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+    const lastAttemptedSyncAt =
+      cursors
+        .map((cursor) => cursor.last_attempted_sync_at)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+
+    return {
+      accounts,
+      orders,
+      lastSuccessfulSyncAt,
+      lastAttemptedSyncAt,
+      cursors,
+    };
   }
 
   async findOrder(organizationId: string, orderId: string) {

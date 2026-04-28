@@ -12,9 +12,19 @@ Tenant-specific differences belong in tenant workspace config, organization over
 
 - Printavo is read-only in the first implementation.
 - Email is draft-only in the first implementation.
+- Real saved tenants must never receive fake KPI fallback values. Sales screens must use tenant-scoped synced order data, persisted product data, or an explicit unavailable/empty/dirty-data state.
+- Demo fixtures are allowed only for no-organization development paths and must be visibly labeled as demo data.
 - Existing FraterniTees capabilities must remain available: Printavo onboarding/preview/sync, lead scoring, score trends, DNC risk behavior, top-customer leaderboard, account directory, account detail, map, and change requests.
 - Tenant admins decide status mappings, tag mappings, dirty-data trust, ownership, reorder rules, email templates, dashboards, and feature flags.
 - Stable internal primitives should remain generic even when the tenant-facing UI feels custom.
+
+## Current FraterniTees implementation state
+
+- The `/screenprinting?org=fraternitees` Sales workspace reads synced FraterniTees Printavo rows and currently reports live counts such as total orders, total customers, non-cancelled revenue, AOV, mapped status buckets, mapped payment buckets, manager attribution, top customers, and derived reorder signals.
+- The Orders surface shows the exact synced order count and latest rows from the tenant database, not sample rows.
+- The order detail modal shows only trusted order facts. Profitability and line-item margin are intentionally hidden as actuals until catalog/decorator cost data is stable.
+- Opportunities are persisted when available; otherwise the UI derives read-only opportunities from quoted/needs-review Printavo orders and labels that source.
+- Buttons must either call a tenant-scoped API, open a local workflow, copy/open a draft, or be disabled with an explicit reason.
 
 ## Required primitives
 

@@ -271,18 +271,43 @@ const sectionSchemas: Record<ScreenprintingConfigSection, z.ZodType> = {
 
 export const defaultScreenprintingConfig: ScreenprintingConfig = configSchema.parse({
   statusMappings: [
+    { sourceValue: "Quote", targetBucket: "quoted", trustLevel: "trusted", enabled: true, priority: 5 },
     { sourceValue: "Quote Sent", targetBucket: "quoted", trustLevel: "trusted", enabled: true, priority: 10 },
     { sourceValue: "Awaiting Approval", targetBucket: "quoted", trustLevel: "trusted", enabled: true, priority: 20 },
+    { sourceValue: "Art - Awaiting Customer Approval", targetBucket: "quoted", trustLevel: "trusted", enabled: true, priority: 25 },
     { sourceValue: "In Production", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 30 },
+    { sourceValue: "Order Placed Townsend", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 31 },
+    { sourceValue: "Order Placed Night Shift", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 32 },
+    { sourceValue: "Order Placed Make Life", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 33 },
+    { sourceValue: "Order Placed Black Rock", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 34 },
+    { sourceValue: "Order Placed Sage", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 35 },
+    { sourceValue: "Art approved", targetBucket: "in_production", trustLevel: "trusted", enabled: true, priority: 36 },
+    { sourceValue: "MAJOR RESALE ART", targetBucket: "in_production", trustLevel: "needs_review", enabled: true, priority: 37 },
+    { sourceValue: "Insta Post Scheduled", targetBucket: "in_production", trustLevel: "needs_review", enabled: true, priority: 38 },
     { sourceValue: "Job Complete", targetBucket: "completed", trustLevel: "trusted", enabled: true, priority: 40 },
+    { sourceValue: "Completed", targetBucket: "completed", trustLevel: "trusted", enabled: true, priority: 41 },
+    { sourceValue: "Shipped by Night Shift", targetBucket: "completed", trustLevel: "trusted", enabled: true, priority: 42 },
+    { sourceValue: "Job Complete: Bulk Order Picked Up", targetBucket: "completed", trustLevel: "trusted", enabled: true, priority: 43 },
     { sourceValue: "Picked Up", targetBucket: "completed", trustLevel: "trusted", enabled: true, priority: 50 },
     { sourceValue: "Cancelled", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 60 },
+    { sourceValue: "Order Canceled", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 61 },
+    { sourceValue: "Order Canceled - Not enough interest", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 62 },
+    { sourceValue: "Order Canceled - New design", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 63 },
+    { sourceValue: "Order Canceled - GHOST", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 64 },
+    { sourceValue: "Order Canceled - Other company ", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 65 },
+    { sourceValue: "Order Canceled - Event Cancelled", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 66 },
+    { sourceValue: "Order Canceled - Design REJECTED", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 67 },
+    { sourceValue: "Order Canceled - Art", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 68 },
+    { sourceValue: "POSTPONED", targetBucket: "cancelled", trustLevel: "needs_review", enabled: true, priority: 69 },
     { sourceValue: "Lost", targetBucket: "cancelled", trustLevel: "trusted", enabled: true, priority: 70 },
   ],
   paymentMappings: [
     { sourceValue: "Paid", targetBucket: "paid", trustLevel: "trusted", enabled: true, priority: 10 },
+    { sourceValue: "PAID", targetBucket: "paid", trustLevel: "trusted", enabled: true, priority: 11 },
     { sourceValue: "Partial Payment", targetBucket: "partial", trustLevel: "trusted", enabled: true, priority: 20 },
+    { sourceValue: "PARTIAL_PAYMENT", targetBucket: "partial", trustLevel: "trusted", enabled: true, priority: 21 },
     { sourceValue: "Unpaid", targetBucket: "unpaid", trustLevel: "trusted", enabled: true, priority: 30 },
+    { sourceValue: "UNPAID", targetBucket: "unpaid", trustLevel: "trusted", enabled: true, priority: 31 },
     { sourceValue: "Deposit Due", targetBucket: "unpaid", trustLevel: "needs_review", enabled: true, priority: 40 },
   ],
   tagMappings: [
@@ -711,12 +736,30 @@ export function mapStatusBucket(config: ScreenprintingConfig, status: string | n
     return "needs_review";
   }
 
+  const normalized = status.trim().toLowerCase();
   const mapping = config.statusMappings
     .filter((candidate) => candidate.enabled)
     .sort((left, right) => left.priority - right.priority)
-    .find((candidate) => candidate.sourceValue.toLowerCase() === status.toLowerCase());
+    .find((candidate) => candidate.sourceValue.toLowerCase() === normalized);
 
-  return mapping?.targetBucket ?? "needs_review";
+  if (mapping?.targetBucket) {
+    return mapping.targetBucket;
+  }
+
+  if (/\b(completed?|picked up|shipped)\b/i.test(status)) {
+    return "completed";
+  }
+  if (/\b(cancelled|canceled|lost|rejected|ghost|not enough interest|postponed)\b/i.test(status)) {
+    return "cancelled";
+  }
+  if (/\b(quote|awaiting customer approval|estimate)\b/i.test(status)) {
+    return "quoted";
+  }
+  if (/\b(in production|order placed|art approved|resale art|scheduled|link)\b/i.test(status)) {
+    return "in_production";
+  }
+
+  return "needs_review";
 }
 
 export function mapPaymentBucket(config: ScreenprintingConfig, paymentStatus: string | null | undefined) {
@@ -724,10 +767,25 @@ export function mapPaymentBucket(config: ScreenprintingConfig, paymentStatus: st
     return "needs_review";
   }
 
+  const normalized = paymentStatus.trim().toLowerCase();
   const mapping = config.paymentMappings
     .filter((candidate) => candidate.enabled)
     .sort((left, right) => left.priority - right.priority)
-    .find((candidate) => candidate.sourceValue.toLowerCase() === paymentStatus.toLowerCase());
+    .find((candidate) => candidate.sourceValue.toLowerCase() === normalized);
 
-  return mapping?.targetBucket ?? "needs_review";
+  if (mapping?.targetBucket) {
+    return mapping.targetBucket;
+  }
+
+  if (normalized === "partial_payment" || normalized.includes("partial")) {
+    return "partial";
+  }
+  if (normalized.includes("paid") && !normalized.includes("unpaid")) {
+    return "paid";
+  }
+  if (normalized.includes("unpaid") || normalized.includes("deposit")) {
+    return "unpaid";
+  }
+
+  return "needs_review";
 }
