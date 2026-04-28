@@ -20,7 +20,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md).
 | Runtime health and sync jobs | live | Supabase/runtime visibility routes exist. |
 | FraterniTees Printavo onboarding/sync | live | Read-only Printavo preview/sync and daily sync controls exist. |
 | FraterniTees lead scoring | live | Score, grade, DNC risk, score trend, and top-customer surfaces exist. |
-| Screenprinting Sales/Social workspace | live | `/screenprinting?org=fraternitees` renders real FraterniTees Printavo-backed Sales metrics, order cockpit saved views, account cleanup queues, editable opportunities, reorder snoozing, draft-only email follow-up, manager goals, social monitoring, Meta/Instagram connection readiness, draft social composition, publishing/reply capability gates, campaign planning, manual social import/thread logging, and identity review. Fixtures are not used for real saved tenants. |
+| Screenprinting Sales/Social workspace | live | `/screenprinting?org=fraternitees` renders real FraterniTees Printavo-backed Sales metrics, order cockpit saved views, account cleanup queues, editable opportunities, reorder snoozing, draft-only email follow-up, manager goals, social monitoring, visible Meta/Instagram OAuth connection, draft social composition, publishing/reply capability gates, campaign planning, manual social import/thread logging, editable account mappings, and identity review. Fixtures are not used for real saved tenants. |
 | Screenprinting API contracts | live | Additive routes exist under `/api/runtime/organizations/[slug]/screenprinting/*`; mutations require tenant-session access. |
 | Screenprinting additive data foundation | committed | Migration adds mapping, opportunity, reorder, email template, social, campaign, alert, dashboard, and identity tables with `organization_id` and RLS enabled. |
 | PICC wholesale workflows | live | Territory/accounts plus PPP savings and mock-order proposal workflows exist. |
@@ -43,7 +43,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md).
 
 - RLS is enabled on tenant tables, but committed migrations do not yet define browser/client policies. Current runtime access uses trusted server/service-role paths.
 - Tenant role enforcement for admin-only Screenprinting config mutations is still tenant-session gated until role policy is finalized.
-- Screenprinting UI now renders the requested operational Sales/Social surfaces, but deeper tenant-session E2E tests are still needed for authenticated mutations such as saved views, goals, draft social posts, manual social import, manual thread logging, campaign creation, alert updates, and identity approvals.
+- Screenprinting UI now renders the requested operational Sales/Social surfaces, including visible Instagram login and editable social account mapping fields, but deeper tenant-session E2E tests are still needed for authenticated mutations such as saved views, goals, draft social posts, manual social import, manual thread logging, campaign creation, alert updates, and identity approvals.
 - Screenprinting additive migrations have been applied to live Supabase, including the Screenprinting foundation tables and Meta provider enum.
 - Screenprinting acceptance coverage is fixture-backed, static/runtime-build verified, and browser-checked against FraterniTees live Printavo data; deeper service-level edge-case tests remain useful.
 - FraterniTees tenant-specific mapping decisions are not fully recorded; current pending decisions are tracked in [docs/tenants/fraternitees/DATA_DECISIONS.md](tenants/fraternitees/DATA_DECISIONS.md).

@@ -415,10 +415,35 @@ function dateAfterDays(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function initialModuleViewFromUrl(): ModuleView {
+  if (typeof window === "undefined") {
+    return "sales";
+  }
+  return new URLSearchParams(window.location.search).get("module") === "social" ? "social" : "sales";
+}
+
+function initialSocialViewFromUrl(): SocialView {
+  if (typeof window === "undefined") {
+    return "dashboard";
+  }
+  const value = new URLSearchParams(window.location.search).get("social");
+  return value === "accounts" ||
+    value === "account-detail" ||
+    value === "posts" ||
+    value === "alerts" ||
+    value === "calendar" ||
+    value === "conversations" ||
+    value === "campaigns" ||
+    value === "import"
+    ? value
+    : "dashboard";
+}
+
 export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: ScreenprintingWorkspaceSummary; orgSlug: string }) {
-  const [moduleView, setModuleView] = useState<ModuleView>("sales");
+  const [moduleView, setModuleView] = useState<ModuleView>(() => initialModuleViewFromUrl());
   const [salesView, setSalesView] = useState<SalesView>("dashboard");
-  const [socialView, setSocialView] = useState<SocialView>("dashboard");
+  const [socialView, setSocialView] = useState<SocialView>(() => initialSocialViewFromUrl());
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>(summary.socialAccounts.accounts);
   const [selectedSocialAccountId, setSelectedSocialAccountId] = useState(summary.socialAccounts.accounts[0]?.id ?? null);
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
@@ -499,7 +524,6 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   const syncStatus = summary.salesDashboard.printavoSyncStatus;
   const orders = summary.orders.orders;
   const savedViews = summary.orders.savedViews ?? [];
-  const socialAccounts = summary.socialAccounts.accounts;
   const socialConnection = summary.socialConnection;
   const selectedSocialAccount = socialAccounts.find((account) => account.id === selectedSocialAccountId) ?? socialAccounts[0] ?? null;
   const socialPosts = summary.socialPosts.posts;
@@ -533,6 +557,11 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   const activeOpportunities = allOpportunities.filter((opportunity) => opportunity.status !== "won").slice(0, 8);
   const reorderActions = topReorderSignals(summary);
   const unreadAlerts = alerts.filter((alert) => alert.status === "unread");
+  const socialMetrics = {
+    ...social,
+    trackedAccounts: socialAccounts.length,
+    activeAccounts: socialAccounts.filter((account) => account.status === "active").length,
+  };
 
   const apiBase = `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/screenprinting`;
 
@@ -733,6 +762,73 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
         tags: composerDraft.tags.split(",").map((item) => item.trim()).filter(Boolean),
       }),
     });
+  }
+
+  function upsertSocialAccountLocal(account: SocialAccount) {
+    setSocialAccounts((current) => {
+      const withoutAccount = current.filter((candidate) => candidate.id !== account.id);
+      return [account, ...withoutAccount].sort((left, right) => (right.lastSyncedAt ?? "").localeCompare(left.lastSyncedAt ?? ""));
+    });
+  }
+
+  async function addSocialAccount() {
+    if (!newSocialAccount.handle.trim()) {
+      setNotice({ tone: "error", message: "Social handle is required." });
+      return;
+    }
+    const payload = await runAction(
+      "Add social account",
+      `${apiBase}/social/accounts`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...newSocialAccount,
+          handle: newSocialAccount.handle.replace(/^@/, ""),
+          category: newSocialAccount.category || null,
+          priority: newSocialAccount.priority || null,
+          externalAccountId: newSocialAccount.externalAccountId || null,
+          metaPageId: newSocialAccount.metaPageId || null,
+          metaBusinessId: newSocialAccount.metaBusinessId || null,
+          profileUrl: newSocialAccount.profileUrl || null,
+          followerCount: newSocialAccount.followerCount || null,
+        }),
+      },
+      false,
+    );
+    if (payload?.socialAccount) {
+      upsertSocialAccountLocal(payload.socialAccount);
+      setSelectedSocialAccountId(payload.socialAccount.id);
+      setSocialView("account-detail");
+      setNewSocialAccount({
+        handle: "",
+        platform: "instagram",
+        ownership: "watched",
+        category: "",
+        priority: "medium",
+        externalAccountId: "",
+        metaPageId: "",
+        metaBusinessId: "",
+        profileUrl: "",
+        followerCount: "",
+      });
+      setNotice({
+        tone: "success",
+        message: `@${payload.socialAccount.handle} is now on the watchlist. Review its mapping, priority, and ownership here.`,
+      });
+    }
+  }
+
+  async function patchSocialAccount(socialAccountId: string, patch: Record<string, unknown>) {
+    const payload = await runAction(
+      "Update social account",
+      `${apiBase}/social/accounts/${socialAccountId}`,
+      { method: "PATCH", body: JSON.stringify(patch) },
+      false,
+    );
+    if (payload?.socialAccount) {
+      upsertSocialAccountLocal(payload.socialAccount);
+      setSelectedSocialAccountId(payload.socialAccount.id);
+    }
   }
 
   async function saveCustomDashboard() {
@@ -1542,10 +1638,10 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
           }
         >
           <div className="grid gap-4 md:grid-cols-4">
-            <MetricCard label="Tracked accounts" value={formatNumber(social.trackedAccounts)} sublabel={`${formatNumber(social.activeAccounts)} active`} icon={Users} />
-            <MetricCard label="Posts" value={formatNumber(social.totalPosts)} sublabel={`${formatNumber(social.newPosts)} recent`} icon={FileText} />
-            <MetricCard label="Unread alerts" value={formatNumber(social.unreadAlerts)} icon={Bell} tone="amber" />
-            <MetricCard label="Engagement" value={formatNumber(social.totalEngagement)} sublabel="Likes + comments + shares" icon={Heart} tone="green" />
+            <MetricCard label="Tracked accounts" value={formatNumber(socialMetrics.trackedAccounts)} sublabel={`${formatNumber(socialMetrics.activeAccounts)} active`} icon={Users} />
+            <MetricCard label="Posts" value={formatNumber(socialMetrics.totalPosts)} sublabel={`${formatNumber(socialMetrics.newPosts)} recent`} icon={FileText} />
+            <MetricCard label="Unread alerts" value={formatNumber(socialMetrics.unreadAlerts)} icon={Bell} tone="amber" />
+            <MetricCard label="Engagement" value={formatNumber(socialMetrics.totalEngagement)} sublabel="Likes + comments + shares" icon={Heart} tone="green" />
           </div>
         </Section>
         <MetaConnectionPanel connection={socialConnection} orgSlug={orgSlug} />
@@ -1601,7 +1697,16 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
       return matchesQuery && matchesPlatform && matchesCategory && matchesOwnership && matchesStatus;
     });
     return (
-      <Section title="Tracked Accounts" description="Owned accounts can publish or reply after Meta authorization; watched accounts are monitored and mapped to customers or organizations." actions={<Button icon={Plus} onClick={() => setSocialView("import")}>Add account</Button>}>
+      <Section
+        title="Tracked Accounts"
+        description="Owned accounts can publish or reply after Meta authorization; watched accounts are monitored and mapped to customers or organizations."
+        actions={
+          <>
+            <Button icon={Instagram} variant="primary" onClick={() => { window.location.href = `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/connectors/meta/oauth/start?mode=${encodeURIComponent(socialConnection.preferredMode)}`; }}>Connect Instagram</Button>
+            <Button icon={Plus} onClick={() => setSocialView("import")}>Add account</Button>
+          </>
+        }
+      >
         <div className="mb-4 grid gap-3 xl:grid-cols-[1.4fr_repeat(4,minmax(150px,1fr))]">
           <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-blue-500">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -1718,7 +1823,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
               <div className="mt-3 grid gap-3 text-sm">
                 <label className="grid gap-1">
                   <span className="font-semibold text-slate-500">Category</span>
-                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.category ?? ""} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ category: event.target.value || null }) })}>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.category ?? ""} onChange={(event) => patchSocialAccount(selectedSocialAccount.id, { category: event.target.value || null })}>
                     <option value="">Unmapped</option>
                     <option value="partner">Partner</option>
                     <option value="athlete">Athlete</option>
@@ -1730,7 +1835,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </label>
                 <label className="grid gap-1">
                   <span className="font-semibold text-slate-500">Priority</span>
-                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.priority ?? ""} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ priority: event.target.value || null }) })}>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.priority ?? ""} onChange={(event) => patchSocialAccount(selectedSocialAccount.id, { priority: event.target.value || null })}>
                     <option value="">Unscored</option>
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
@@ -1739,14 +1844,57 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </label>
                 <label className="grid gap-1">
                   <span className="font-semibold text-slate-500">Ownership</span>
-                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.ownership} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ ownership: event.target.value }) })}>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.ownership} onChange={(event) => patchSocialAccount(selectedSocialAccount.id, { ownership: event.target.value })}>
                     <option value="owned">Owned</option>
                     <option value="watched">Watched</option>
                     <option value="tracked">Tracked</option>
                   </select>
                 </label>
-                <div className="flex justify-between gap-3"><span className="text-slate-500">School/org key</span><span className="font-semibold text-slate-800">{selectedSocialAccount.schoolOrOrgKey ?? "Unmapped"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-500">Customer link</span><span className="font-semibold text-slate-800">{selectedSocialAccount.accountId ? "Linked" : "Not linked"}</span></div>
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">School/org key</span>
+                  <input
+                    className="rounded-md border border-slate-200 px-3 py-2"
+                    defaultValue={selectedSocialAccount.schoolOrOrgKey ?? ""}
+                    placeholder="illinois, alpha-phi, local-business"
+                    onBlur={(event) => {
+                      const value = event.target.value.trim();
+                      if (value !== (selectedSocialAccount.schoolOrOrgKey ?? "")) {
+                        void patchSocialAccount(selectedSocialAccount.id, { schoolOrOrgKey: value || null });
+                      }
+                    }}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">Customer/account ID</span>
+                  <input
+                    className="rounded-md border border-slate-200 px-3 py-2"
+                    defaultValue={selectedSocialAccount.accountId ?? ""}
+                    placeholder="Paste linked customer/account UUID"
+                    onBlur={(event) => {
+                      const value = event.target.value.trim();
+                      if (value !== (selectedSocialAccount.accountId ?? "")) {
+                        void patchSocialAccount(selectedSocialAccount.id, { accountId: value || null });
+                      }
+                    }}
+                  />
+                </label>
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">Contact ID</span>
+                  <input
+                    className="rounded-md border border-slate-200 px-3 py-2"
+                    defaultValue={selectedSocialAccount.contactId ?? ""}
+                    placeholder="Optional linked contact UUID"
+                    onBlur={(event) => {
+                      const value = event.target.value.trim();
+                      if (value !== (selectedSocialAccount.contactId ?? "")) {
+                        void patchSocialAccount(selectedSocialAccount.id, { contactId: value || null });
+                      }
+                    }}
+                  />
+                </label>
+                <p className="rounded-md bg-blue-50 p-3 text-xs leading-5 text-blue-900">
+                  These links are non-destructive. Changing them updates this social account row only; it does not merge customers, contacts, or organizations.
+                </p>
               </div>
             </div>
           </div>
@@ -2045,24 +2193,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             className="rounded-lg border border-slate-200 bg-slate-50 p-4"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!newSocialAccount.handle.trim()) {
-                setNotice({ tone: "error", message: "Social handle is required." });
-                return;
-              }
-              runAction("Add social account", `${apiBase}/social/accounts`, {
-                method: "POST",
-                body: JSON.stringify({
-                  ...newSocialAccount,
-                  handle: newSocialAccount.handle.replace(/^@/, ""),
-                  category: newSocialAccount.category || null,
-                  priority: newSocialAccount.priority || null,
-                  externalAccountId: newSocialAccount.externalAccountId || null,
-                  metaPageId: newSocialAccount.metaPageId || null,
-                  metaBusinessId: newSocialAccount.metaBusinessId || null,
-                  profileUrl: newSocialAccount.profileUrl || null,
-                  followerCount: newSocialAccount.followerCount || null,
-                }),
-              });
+              void addSocialAccount();
             }}
           >
             <h3 className="font-semibold text-slate-950">Watchlist or owned account import</h3>
@@ -2095,7 +2226,10 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-950">Connected account scan</h3>
             <p className="mt-2 text-sm leading-6 text-slate-500">Scan uses the tenant's Meta connector when a token and required scopes are present. Watched-account API enrichment is kept separate from owned-account discovery because Meta limits arbitrary public profile access.</p>
-            <Button icon={Instagram} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Scan Meta accounts</Button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button icon={Instagram} variant="primary" onClick={() => { window.location.href = `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/connectors/meta/oauth/start?mode=${encodeURIComponent(socialConnection.preferredMode)}`; }}>Connect Instagram</Button>
+              <Button icon={RefreshCw} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Scan Meta accounts</Button>
+            </div>
           </div>
         </div>
       </Section>
@@ -2501,7 +2635,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
           <div className="flex flex-wrap gap-2">
             <Button active={moduleView === "sales"} icon={BarChart3} onClick={() => setModuleView("sales")}>Today & sales</Button>
             <Button active={moduleView === "social"} icon={MessageSquare} onClick={() => setModuleView("social")}>Social signals</Button>
-            <Button active={moduleView === "admin"} icon={Settings2} onClick={() => setModuleView("admin")}>Admin</Button>
+            <Button active={moduleView === "admin"} icon={Settings2} onClick={() => setModuleView("admin")}>Settings & mappings</Button>
           </div>
         </header>
 
@@ -2549,8 +2683,8 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 {moduleView === "sales" ? <BarChart3 className="h-5 w-5" /> : moduleView === "social" ? <MessageSquare className="h-5 w-5" /> : <Settings2 className="h-5 w-5" />}
               </span>
               <div>
-                <p className="font-semibold text-slate-950">{moduleView === "sales" ? "Today" : moduleView === "social" ? "Signals" : "Admin"}</p>
-                <p className="text-sm text-slate-500">{moduleView === "sales" ? "Work queue" : moduleView === "social" ? "Watchlist monitor" : "Tenant controls"}</p>
+                <p className="font-semibold text-slate-950">{moduleView === "sales" ? "Today" : moduleView === "social" ? "Signals" : "Settings"}</p>
+                <p className="text-sm text-slate-500">{moduleView === "sales" ? "Work queue" : moduleView === "social" ? "Watchlist monitor" : "Mappings and tenant controls"}</p>
               </div>
             </div>
             <nav className="space-y-1">
@@ -2757,7 +2891,12 @@ function MetaConnectionPanel({ connection, orgSlug }: { connection: Screenprinti
     <Section
       title="Meta / Instagram connection"
       description={`${activeMode?.label ?? "Meta Graph"} uses ${activeMode?.hostUrl ?? "Graph API"} with ${activeMode?.tokenType ?? "access tokens"}. Watched accounts can be added now; API enrichment depends on Meta-permitted professional account data and owned-account interactions.`}
-      actions={<Button icon={Settings2} onClick={() => { window.location.href = `/integrations?org=${encodeURIComponent(orgSlug)}`; }}>Connector setup</Button>}
+      actions={
+        <>
+          <Button icon={Instagram} variant="primary" onClick={() => { window.location.href = `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/connectors/meta/oauth/start?mode=${encodeURIComponent(connection.preferredMode)}`; }}>Connect Instagram</Button>
+          <Button icon={Settings2} onClick={() => { window.location.href = `/integrations?org=${encodeURIComponent(orgSlug)}`; }}>Settings</Button>
+        </>
+      }
     >
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">

@@ -331,6 +331,43 @@ Errors:
 - `403` for guided-only connectors
 - `404` for missing organization
 
+### `GET /api/runtime/organizations/[slug]/connectors/meta/oauth/start`
+
+Purpose: start tenant-facing Meta/Instagram OAuth for owned Instagram account connection.
+
+Auth: tenant-session required.
+
+Query:
+
+```text
+mode=instagram_business_login | facebook_login_business
+```
+
+Behavior:
+
+- Resolves tenant Meta connector settings and server env fallbacks.
+- Redirects to Instagram Login for `instagram_business_login`.
+- Redirects to Facebook Login for Business for `facebook_login_business`.
+- Returns to the callback route with signed tenant state.
+
+Errors redirect back to `/integrations?org=<slug>&meta_oauth_error=<message>` when app credentials or tenant state are missing.
+
+### `GET /api/runtime/organizations/[slug]/connectors/meta/oauth/callback`
+
+Purpose: complete Meta/Instagram OAuth, store encrypted token, and attempt owned-account discovery.
+
+Auth: signed OAuth state; tenant session is normally present from the start route.
+
+Behavior:
+
+- Exchanges OAuth code for an access token using the selected Meta mode.
+- Stores token and app secret in `integration_secret`.
+- Updates the `meta` integration config with auth mode, Graph API version, scopes, and OAuth status.
+- Runs owned-account scan when required scopes permit it.
+- Redirects to `/screenprinting?org=<slug>&module=social&social=accounts`.
+
+Errors redirect back to `/integrations?org=<slug>&meta_oauth_error=<message>`.
+
 ### `GET /api/runtime/organizations/[slug]/plugins`
 
 Purpose: read tenant plugin capability settings.

@@ -45,6 +45,11 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     }
   }
 
+  const existingIntegration = await integrations.findByProvider(workspace.organization.id, connector.provider).catch(() => null);
+  const existingSecretFieldKeys = Array.isArray(existingIntegration?.config?.secretFieldKeys)
+    ? existingIntegration.config.secretFieldKeys.filter((key): key is string => typeof key === "string")
+    : [];
+
   const config: Record<string, unknown> = {
     savedByEmail: sessionEmail,
     selfServeConfiguredAt: new Date().toISOString(),
@@ -66,7 +71,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       (config.fields as Record<string, string>)[field.key] = value;
     }
   }
-  config.secretFieldKeys = secretFieldKeys;
+  config.secretFieldKeys =
+    connector.provider === "meta" ? Array.from(new Set([...existingSecretFieldKeys, ...secretFieldKeys])) : secretFieldKeys;
 
   const integrationSecrets =
     connector.provider === "printavo" &&
@@ -78,8 +84,13 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
             apiKey: String(secrets.apiKey),
           },
         }
-      : connector.provider === "meta" && typeof secrets.accessToken === "string"
-        ? { accessToken: String(secrets.accessToken) }
+      : connector.provider === "meta" && Object.keys(secrets).length
+        ? Object.fromEntries(
+            Object.entries(secrets).map(([key, value]) => [
+              key,
+              String(value),
+            ]),
+          )
       : Object.keys(secrets).length
         ? { selfServeForm: secrets }
         : undefined;

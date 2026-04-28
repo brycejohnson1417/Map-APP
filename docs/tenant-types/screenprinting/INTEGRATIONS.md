@@ -41,12 +41,20 @@ Tenant-specific configuration:
 
 ## Instagram and Meta
 
-Mode: Meta Graph-ready with feature-gated write actions.
+Mode: tenant-facing OAuth plus Meta Graph-ready feature-gated write actions.
 
 Supported connection paths:
 
 - Business Login for Instagram on `graph.instagram.com` for directly connected Instagram professional accounts.
 - Facebook Login for Business on `graph.facebook.com` for Instagram Business/Creator accounts linked through Meta Business Suite Pages.
+
+Tenant setup paths:
+
+- `/integrations?org=<slug>` shows a first-class Instagram and Meta Business Suite card.
+- Tenants can save app ID, app secret, Graph API version, business ID, requested scopes, and a manual long-lived-token fallback from the UI.
+- `Connect Instagram` starts OAuth at `/api/runtime/organizations/[slug]/connectors/meta/oauth/start?mode=instagram_business_login`.
+- `Connect Meta Business` starts OAuth at `/api/runtime/organizations/[slug]/connectors/meta/oauth/start?mode=facebook_login_business`.
+- OAuth callback stores the access token in the encrypted integration vault, records granted scopes/config, and attempts owned-account discovery.
 
 Pull where permitted:
 
@@ -131,5 +139,6 @@ Examples may include S&S Activewear, AlphaBroder, SanMar, or tenant-specific ven
 - `OrderingPlatformAdapter`, `SocialPlatformAdapter`, and a future `CatalogAdapter` stub are defined in `lib/application/screenprinting/adapters.ts`.
 - Printavo preview and sync use `lib/infrastructure/adapters/printavo/ordering-adapter.ts`, which wraps the existing read-only Printavo client.
 - Manual social fallback uses `lib/infrastructure/adapters/social/manual-social-adapter.ts` and fixture-backed owned/watched account data.
-- Meta readiness and action boundaries use `lib/infrastructure/adapters/social/meta-instagram-adapter.ts`.
+- Meta readiness, OAuth URL/token exchange, owned-account discovery, and action boundaries use `lib/infrastructure/adapters/social/meta-instagram-adapter.ts`.
+- FraterniTees and Screenprinting Social surfaces now expose `Connect Instagram` directly instead of hiding Meta behind a generic token field.
 - Live social write routes are available but permission-gated by connector state, scopes, owned-account IDs, and tenant feature flags.

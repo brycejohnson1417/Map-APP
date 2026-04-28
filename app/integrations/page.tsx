@@ -20,6 +20,8 @@ interface IntegrationsPageProps {
 export default async function IntegrationsPage({ searchParams }: IntegrationsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
+  const metaOauthError =
+    typeof resolvedSearchParams.meta_oauth_error === "string" ? resolvedSearchParams.meta_oauth_error : null;
   const workspace = await getWorkspaceExperienceBySlug(orgSlug);
   const sessionEmail = await getTenantSessionEmailForSlug(orgSlug);
 
@@ -57,6 +59,7 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
           }))}
           pluginSettings={resolveTenantPluginSettings(snapshot.organization.slug, snapshot.organization.settings)}
           autoSyncSettings={resolvePrintavoAutoSyncSettings(snapshot.organization.settings)}
+          setupError={metaOauthError}
         />
       </AppFrame>
     );

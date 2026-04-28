@@ -1571,6 +1571,37 @@ export async function createScreenprintingSocialAccount(slug: string, input: Rec
     entityId: socialAccount.id,
     payload: { operation: "manual_created", providerWriteBack: false },
   });
+  await repository.createAlert(organization.id, {
+    module: "social",
+    eventType: socialAccount.ownership === "owned" ? "owned_account_added" : "watched_account_added",
+    title: socialAccount.ownership === "owned" ? `Owned Instagram account added: @${socialAccount.handle}` : `Watchlist account added: @${socialAccount.handle}`,
+    body:
+      socialAccount.ownership === "owned"
+        ? "Review account IDs, category, priority, and Meta connection before using live publishing or replies."
+        : "Review category, priority, and customer/organization mapping before acting on this watched account.",
+    severity: socialAccount.priority === "high" ? "high" : "medium",
+    socialAccountId: socialAccount.id,
+    dedupeKey: `social_account_added:${organization.id}:${socialAccount.id}`,
+    metadata: {
+      handle: socialAccount.handle,
+      platform: socialAccount.platform,
+      ownership: socialAccount.ownership,
+      category: socialAccount.category,
+      priority: socialAccount.priority,
+    },
+  });
+  await recordScreenprintingActivity({
+    organizationId: organization.id,
+    activityType: "screenprinting_social_account_added",
+    summary: `Added @${socialAccount.handle} as a ${socialAccount.ownership} social account.`,
+    metadata: {
+      socialAccountId: socialAccount.id,
+      handle: socialAccount.handle,
+      platform: socialAccount.platform,
+      ownership: socialAccount.ownership,
+      providerWriteBack: false,
+    },
+  });
   return socialAccount;
 }
 

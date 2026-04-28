@@ -108,10 +108,10 @@ Status: MVP complete
 Definition of done:
 
 - [x] Social dashboard, Accounts Registry/taxonomy, Account Detail, Posts, draft-only composer, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist at MVP/API level
-- [x] owned and watched accounts support manual import paths, with Meta-owned account scan available after token and scope authorization
+- [x] owned and watched accounts support manual import paths, with visible Meta/Instagram OAuth and Meta-owned account scan available after token and scope authorization
 - [x] real saved tenants show real social data or explicit empty/permission states, not silent fixture rows
 - [x] comments/replies are permission-gated
-- [x] messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
+- [x] messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns; social account rows expose editable non-destructive mapping fields
 - [x] publishing is disabled by default for generic tenants and remains feature-gated through owned-account Meta authorization
 - [x] fixture-backed checks cover alert route availability and identity link prerequisites
 

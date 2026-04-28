@@ -308,7 +308,7 @@ export class ScreenprintingRepository {
         supabase
           .from("order_record")
           .select(
-            "id,account_id,external_order_id,order_number,licensed_location_name,status,payment_status,order_total,order_created_at,delivery_date,sales_rep_name,source_payload",
+            "id,account_id,external_order_id,order_number,licensed_location_name,status,payment_status,order_total,order_created_at,delivery_date,sales_rep_name",
           )
           .eq("organization_id", organizationId)
           .eq("provider", "printavo")
@@ -732,6 +732,37 @@ export class ScreenprintingRepository {
         .order("created_at", { ascending: false })
         .limit(300),
     );
+  }
+
+  async createAlert(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("alert_instance")
+      .insert({
+        organization_id: organizationId,
+        alert_rule_id: input.alertRuleId ?? null,
+        module: input.module ?? "social",
+        event_type: input.eventType ?? "manual_review",
+        title: input.title,
+        body: input.body ?? null,
+        severity: input.severity ?? "medium",
+        status: input.status ?? "unread",
+        owner_member_id: input.ownerMemberId ?? null,
+        account_id: input.accountId ?? null,
+        opportunity_id: input.opportunityId ?? null,
+        social_account_id: input.socialAccountId ?? null,
+        social_post_id: input.socialPostId ?? null,
+        dedupe_key: input.dedupeKey ?? null,
+        metadata: input.metadata ?? {},
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingAlertRow;
   }
 
   async updateAlert(organizationId: string, alertId: string, input: Record<string, unknown>) {

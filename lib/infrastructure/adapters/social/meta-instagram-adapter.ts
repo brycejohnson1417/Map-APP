@@ -6,6 +6,9 @@ import type {
 import type { IntegrationInstallation } from "@/lib/domain/runtime";
 
 const DEFAULT_META_GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION ?? "v24.0";
+const INSTAGRAM_OAUTH_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize";
+const INSTAGRAM_OAUTH_TOKEN_URL = "https://api.instagram.com/oauth/access_token";
+const INSTAGRAM_LONG_LIVED_TOKEN_URL = "https://graph.instagram.com/access_token";
 
 const WEBHOOK_TOPICS = ["comments", "live_comments", "mentions", "messages", "messaging_seen", "message_reactions"];
 
@@ -189,7 +192,7 @@ export const metaInstagramConnectionModes: SocialConnectionModeState[] = [
   },
 ];
 
-type MetaGraphMode = SocialConnectionModeState["key"];
+export type MetaGraphMode = SocialConnectionModeState["key"];
 
 export class MetaInstagramApiError extends Error {
   status: number;
@@ -211,6 +214,147 @@ export interface MetaInstagramDiscoveredAccount {
   followerCount: number | null;
   profileUrl: string | null;
   metadata: Record<string, unknown>;
+}
+
+export function normalizeMetaGraphMode(value: unknown): MetaGraphMode {
+  return value === "facebook_login_business" ? "facebook_login_business" : "instagram_business_login";
+}
+
+export function scopesForMetaMode(mode: MetaGraphMode, includeOptional = true) {
+  const connectionMode = metaInstagramConnectionModes.find((candidate) => candidate.key === mode) ?? metaInstagramConnectionModes[0];
+  return [
+    ...connectionMode.requiredScopes.map((scope) => scope.scope),
+    ...(includeOptional ? connectionMode.optionalScopes.map((scope) => scope.scope) : []),
+  ];
+}
+
+export function buildMetaOAuthAuthorizationUrl(input: {
+  mode: MetaGraphMode;
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  scopes?: string[];
+  apiVersion?: string;
+}) {
+  const scopes = input.scopes?.length ? input.scopes : scopesForMetaMode(input.mode);
+  const authorizationUrl =
+    input.mode === "facebook_login_business"
+      ? new URL(`https://www.facebook.com/${input.apiVersion ?? DEFAULT_META_GRAPH_API_VERSION}/dialog/oauth`)
+      : new URL(INSTAGRAM_OAUTH_AUTHORIZE_URL);
+  authorizationUrl.searchParams.set("client_id", input.clientId);
+  authorizationUrl.searchParams.set("redirect_uri", input.redirectUri);
+  authorizationUrl.searchParams.set("response_type", "code");
+  authorizationUrl.searchParams.set("scope", scopes.join(","));
+  authorizationUrl.searchParams.set("state", input.state);
+  if (input.mode === "facebook_login_business") {
+    authorizationUrl.searchParams.set("auth_type", "rerequest");
+  }
+  return authorizationUrl.toString();
+}
+
+export interface MetaOAuthExchangeResult {
+  accessToken: string;
+  tokenType: string | null;
+  expiresIn: number | null;
+  longLived: boolean;
+  userId: string | null;
+  grantedScopes: string[];
+  raw: Record<string, unknown>;
+}
+
+async function parseOAuthResponse(response: Response) {
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && "error" in payload
+      ? JSON.stringify((payload as { error?: unknown }).error)
+      : `Meta OAuth request failed with ${response.status}`;
+    throw new MetaInstagramApiError(message, response.status, payload);
+  }
+  return recordValue(payload);
+}
+
+function tokenFromPayload(payload: Record<string, unknown>) {
+  return typeof payload.access_token === "string" && payload.access_token.trim() ? payload.access_token.trim() : null;
+}
+
+export async function exchangeMetaOAuthCode(input: {
+  mode: MetaGraphMode;
+  apiVersion: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  code: string;
+}) {
+  if (input.mode === "facebook_login_business") {
+    const url = new URL(`https://graph.facebook.com/${input.apiVersion}/oauth/access_token`);
+    url.searchParams.set("client_id", input.clientId);
+    url.searchParams.set("client_secret", input.clientSecret);
+    url.searchParams.set("redirect_uri", input.redirectUri);
+    url.searchParams.set("code", input.code);
+    const shortLived = await parseOAuthResponse(await fetch(url));
+    const shortToken = tokenFromPayload(shortLived);
+    if (!shortToken) {
+      throw new MetaInstagramApiError("Meta OAuth response did not include an access token.", 502, shortLived);
+    }
+
+    const exchangeUrl = new URL(`https://graph.facebook.com/${input.apiVersion}/oauth/access_token`);
+    exchangeUrl.searchParams.set("grant_type", "fb_exchange_token");
+    exchangeUrl.searchParams.set("client_id", input.clientId);
+    exchangeUrl.searchParams.set("client_secret", input.clientSecret);
+    exchangeUrl.searchParams.set("fb_exchange_token", shortToken);
+    const longLived = await parseOAuthResponse(await fetch(exchangeUrl)).catch(() => null);
+    const payload = longLived && tokenFromPayload(longLived) ? longLived : shortLived;
+    const accessToken = tokenFromPayload(payload);
+    if (!accessToken) {
+      throw new MetaInstagramApiError("Meta OAuth token exchange did not include an access token.", 502, payload);
+    }
+    return {
+      accessToken,
+      tokenType: typeof payload.token_type === "string" ? payload.token_type : null,
+      expiresIn: numberValue(payload.expires_in),
+      longLived: payload === longLived,
+      userId: null,
+      grantedScopes: scopesForMetaMode(input.mode),
+      raw: payload,
+    } satisfies MetaOAuthExchangeResult;
+  }
+
+  const form = new URLSearchParams();
+  form.set("client_id", input.clientId);
+  form.set("client_secret", input.clientSecret);
+  form.set("grant_type", "authorization_code");
+  form.set("redirect_uri", input.redirectUri);
+  form.set("code", input.code);
+  const shortLived = await parseOAuthResponse(
+    await fetch(INSTAGRAM_OAUTH_TOKEN_URL, {
+      method: "POST",
+      body: form,
+    }),
+  );
+  const shortToken = tokenFromPayload(shortLived);
+  if (!shortToken) {
+    throw new MetaInstagramApiError("Instagram OAuth response did not include an access token.", 502, shortLived);
+  }
+
+  const exchangeUrl = new URL(INSTAGRAM_LONG_LIVED_TOKEN_URL);
+  exchangeUrl.searchParams.set("grant_type", "ig_exchange_token");
+  exchangeUrl.searchParams.set("client_secret", input.clientSecret);
+  exchangeUrl.searchParams.set("access_token", shortToken);
+  const longLived = await parseOAuthResponse(await fetch(exchangeUrl)).catch(() => null);
+  const payload = longLived && tokenFromPayload(longLived) ? longLived : shortLived;
+  const accessToken = tokenFromPayload(payload);
+  if (!accessToken) {
+    throw new MetaInstagramApiError("Instagram OAuth token exchange did not include an access token.", 502, payload);
+  }
+  return {
+    accessToken,
+    tokenType: typeof payload.token_type === "string" ? payload.token_type : null,
+    expiresIn: numberValue(payload.expires_in),
+    longLived: payload === longLived,
+    userId: stringValue(shortLived.user_id) ?? stringValue(payload.user_id),
+    grantedScopes: scopesForMetaMode(input.mode),
+    raw: payload,
+  } satisfies MetaOAuthExchangeResult;
 }
 
 function hostForMode(mode: MetaGraphMode) {
