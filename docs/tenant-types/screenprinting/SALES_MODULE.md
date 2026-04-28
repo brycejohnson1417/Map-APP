@@ -21,9 +21,11 @@ Tenant-specific differences belong in tenant workspace config, organization over
 ## Current FraterniTees implementation state
 
 - The `/screenprinting?org=fraternitees` Sales workspace reads synced FraterniTees Printavo rows and currently reports live counts such as total orders, total customers, non-cancelled revenue, AOV, mapped status buckets, mapped payment buckets, manager attribution, top customers, and derived reorder signals.
-- The Orders surface shows the exact synced order count and latest rows from the tenant database, not sample rows.
-- The order detail modal shows only trusted order facts. Profitability and line-item margin are intentionally hidden as actuals until catalog/decorator cost data is stable.
-- Opportunities are persisted when available; otherwise the UI derives read-only opportunities from quoted/needs-review Printavo orders and labels that source.
+- The Orders surface shows the exact synced order count, cockpit filters, persisted saved views, and latest rows from the tenant database, not sample rows.
+- The order detail modal shows trusted order facts plus a needs-review profitability worksheet. It does not present estimated margin as synced actual cost.
+- Opportunities can be created and updated in product-owned storage; derived Printavo opportunities remain labeled read-only until persisted.
+- Reorder signals support draft email outreach, manual marked-sent audit activity, snoozing, and add-to-opportunity actions.
+- Manager goals, order saved views, and custom dashboards persist through tenant-scoped `dashboard_definition` rows.
 - Buttons must either call a tenant-scoped API, open a local workflow, copy/open a draft, or be disabled with an explicit reason.
 
 ## Required primitives
@@ -673,7 +675,7 @@ Before saving risky mapping changes, show:
 
 ## Future adapter boundary: catalog costs and profitability
 
-Profitability is not required until the order/customer foundation is stable. The data model and services should leave room for future catalog adapters.
+Authoritative profitability reporting is not required until the order/customer foundation is stable. The current UI includes an operator worksheet for needs-review margin estimates only. The data model and services should leave room for future catalog adapters.
 
 Future catalog adapter contract:
 
@@ -695,9 +697,12 @@ The current Sales MVP is implemented through:
 - `/api/runtime/organizations/[slug]/screenprinting/sales/dashboard`
 - `/api/runtime/organizations/[slug]/screenprinting/sales/orders`
 - `/api/runtime/organizations/[slug]/screenprinting/sales/orders/[orderId]`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/saved-views`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/manager-goals`
 - `/api/runtime/organizations/[slug]/screenprinting/sales/opportunities`
 - `/api/runtime/organizations/[slug]/screenprinting/sales/reorders`
 - `/api/runtime/organizations/[slug]/screenprinting/sales/email-drafts`
+- `/api/runtime/organizations/[slug]/screenprinting/dashboards`
 
 Printavo remains read-only, email remains draft-only, and tenant mappings drive status/payment reporting buckets.
 

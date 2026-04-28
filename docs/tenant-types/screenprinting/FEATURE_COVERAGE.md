@@ -41,9 +41,9 @@ No meaningful capability in this list should be silently dropped. If a capabilit
 | Snooze reorder | yes | yes | Tenant-defined snooze reasons and dates. |
 | Draft follow-up email | yes | yes | Draft-only, editable templates, copy/open email client, mark sent manually. |
 | Email templates by type | yes | yes | Reorder, quote follow-up, lost customer, stalled opportunity, social lead, custom. |
-| Goals | staged | yes | Sales, order, online store, repeat-order, or tenant-defined goals. |
-| Dashboard builder | staged | yes | Start with configurable widgets and saved views; expand to full custom builder. |
-| Profitability | future | yes | Requires stable line item and catalog adapter foundation first. |
+| Goals | live MVP | yes | Monthly manager revenue/order/store goals save in product-owned tenant storage. |
+| Dashboard builder | live MVP | yes | Order saved views and widget-library dashboards persist through `dashboard_definition`; drag/drop layout remains future. |
+| Profitability | staged | yes | Needs-review order worksheet exists; authoritative line-item/cost reporting requires the catalog adapter foundation. |
 | Vendor catalog costs | future | yes | Adapter boundary for S&S, AlphaBroder, SanMar, or tenant feeds. |
 
 ## Social coverage checklist
@@ -70,7 +70,7 @@ No meaningful capability in this list should be silently dropped. If a capabilit
 | Message/thread mapping | yes where available | yes | API-backed when possible, manual logging fallback otherwise. |
 | Manual social activity log | yes | yes | Allows linking messages/comments when API coverage is incomplete. |
 | Social-to-sales linkage | yes | yes | Social account, post, thread, campaign, or alert can link to account/opportunity/reorder. |
-| Publishing | future | yes | Behind feature flag, permission-gated, audited. Not required for MVP. |
+| Publishing | live gated | yes | Available through owned-account Meta authorization when the tenant feature flag, token, scopes, public media URL, and audit path are present. |
 | Multi-platform watchlist | staged | yes | Instagram first; add X/TikTok/etc through API or manual import as feasible. |
 
 ## Admin configuration coverage checklist
@@ -121,7 +121,7 @@ A Screenprinting implementation is not complete unless:
 - the tenant can configure actionable alerts
 - the tenant can configure draft email templates
 - the tenant can use sales/order/customer/reorder surfaces without Printavo write-back
-- the tenant can use social monitoring/calendar/campaign surfaces without live publishing
+- the tenant can use social monitoring/calendar/campaign surfaces with live publishing gated by owned-account authorization
 - customer/org/social identities can be linked non-destructively
 - dashboards and saved views are tenant-scoped and configurable
 - all tenant type and tenant-specific docs are updated
@@ -136,7 +136,7 @@ The current implementation covers the Screenprinting foundation and MVP surfaces
 - Product-owned writes remain tenant-scoped and require tenant-session access.
 - Printavo remains read-only.
 - Email remains draft-only.
-- Social publishing remains disabled unless a future tenant explicitly enables it.
+- Social publishing, comment replies, and message replies are feature-gated provider write-backs. FraterniTees enables the product flags, but live Meta actions still require connector token, scopes, and owned account IDs.
 - Second tenant proof is committed as `tenants/second-screenprinter/workspace.json`.
 
 Deferred beyond MVP: profitability, catalog cost reporting, art workflow, warehouse workflow, and broader package/topology extraction.

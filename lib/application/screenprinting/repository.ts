@@ -171,6 +171,19 @@ export interface ScreenprintingIdentityResolutionRow {
   updated_at: string;
 }
 
+export interface ScreenprintingDashboardDefinitionRow {
+  id: string;
+  organization_id: string;
+  dashboard_key: string;
+  name: string;
+  module: string;
+  role_scope: string[];
+  definition: Record<string, unknown>;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ScreenprintingSyncCursorRow {
   scope: string;
   status: string;
@@ -492,13 +505,18 @@ export class ScreenprintingRepository {
         platform: input.platform,
         handle: String(input.handle ?? "").replace(/^@/, ""),
         display_name: input.displayName ?? null,
+        external_account_id: input.externalAccountId ?? null,
         ownership: input.ownership ?? "watched",
-        source: "manual",
+        source: input.source ?? "manual",
         category: input.category ?? null,
         priority: input.priority ?? null,
         status: input.status ?? "active",
         account_id: input.accountId ?? null,
         contact_id: input.contactId ?? null,
+        school_or_org_key: input.schoolOrOrgKey ?? null,
+        profile_url: input.profileUrl ?? null,
+        follower_count: toNumber(input.followerCount as number | string | null | undefined),
+        last_synced_at: input.lastSyncedAt ?? null,
         metadata: input.metadata ?? {},
       })
       .select("*")
@@ -519,11 +537,19 @@ export class ScreenprintingRepository {
       ["priority", "priority"],
       ["ownership", "ownership"],
       ["status", "status"],
+      ["source", "source"],
+      ["displayName", "display_name"],
       ["accountId", "account_id"],
       ["contactId", "contact_id"],
+      ["externalAccountId", "external_account_id"],
+      ["schoolOrOrgKey", "school_or_org_key"],
+      ["profileUrl", "profile_url"],
+      ["followerCount", "follower_count"],
+      ["lastSyncedAt", "last_synced_at"],
+      ["metadata", "metadata"],
     ]) {
       if (inputKey in input) {
-        patch[column] = input[inputKey];
+        patch[column] = column === "follower_count" ? toNumber(input[inputKey] as number | string | null | undefined) : input[inputKey];
       }
     }
     const { data, error } = await supabase
@@ -573,15 +599,19 @@ export class ScreenprintingRepository {
         organization_id: organizationId,
         platform: input.platform ?? "instagram",
         thread_type: input.threadType ?? "manual",
+        social_account_id: input.socialAccountId ?? null,
+        social_post_id: input.socialPostId ?? null,
+        external_thread_id: input.externalThreadId ?? null,
         participant_handle: input.participantHandle ?? null,
         account_id: input.accountId ?? null,
         contact_id: input.contactId ?? null,
         opportunity_id: input.opportunityId ?? null,
-        status: "needs_review",
+        status: input.status ?? "needs_review",
         last_message_at: new Date().toISOString(),
         metadata: {
+          ...(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? input.metadata : {}),
           summary: input.summary ?? null,
-          source: "manual",
+          source: input.source ?? "manual",
         },
       })
       .select("*")
@@ -592,6 +622,68 @@ export class ScreenprintingRepository {
     }
 
     return data as ScreenprintingSocialThreadRow;
+  }
+
+  async updateSocialPost(organizationId: string, socialPostId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const [inputKey, column] of [
+      ["externalPostId", "external_post_id"],
+      ["permalink", "permalink"],
+      ["mediaUrl", "media_url"],
+      ["status", "status"],
+      ["publishedAt", "published_at"],
+      ["scheduledFor", "scheduled_for"],
+      ["metrics", "metrics"],
+      ["metadata", "metadata"],
+    ]) {
+      if (inputKey in input) {
+        patch[column] = input[inputKey];
+      }
+    }
+    const { data, error } = await supabase
+      .from("social_post")
+      .update(patch)
+      .eq("organization_id", organizationId)
+      .eq("id", socialPostId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingSocialPostRow;
+  }
+
+  async createSocialPost(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("social_post")
+      .insert({
+        organization_id: organizationId,
+        social_account_id: input.socialAccountId,
+        external_post_id: null,
+        post_type: input.postType ?? "post",
+        caption: input.caption ?? null,
+        permalink: null,
+        media_url: input.mediaUrl ?? null,
+        status: input.status ?? "draft",
+        published_at: null,
+        scheduled_for: input.scheduledFor ?? null,
+        metrics: {},
+        campaign_id: input.campaignId ?? null,
+        account_id: input.accountId ?? null,
+        metadata: input.metadata ?? {},
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingSocialPostRow;
   }
 
   async listCampaigns(organizationId: string) {
@@ -716,6 +808,72 @@ export class ScreenprintingRepository {
     }
 
     return data as ScreenprintingIdentityResolutionRow;
+  }
+
+  async listDashboardDefinitions(organizationId: string, module?: string | null) {
+    const supabase = getSupabaseAdminClient() as any;
+    let query = supabase
+      .from("dashboard_definition")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("updated_at", { ascending: false })
+      .limit(300);
+
+    if (module?.trim()) {
+      query = query.eq("module", module.trim());
+    }
+
+    return maybeSelect<ScreenprintingDashboardDefinitionRow>(query);
+  }
+
+  async createDashboardDefinition(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("dashboard_definition")
+      .insert({
+        organization_id: organizationId,
+        dashboard_key: input.dashboardKey,
+        name: input.name,
+        module: input.module,
+        role_scope: Array.isArray(input.roleScope) ? input.roleScope : [],
+        definition: input.definition ?? {},
+        is_default: Boolean(input.isDefault),
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingDashboardDefinitionRow;
+  }
+
+  async upsertDashboardDefinition(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("dashboard_definition")
+      .upsert(
+        {
+          organization_id: organizationId,
+          dashboard_key: input.dashboardKey,
+          name: input.name,
+          module: input.module,
+          role_scope: Array.isArray(input.roleScope) ? input.roleScope : [],
+          definition: input.definition ?? {},
+          is_default: Boolean(input.isDefault),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "organization_id,dashboard_key" },
+      )
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingDashboardDefinitionRow;
   }
 
   toNumber(value: number | string | null | undefined) {

@@ -716,7 +716,7 @@ export function createScreenprintingImpactPreview(input: ScreenprintingImpactPre
     dirtyRecords,
     warnings:
       input.section === "featureFlags" && JSON.stringify(input.draftChanges).includes("social_publishing")
-        ? ["Publishing remains disabled unless a tenant explicitly enables it later."]
+        ? ["Publishing turns on only when this flag, Meta token, required scopes, owned account ID, and public media URL are all present."]
         : [],
     previewToken: createHash("sha256").update(tokenSource).digest("hex").slice(0, 20),
   };

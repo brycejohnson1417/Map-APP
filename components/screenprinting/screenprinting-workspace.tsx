@@ -38,7 +38,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { getScreenprintingWorkspaceSummary } from "@/lib/application/screenprinting/screenprinting-service";
 
 type ScreenprintingWorkspaceSummary = Awaited<ReturnType<typeof getScreenprintingWorkspaceSummary>>;
@@ -46,11 +46,45 @@ type SalesView = "dashboard" | "opportunities" | "accounts" | "reorders" | "goal
 type SocialView = "dashboard" | "accounts" | "account-detail" | "posts" | "alerts" | "calendar" | "conversations" | "campaigns" | "import";
 type ModuleView = "sales" | "social" | "admin";
 type SalesOrder = ScreenprintingWorkspaceSummary["orders"]["orders"][number];
+type SavedView = ScreenprintingWorkspaceSummary["orders"]["savedViews"][number];
 type SocialAccount = ScreenprintingWorkspaceSummary["socialAccounts"]["accounts"][number];
 type SocialPost = ScreenprintingWorkspaceSummary["socialPosts"]["posts"][number];
 type ReorderSignal = ScreenprintingWorkspaceSummary["reorders"]["buckets"]["overdue"][number];
 type Opportunity = ScreenprintingWorkspaceSummary["opportunities"]["pipelines"][number]["stages"][number]["opportunities"][number];
 type IdentitySuggestion = ScreenprintingWorkspaceSummary["identity"]["suggestions"][number];
+type ManagerGoal = ScreenprintingWorkspaceSummary["managerGoals"]["goals"][number];
+type ScreenprintingConfig = ScreenprintingWorkspaceSummary["config"];
+type EditableConfigSection =
+  | "statusMappings"
+  | "paymentMappings"
+  | "tagMappings"
+  | "fieldTrust"
+  | "reorderRules"
+  | "emailTemplates"
+  | "socialAccountCategories"
+  | "alertRules"
+  | "featureFlags";
+type ArrayConfigSection = Exclude<EditableConfigSection, "featureFlags">;
+type ConfigDraftState = Pick<ScreenprintingConfig, EditableConfigSection>;
+type ConfigPreviewState = {
+  section: EditableConfigSection;
+  affectedOrders: number;
+  affectedAccounts: number;
+  affectedDashboards: string[];
+  dirtyRecords: number;
+  warnings: string[];
+  previewToken: string;
+} | null;
+type SocialComposerDraft = {
+  socialAccountId: string;
+  postType: string;
+  caption: string;
+  mediaUrl: string;
+  scheduledFor: string;
+  location: string;
+  collaborators: string;
+  tags: string;
+};
 
 const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const compactMoneyFormatter = new Intl.NumberFormat("en-US", {
@@ -375,6 +409,12 @@ function safeApiMessage(error: unknown) {
   return "Action failed.";
 }
 
+function dateAfterDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: ScreenprintingWorkspaceSummary; orgSlug: string }) {
   const [moduleView, setModuleView] = useState<ModuleView>("sales");
   const [salesView, setSalesView] = useState<SalesView>("dashboard");
@@ -383,18 +423,84 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [notice, setNotice] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
-  const [draft, setDraft] = useState<{ to: string | null; subject: string; body: string; source: "api" | "local" } | null>(null);
-  const [newSocialAccount, setNewSocialAccount] = useState({ handle: "", platform: "instagram", ownership: "watched", category: "" });
+  const [draft, setDraft] = useState<{ id?: string; to: string | null; subject: string; body: string; source: "api" | "local" } | null>(null);
+  const [newSocialAccount, setNewSocialAccount] = useState({
+    handle: "",
+    platform: "instagram",
+    ownership: "watched",
+    category: "",
+    priority: "medium",
+    externalAccountId: "",
+    metaPageId: "",
+    metaBusinessId: "",
+    profileUrl: "",
+    followerCount: "",
+  });
   const [newCampaign, setNewCampaign] = useState({ name: "", campaignType: "drop", startsOn: "", endsOn: "", goal: "" });
   const [newThread, setNewThread] = useState({ participantHandle: "", threadType: "dm", summary: "" });
   const [commentText, setCommentText] = useState("");
+  const [orderFilters, setOrderFilters] = useState({
+    q: "",
+    statusBucket: "all",
+    paymentBucket: "all",
+    managerName: "all",
+    teamName: "all",
+    syncState: "all",
+  });
+  const [savedViewName, setSavedViewName] = useState("");
+  const [newOpportunity, setNewOpportunity] = useState({ title: "", value: "", customerName: "", stageKey: "new_lead" });
+  const [goalDrafts, setGoalDrafts] = useState<Record<string, { revenueGoal: string; ordersGoal: string; storesGoal: string }>>(() =>
+    Object.fromEntries(
+      summary.managerGoals.goals.map((goal) => [
+        goal.managerName,
+        {
+          revenueGoal: String(goal.revenueGoal ?? 0),
+          ordersGoal: String(goal.ordersGoal ?? 0),
+          storesGoal: String(goal.storesGoal ?? 0),
+        },
+      ]),
+    ),
+  );
+  const [postTypeFilter, setPostTypeFilter] = useState("all");
+  const [alertStatusFilter, setAlertStatusFilter] = useState("unread");
+  const [accountFilters, setAccountFilters] = useState({ q: "", platform: "all", category: "all", ownership: "all", status: "all" });
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerDraft, setComposerDraft] = useState({
+    socialAccountId: summary.socialAccounts.accounts[0]?.id ?? "",
+    postType: "post",
+    caption: "",
+    mediaUrl: "",
+    scheduledFor: "",
+    location: "",
+    collaborators: "",
+    tags: "",
+  });
+  const [threadReplies, setThreadReplies] = useState<Record<string, string>>({});
+  const [dashboardDraft, setDashboardDraft] = useState({
+    name: "",
+    widgets: ["sales_pulse", "reorder_queue", "social_alerts"],
+  });
+  const [configDraft, setConfigDraft] = useState<ConfigDraftState>(() => ({
+    statusMappings: summary.config.statusMappings,
+    paymentMappings: summary.config.paymentMappings,
+    tagMappings: summary.config.tagMappings,
+    fieldTrust: summary.config.fieldTrust,
+    reorderRules: summary.config.reorderRules,
+    emailTemplates: summary.config.emailTemplates,
+    socialAccountCategories: summary.config.socialAccountCategories,
+    alertRules: summary.config.alertRules,
+    featureFlags: summary.config.featureFlags,
+  }));
+  const [configPreview, setConfigPreview] = useState<ConfigPreviewState>(null);
 
   const sales = summary.salesDashboard.metrics;
   const social = summary.socialDashboard.metrics;
   const topCustomers = summary.salesDashboard.topCustomers ?? [];
   const syncStatus = summary.salesDashboard.printavoSyncStatus;
   const orders = summary.orders.orders;
+  const savedViews = summary.orders.savedViews ?? [];
   const socialAccounts = summary.socialAccounts.accounts;
+  const socialConnection = summary.socialConnection;
   const selectedSocialAccount = socialAccounts.find((account) => account.id === selectedSocialAccountId) ?? socialAccounts[0] ?? null;
   const socialPosts = summary.socialPosts.posts;
   const selectedAccountPosts = selectedSocialAccount ? socialPosts.filter((post) => post.socialAccountId === selectedSocialAccount.id) : socialPosts;
@@ -519,6 +625,187 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
     );
   }
 
+  async function snoozeReorder(signal: ReorderSignal, days = 30) {
+    await runAction(
+      "Snooze reorder",
+      `${apiBase}/sales/reorders/${signal.id}/snooze`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          snoozedUntil: dateAfterDays(days),
+          reason: `${days}-day operator snooze`,
+        }),
+      },
+    );
+  }
+
+  function applySavedView(savedView: SavedView) {
+    const filters = savedView.filters ?? {};
+    setOrderFilters({
+      q: typeof filters.q === "string" ? filters.q : "",
+      statusBucket: typeof filters.statusBucket === "string" ? filters.statusBucket : "all",
+      paymentBucket: typeof filters.paymentBucket === "string" ? filters.paymentBucket : "all",
+      managerName: typeof filters.managerName === "string" ? filters.managerName : "all",
+      teamName: typeof filters.teamName === "string" ? filters.teamName : "all",
+      syncState: typeof filters.syncState === "string" ? filters.syncState : "all",
+    });
+    setNotice({ tone: "success", message: `Applied saved view: ${savedView.name}.` });
+  }
+
+  async function saveOrderView() {
+    const name = savedViewName.trim();
+    if (!name) {
+      setNotice({ tone: "error", message: "Saved view name is required." });
+      return;
+    }
+    await runAction("Create saved view", `${apiBase}/sales/saved-views`, {
+      method: "POST",
+      body: JSON.stringify({
+        module: "sales_orders",
+        name,
+        filters: orderFilters,
+        columns: ["customer", "job", "total", "status", "payment", "manager", "date"],
+        sort: { key: "orderCreatedAt", direction: "desc" },
+      }),
+    });
+  }
+
+  async function createOpportunityFromForm() {
+    if (!newOpportunity.title.trim()) {
+      setNotice({ tone: "error", message: "Opportunity title is required." });
+      return;
+    }
+    const value = Number(newOpportunity.value);
+    await runAction("Create opportunity", `${apiBase}/sales/opportunities`, {
+      method: "POST",
+      body: JSON.stringify({
+        title: newOpportunity.title,
+        value: Number.isFinite(value) ? value : null,
+        stageKey: newOpportunity.stageKey,
+        sourceType: "manual",
+        metadata: {
+          customerName: newOpportunity.customerName || null,
+          providerWriteBack: false,
+        },
+      }),
+    });
+  }
+
+  async function updateOpportunityStage(opportunity: Opportunity, stageKey: string) {
+    await runAction("Update opportunity", `${apiBase}/sales/opportunities/${opportunity.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ stageKey }),
+    });
+  }
+
+  async function saveManagerGoals() {
+    const goals = Object.entries(goalDrafts).map(([managerName, values]) => ({
+      managerName,
+      revenueGoal: Number(values.revenueGoal) || 0,
+      ordersGoal: Number(values.ordersGoal) || 0,
+      storesGoal: Number(values.storesGoal) || 0,
+    }));
+    await runAction("Save manager goals", `${apiBase}/sales/manager-goals`, {
+      method: "POST",
+      body: JSON.stringify({ period: summary.managerGoals.period, goals }),
+    });
+  }
+
+  async function saveSocialDraft() {
+    if (!composerDraft.socialAccountId) {
+      setNotice({ tone: "error", message: "Pick a social account before saving a draft." });
+      return;
+    }
+    if (!composerDraft.caption.trim()) {
+      setNotice({ tone: "error", message: "Caption is required for a draft post." });
+      return;
+    }
+    await runAction("Save draft post", `${apiBase}/social/posts`, {
+      method: "POST",
+      body: JSON.stringify({
+        socialAccountId: composerDraft.socialAccountId,
+        postType: composerDraft.postType,
+        caption: composerDraft.caption,
+        mediaUrl: composerDraft.mediaUrl || null,
+        scheduledFor: composerDraft.scheduledFor || null,
+        location: composerDraft.location || null,
+        collaborators: composerDraft.collaborators.split(",").map((item) => item.trim()).filter(Boolean),
+        tags: composerDraft.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      }),
+    });
+  }
+
+  async function saveCustomDashboard() {
+    if (!dashboardDraft.name.trim()) {
+      setNotice({ tone: "error", message: "Dashboard name is required." });
+      return;
+    }
+    await runAction("Create dashboard", `${apiBase}/dashboards`, {
+      method: "POST",
+      body: JSON.stringify(dashboardDraft),
+    });
+  }
+
+  async function sendThreadReply(thread: ScreenprintingWorkspaceSummary["threads"]["threads"][number]) {
+    const message = threadReplies[thread.id]?.trim();
+    if (!message) {
+      setNotice({ tone: "error", message: "Reply message is required." });
+      return;
+    }
+    await runAction("Send Instagram reply", `${apiBase}/social/threads/${thread.id}/reply`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  }
+
+  function setConfigItem<TSection extends ArrayConfigSection>(
+    section: TSection,
+    index: number,
+    patch: Partial<ConfigDraftState[TSection][number]>,
+  ) {
+    setConfigDraft((current) => ({
+      ...current,
+      [section]: current[section].map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  function addConfigItem<TSection extends ArrayConfigSection>(section: TSection, item: ConfigDraftState[TSection][number]) {
+    setConfigDraft((current) => ({
+      ...current,
+      [section]: [...current[section], item],
+    }));
+  }
+
+  function removeConfigItem(section: ArrayConfigSection, index: number) {
+    setConfigDraft((current) => ({
+      ...current,
+      [section]: current[section].filter((_, itemIndex) => itemIndex !== index),
+    }));
+  }
+
+  async function previewConfigSection(section: EditableConfigSection) {
+    const payload = await runAction(
+      "Preview config impact",
+      `${apiBase}/config/preview`,
+      {
+        method: "POST",
+        body: JSON.stringify({ section, draftChanges: configDraft[section] }),
+      },
+      false,
+    );
+    if (payload?.impact) {
+      setConfigPreview({ section, ...payload.impact });
+    }
+  }
+
+  async function saveConfigSection(section: EditableConfigSection) {
+    const previewToken = configPreview?.section === section ? configPreview.previewToken : null;
+    await runAction("Save config section", `${apiBase}/config`, {
+      method: "PATCH",
+      body: JSON.stringify({ section, changes: configDraft[section], previewToken }),
+    });
+  }
+
   const salesNav: Array<{ key: SalesView; label: string; icon: LucideIcon }> = [
     { key: "dashboard", label: "Today", icon: LayoutDashboard },
     { key: "opportunities", label: "Opportunities", icon: Target },
@@ -611,7 +898,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
               <HeroStat label="Revenue tracked" value={formatMoney(sales.revenue, true)} sublabel={`${formatNumber(sales.totalOrders)} Printavo orders`} />
               <HeroStat label="Due now" value={formatNumber(overdueCount + dueSoonCount)} sublabel={`${formatNumber(overdueCount)} overdue, ${formatNumber(dueSoonCount)} due soon`} />
               <HeroStat label="Open follow-up" value={formatMoney(openOpportunityValue, true)} sublabel={`${formatNumber(activeOpportunities.length)} opportunities`} />
-              <HeroStat label="Unread social" value={formatNumber(unreadAlerts.length)} sublabel="Signals, not publishing" />
+              <HeroStat label="Unread social" value={formatNumber(unreadAlerts.length)} sublabel="Signals and replies" />
             </div>
           </div>
         </section>
@@ -661,6 +948,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                     <p className="mt-1 text-sm text-slate-500">Expected {shortDate(signal.expectedReorderDate)}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button icon={Mail} onClick={() => createDraft(signal)}>Draft</Button>
+                      <Button icon={Clock3} onClick={() => snoozeReorder(signal)}>Snooze</Button>
                       <Button icon={Plus} onClick={() => addOpportunityFromSignal(signal)}>Opportunity</Button>
                     </div>
                   </div>
@@ -830,15 +1118,26 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
         title="Opportunities"
         description="Open sales opportunities are persisted when available; otherwise they are derived from quoted or needs-review Printavo orders and labeled read-only."
         actions={
-          <Button
-            icon={Plus}
-            disabled
-            title="Create persisted opportunities from a reorder signal or quoted Printavo order so source context is preserved."
-          >
+          <Button icon={Plus} onClick={() => setNotice({ tone: "info", message: "Use the new opportunity form below. It saves to Map App only." })}>
             New opportunity
           </Button>
         }
       >
+        <form
+          className="mb-5 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[1.2fr_1fr_140px_170px_auto]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            createOpportunityFromForm();
+          }}
+        >
+          <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Opportunity title" value={newOpportunity.title} onChange={(event) => setNewOpportunity((current) => ({ ...current, title: event.target.value }))} />
+          <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Customer or company" value={newOpportunity.customerName} onChange={(event) => setNewOpportunity((current) => ({ ...current, customerName: event.target.value }))} />
+          <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Value" value={newOpportunity.value} onChange={(event) => setNewOpportunity((current) => ({ ...current, value: event.target.value }))} />
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={newOpportunity.stageKey} onChange={(event) => setNewOpportunity((current) => ({ ...current, stageKey: event.target.value }))}>
+            {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
+          </select>
+          <Button type="submit" icon={Plus} variant="primary">Create</Button>
+        </form>
         {stages.length ? (
           <div className="grid gap-4 xl:grid-cols-4">
             {stages.map((stage) => (
@@ -852,7 +1151,15 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </div>
                 <div className="mt-3 space-y-3">
                   {stage.opportunities.length ? (
-                    stage.opportunities.slice(0, 8).map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} />)
+                    stage.opportunities
+                      .slice(0, 8)
+                      .map((opportunity) => (
+                        <OpportunityCard
+                          key={opportunity.id}
+                          opportunity={opportunity}
+                          onStageChange={(stageKey) => updateOpportunityStage(opportunity, stageKey)}
+                        />
+                      ))
                   ) : (
                     <p className="rounded-md border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">No opportunities in this stage.</p>
                   )}
@@ -868,39 +1175,91 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   }
 
   function renderAccounts() {
+    const cleanup = summary.accountCleanup;
     return (
-      <Section title="Customer Accounts" description="Top customer accounts computed from synced Printavo order history." actions={<Button icon={RefreshCw} onClick={() => setSalesView("dashboard")}>Back to pulse</Button>}>
-        {topCustomers.length ? (
-          <TableShell>
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 text-left">Customer</th>
-                  <th className="px-4 py-3 text-left">Category</th>
-                  <th className="px-4 py-3 text-right">Revenue</th>
-                  <th className="px-4 py-3 text-right">Orders</th>
-                  <th className="px-4 py-3 text-left">Manager</th>
-                  <th className="px-4 py-3 text-left">Last order</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {topCustomers.slice(0, 80).map((customer) => (
-                  <tr key={`${customer.name}-${customer.lastOrderAt}`} className="hover:bg-blue-50/40">
-                    <td className="px-4 py-3 font-semibold text-slate-950">{customer.name}</td>
-                    <td className="px-4 py-3"><Pill tone="green">{customer.category}</Pill></td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatMoney(customer.total)}</td>
-                    <td className="px-4 py-3 text-right">{formatNumber(customer.orderCount)}</td>
-                    <td className="px-4 py-3 text-slate-600">{customer.managerName ?? "Unassigned"}</td>
-                    <td className="px-4 py-3 text-slate-500">{shortDate(customer.lastOrderAt)}</td>
+      <div className="space-y-5">
+        <Section title="Customer Accounts" description="Top customer accounts computed from synced Printavo order history." actions={<Button icon={RefreshCw} onClick={() => setSalesView("dashboard")}>Back to pulse</Button>}>
+          {topCustomers.length ? (
+            <TableShell>
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Customer</th>
+                    <th className="px-4 py-3 text-left">Category</th>
+                    <th className="px-4 py-3 text-right">Revenue</th>
+                    <th className="px-4 py-3 text-right">Orders</th>
+                    <th className="px-4 py-3 text-left">Manager</th>
+                    <th className="px-4 py-3 text-left">Last order</th>
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {topCustomers.slice(0, 80).map((customer) => (
+                    <tr key={`${customer.name}-${customer.lastOrderAt}`} className="hover:bg-blue-50/40">
+                      <td className="px-4 py-3 font-semibold text-slate-950">{customer.name}</td>
+                      <td className="px-4 py-3"><Pill tone="green">{customer.category}</Pill></td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatMoney(customer.total)}</td>
+                      <td className="px-4 py-3 text-right">{formatNumber(customer.orderCount)}</td>
+                      <td className="px-4 py-3 text-slate-600">{customer.managerName ?? "Unassigned"}</td>
+                      <td className="px-4 py-3 text-slate-500">{shortDate(customer.lastOrderAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
+          ) : (
+            <EmptyState title="No customer account totals" body="Printavo orders are required before account revenue and repeat-order metrics can be computed." />
+          )}
+        </Section>
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Section
+            title="Merge Suggestions"
+            description="Non-destructive duplicate candidates. Nothing merges automatically."
+          >
+            {cleanup.mergeSuggestions.length ? (
+              <div className="space-y-3">
+                {cleanup.mergeSuggestions.map((suggestion) => (
+                  <div key={suggestion.suggestionKey} className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-slate-950">{suggestion.names.join(" / ")}</p>
+                      <Pill tone="amber">Needs review</Pill>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-500">{formatNumber(suggestion.orderCount)} orders - {formatMoney(suggestion.total)} lifetime order value</p>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Destructive merge: disabled</p>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </TableShell>
-        ) : (
-          <EmptyState title="No customer account totals" body="Printavo orders are required before account revenue and repeat-order metrics can be computed." />
-        )}
-      </Section>
+              </div>
+            ) : (
+              <EmptyState title="No merge suggestions" body="No duplicate customer-name/account-id clusters were found in the current Printavo mirror." />
+            )}
+          </Section>
+          <Section
+            title="Unlinked Orders"
+            description="Orders without a customer account link. Review before creating or linking organizations."
+          >
+            {cleanup.unlinkedOrders.length ? (
+              <div className="space-y-3">
+                {cleanup.unlinkedOrders.slice(0, 12).map((order) => (
+                  <div key={order.id} className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">{order.customerName}</p>
+                        <p className="mt-1 text-sm text-slate-500">{order.jobName ?? order.orderNumber}</p>
+                      </div>
+                      <span className="font-semibold text-emerald-700">{formatMoney(order.orderTotal)}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Pill tone="amber">Needs link</Pill>
+                      {order.sourceUrl ? <LinkButton href={order.sourceUrl} icon={ExternalLink}>Printavo</LinkButton> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No unlinked orders" body="All visible Printavo mirror rows have customer account links or no orders are available." />
+            )}
+          </Section>
+        </div>
+      </div>
     );
   }
 
@@ -936,10 +1295,13 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                         <p className="mt-1 text-sm text-slate-500">
                           Expected {shortDate(signal.expectedReorderDate)}
                           {metadataString(signal.metadata?.["lastOrderName"]) ? ` after ${metadataString(signal.metadata?.["lastOrderName"])}` : ""}
+                          {signal.snoozedUntil ? ` - snoozed until ${shortDate(signal.snoozedUntil)}` : ""}
+                          {signal.lastActionAt ? ` - last action ${shortDate(signal.lastActionAt)}` : ""}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button icon={Mail} onClick={() => createDraft(signal)}>Reach out</Button>
+                        <Button icon={Clock3} onClick={() => snoozeReorder(signal)}>Snooze</Button>
                         <Button icon={Plus} onClick={() => addOpportunityFromSignal(signal)}>Add opportunity</Button>
                       </div>
                     </div>
@@ -956,9 +1318,32 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   }
 
   function renderGoals() {
+    const goals = summary.managerGoals.goals;
+    function updateGoal(managerName: string, key: keyof Pick<ManagerGoal, "revenueGoal" | "ordersGoal" | "storesGoal">, value: string) {
+      setGoalDrafts((current) => ({
+        ...current,
+        [managerName]: {
+          revenueGoal: current[managerName]?.revenueGoal ?? "0",
+          ordersGoal: current[managerName]?.ordersGoal ?? "0",
+          storesGoal: current[managerName]?.storesGoal ?? "0",
+          [key]: value,
+        },
+      }));
+    }
     return (
-      <Section title="Manager Performance Targets" description="Goal storage is intentionally tenant-configurable. Current actuals come from Printavo manager attribution.">
-        {summary.salesDashboard.managerPerformance?.length ? (
+      <Section
+        title="Manager Performance Targets"
+        description={`Goals save per month in product-owned tenant dashboard storage. Current period: ${summary.managerGoals.period}.`}
+        actions={
+          <>
+            <Button icon={RefreshCw} onClick={() => setGoalDrafts(Object.fromEntries(goals.map((goal) => [goal.managerName, { revenueGoal: "0", ordersGoal: "0", storesGoal: "0" }])))}>
+              Reset draft
+            </Button>
+            <Button icon={CheckCircle2} variant="primary" onClick={saveManagerGoals}>Save goals</Button>
+          </>
+        }
+      >
+        {goals.length ? (
           <TableShell>
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -966,18 +1351,35 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                   <th className="px-4 py-3 text-left">Manager</th>
                   <th className="px-4 py-3 text-right">Actual revenue</th>
                   <th className="px-4 py-3 text-right">Actual orders</th>
-                  <th className="px-4 py-3 text-left">Goal configuration</th>
+                  <th className="px-4 py-3 text-right">Revenue goal</th>
+                  <th className="px-4 py-3 text-right">Orders goal</th>
+                  <th className="px-4 py-3 text-right">Stores goal</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {summary.salesDashboard.managerPerformance.map((manager) => (
-                  <tr key={manager.managerName}>
-                    <td className="px-4 py-3 font-semibold text-slate-950">{manager.managerName}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatMoney(manager.revenue)}</td>
-                    <td className="px-4 py-3 text-right">{formatNumber(manager.orders)}</td>
-                    <td className="px-4 py-3 text-slate-500">Editable goal persistence is a planned config surface; actuals are live now.</td>
+                {goals.map((goal) => {
+                  const draftValues = goalDrafts[goal.managerName] ?? {
+                    revenueGoal: String(goal.revenueGoal ?? 0),
+                    ordersGoal: String(goal.ordersGoal ?? 0),
+                    storesGoal: String(goal.storesGoal ?? 0),
+                  };
+                  return (
+                  <tr key={goal.managerName}>
+                    <td className="px-4 py-3 font-semibold text-slate-950">{goal.managerName}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">{formatMoney(goal.actualRevenue)}</td>
+                    <td className="px-4 py-3 text-right">{formatNumber(goal.actualOrders)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <input className="w-32 rounded-md border border-slate-200 px-3 py-2 text-right text-sm" inputMode="decimal" value={draftValues.revenueGoal} onChange={(event) => updateGoal(goal.managerName, "revenueGoal", event.target.value)} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input className="w-24 rounded-md border border-slate-200 px-3 py-2 text-right text-sm" inputMode="numeric" value={draftValues.ordersGoal} onChange={(event) => updateGoal(goal.managerName, "ordersGoal", event.target.value)} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <input className="w-24 rounded-md border border-slate-200 px-3 py-2 text-right text-sm" inputMode="numeric" value={draftValues.storesGoal} onChange={(event) => updateGoal(goal.managerName, "storesGoal", event.target.value)} />
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </TableShell>
@@ -989,29 +1391,104 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   }
 
   function renderOrders() {
+    const managerOptions = Array.from(new Set(orders.map((order) => order.managerName ?? "Unassigned"))).sort();
+    const teamOptions = Array.from(new Set(orders.map((order) => order.teamName ?? "Unassigned"))).sort();
+    const filteredOrders = orders.filter((order) => {
+      const query = orderFilters.q.trim().toLowerCase();
+      const matchesQuery = query
+        ? [order.customerName, order.jobName, order.orderNumber].filter(Boolean).join(" ").toLowerCase().includes(query)
+        : true;
+      const matchesStatus = orderFilters.statusBucket === "all" || order.statusBucket === orderFilters.statusBucket;
+      const matchesPayment = orderFilters.paymentBucket === "all" || order.paymentBucket === orderFilters.paymentBucket;
+      const matchesManager = orderFilters.managerName === "all" || (order.managerName ?? "Unassigned") === orderFilters.managerName;
+      const matchesTeam = orderFilters.teamName === "all" || (order.teamName ?? "Unassigned") === orderFilters.teamName;
+      const matchesSync =
+        orderFilters.syncState === "all" ||
+        (orderFilters.syncState === "synced" ? order.sourcePayloadAvailable : !order.sourcePayloadAvailable);
+      return matchesQuery && matchesStatus && matchesPayment && matchesManager && matchesTeam && matchesSync;
+    });
+    const orderCounts = {
+      all: orders.length,
+      processed: orders.filter((order) => order.statusBucket === "completed").length,
+      unprocessed: orders.filter((order) => order.statusBucket !== "completed" && order.statusBucket !== "cancelled").length,
+      paid: orders.filter((order) => order.paymentBucket === "paid").length,
+      unpaid: orders.filter((order) => order.paymentBucket === "unpaid").length,
+      synced: orders.filter((order) => order.sourcePayloadAvailable).length,
+      unsynced: orders.filter((order) => !order.sourcePayloadAvailable).length,
+    };
     return (
       <Section
         title="Orders"
-        description={`${formatNumber(summary.orders.pagination.total)} Printavo orders available. The table shows the latest ${formatNumber(summary.orders.orders.length)} rows.`}
+        description={`${formatNumber(summary.orders.pagination.total)} Printavo orders available. The cockpit filters the latest ${formatNumber(summary.orders.orders.length)} rows without writing back to Printavo.`}
         actions={
-          <Button
-            icon={SlidersHorizontal}
-            disabled
-            title="Saved view persistence is disabled until tenant-specific field trust and column presets are finalized."
-          >
-            Create saved view
-          </Button>
+          <>
+            <input
+              className="min-h-10 rounded-md border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Saved view name"
+              value={savedViewName}
+              onChange={(event) => setSavedViewName(event.target.value)}
+            />
+            <Button icon={SlidersHorizontal} onClick={saveOrderView}>Save view</Button>
+          </>
         }
       >
+        <div className="mb-4 grid gap-3 xl:grid-cols-[1.4fr_repeat(5,minmax(150px,1fr))]">
+          <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-blue-500">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              placeholder="Search customer, job, or order"
+              value={orderFilters.q}
+              onChange={(event) => setOrderFilters((current) => ({ ...current, q: event.target.value }))}
+            />
+          </label>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.statusBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, statusBucket: event.target.value }))}>
+            <option value="all">All statuses</option>
+            {summary.orders.facets.statusBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.paymentBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, paymentBucket: event.target.value }))}>
+            <option value="all">All payment</option>
+            {summary.orders.facets.paymentBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.managerName} onChange={(event) => setOrderFilters((current) => ({ ...current, managerName: event.target.value }))}>
+            <option value="all">All managers</option>
+            {managerOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.teamName} onChange={(event) => setOrderFilters((current) => ({ ...current, teamName: event.target.value }))}>
+            <option value="all">All teams</option>
+            {teamOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.syncState} onChange={(event) => setOrderFilters((current) => ({ ...current, syncState: event.target.value }))}>
+            <option value="all">All sync states</option>
+            <option value="synced">Synced payload</option>
+            <option value="unsynced">Needs payload review</option>
+          </select>
+        </div>
         <div className="mb-4 flex flex-wrap gap-2">
-          {summary.salesDashboard.statusBreakdown?.map((item) => (
-            <Pill key={item.bucket} tone="blue">{labelFromKey(item.bucket)}: {formatNumber(item.count)}</Pill>
+          {Object.entries(orderCounts).map(([key, count]) => (
+            <button
+              key={key}
+              type="button"
+              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50"
+              onClick={() => {
+                if (key === "all") setOrderFilters((current) => ({ ...current, statusBucket: "all", paymentBucket: "all", syncState: "all" }));
+                if (key === "processed") setOrderFilters((current) => ({ ...current, statusBucket: "completed" }));
+                if (key === "unprocessed") setOrderFilters((current) => ({ ...current, statusBucket: "needs_review" }));
+                if (key === "paid") setOrderFilters((current) => ({ ...current, paymentBucket: "paid" }));
+                if (key === "unpaid") setOrderFilters((current) => ({ ...current, paymentBucket: "unpaid" }));
+                if (key === "synced" || key === "unsynced") setOrderFilters((current) => ({ ...current, syncState: key }));
+              }}
+            >
+              {labelFromKey(key)} {formatNumber(count)}
+            </button>
           ))}
-          {summary.salesDashboard.paymentBreakdown?.map((item) => (
-            <Pill key={item.bucket} tone="green">{labelFromKey(item.bucket)}: {formatNumber(item.count)}</Pill>
+          {savedViews.map((view) => (
+            <button key={view.id} type="button" onClick={() => applySavedView(view)} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800">
+              {view.name}
+            </button>
           ))}
         </div>
-        {orders.length ? (
+        {filteredOrders.length ? (
           <TableShell>
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -1027,7 +1504,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {orders.map((order) => (
+                {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-blue-50/40">
                     <td className="px-4 py-3 font-semibold text-slate-950">{order.customerName}</td>
                     <td className="max-w-md px-4 py-3 text-slate-700">{order.jobName}</td>
@@ -1045,7 +1522,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             </table>
           </TableShell>
         ) : (
-          <EmptyState title="No orders" body="No Printavo orders are currently synced for this tenant." />
+          <EmptyState title="No matching orders" body="No synced Printavo rows match the current cockpit filters. Clear the filters or save this view for later review." />
         )}
       </Section>
     );
@@ -1056,8 +1533,13 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
       <div className="space-y-5">
         <Section
           title="Social Monitor"
-          description="Owned and watched social accounts, posts, alerts, messages, and calendar surfaces. Live write-back is disabled until the tenant authorizes the required platform permissions."
-          actions={<Button icon={RefreshCw} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Scan accounts</Button>}
+          description="Owned and watched social accounts, posts, alerts, messages, and calendar surfaces. Meta actions unlock when the connector, scopes, owned account IDs, and feature flags line up."
+          actions={
+            <>
+              <Button icon={Send} onClick={() => setComposerOpen(true)} disabled={!socialAccounts.length}>Compose draft</Button>
+              <Button icon={RefreshCw} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Scan accounts</Button>
+            </>
+          }
         >
           <div className="grid gap-4 md:grid-cols-4">
             <MetricCard label="Tracked accounts" value={formatNumber(social.trackedAccounts)} sublabel={`${formatNumber(social.activeAccounts)} active`} icon={Users} />
@@ -1066,6 +1548,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             <MetricCard label="Engagement" value={formatNumber(social.totalEngagement)} sublabel="Likes + comments + shares" icon={Heart} tone="green" />
           </div>
         </Section>
+        <MetaConnectionPanel connection={socialConnection} orgSlug={orgSlug} />
         <div className="grid gap-5 xl:grid-cols-2">
           <Section title="Recent Alerts" actions={<Button icon={Bell} onClick={() => setSocialView("alerts")}>View all</Button>}>
             {alerts.length ? (
@@ -1104,15 +1587,48 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   }
 
   function renderSocialAccounts() {
+    const platformOptions = Array.from(new Set(socialAccounts.map((account) => account.platform))).sort();
+    const categoryOptions = Array.from(new Set(socialAccounts.map((account) => account.category ?? "Unmapped"))).sort();
+    const filteredAccounts = socialAccounts.filter((account) => {
+      const query = accountFilters.q.trim().toLowerCase();
+      const matchesQuery = query
+        ? [account.displayName, account.handle].filter(Boolean).join(" ").toLowerCase().includes(query)
+        : true;
+      const matchesPlatform = accountFilters.platform === "all" || account.platform === accountFilters.platform;
+      const matchesCategory = accountFilters.category === "all" || (account.category ?? "Unmapped") === accountFilters.category;
+      const matchesOwnership = accountFilters.ownership === "all" || account.ownership === accountFilters.ownership;
+      const matchesStatus = accountFilters.status === "all" || account.status === accountFilters.status;
+      return matchesQuery && matchesPlatform && matchesCategory && matchesOwnership && matchesStatus;
+    });
     return (
-      <Section title="Tracked Accounts" description="Owned accounts can eventually publish/reply after platform authorization; watched accounts are monitored and mapped to customers or organizations." actions={<Button icon={Plus} onClick={() => setSocialView("import")}>Add account</Button>}>
-        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_repeat(5,180px)]">
-          <div className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-500"><Search className="h-4 w-4" /> Search, platform, priority, category, status filters are tenant-configurable.</div>
-          {["All platforms", "All priorities", "All categories", "All statuses", "All schools"].map((item) => (
-            <button key={item} type="button" className="rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-600">{item}</button>
-          ))}
+      <Section title="Tracked Accounts" description="Owned accounts can publish or reply after Meta authorization; watched accounts are monitored and mapped to customers or organizations." actions={<Button icon={Plus} onClick={() => setSocialView("import")}>Add account</Button>}>
+        <div className="mb-4 grid gap-3 xl:grid-cols-[1.4fr_repeat(4,minmax(150px,1fr))]">
+          <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-blue-500">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="Search accounts" value={accountFilters.q} onChange={(event) => setAccountFilters((current) => ({ ...current, q: event.target.value }))} />
+          </label>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={accountFilters.platform} onChange={(event) => setAccountFilters((current) => ({ ...current, platform: event.target.value }))}>
+            <option value="all">All platforms</option>
+            {platformOptions.map((item) => <option key={item} value={item}>{labelFromKey(item)}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={accountFilters.category} onChange={(event) => setAccountFilters((current) => ({ ...current, category: event.target.value }))}>
+            <option value="all">All categories</option>
+            {categoryOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={accountFilters.ownership} onChange={(event) => setAccountFilters((current) => ({ ...current, ownership: event.target.value }))}>
+            <option value="all">All ownership</option>
+            <option value="owned">Owned</option>
+            <option value="watched">Watched</option>
+            <option value="tracked">Tracked</option>
+          </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={accountFilters.status} onChange={(event) => setAccountFilters((current) => ({ ...current, status: event.target.value }))}>
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="needs_review">Needs review</option>
+          </select>
         </div>
-        {socialAccounts.length ? (
+        {filteredAccounts.length ? (
           <TableShell>
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -1127,7 +1643,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {socialAccounts.map((account) => (
+                {filteredAccounts.map((account) => (
                   <tr
                     key={account.id}
                     className="cursor-pointer hover:bg-blue-50/40"
@@ -1152,7 +1668,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             </table>
           </TableShell>
         ) : (
-          <EmptyState title="No social accounts configured" body="Add owned Instagram accounts or watched accounts manually, or authorize Meta scanning when credentials and permissions are ready." action={<Button icon={Plus} onClick={() => setSocialView("import")}>Add first account</Button>} />
+          <EmptyState title="No matching social accounts" body="No owned or watched account matches the current filters." action={<Button icon={Plus} onClick={() => setSocialView("import")}>Add first account</Button>} />
         )}
       </Section>
     );
@@ -1171,6 +1687,12 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
           actions={
             <>
               {selectedSocialAccount.profileUrl ? <Button icon={ExternalLink} onClick={() => window.open(selectedSocialAccount.profileUrl ?? "", "_blank", "noopener,noreferrer")}>Profile</Button> : null}
+              <Button icon={Send} onClick={() => {
+                setComposerDraft((current) => ({ ...current, socialAccountId: selectedSocialAccount.id }));
+                setComposerOpen(true);
+              }}>
+                Compose draft
+              </Button>
               <Button icon={RefreshCw} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Sync</Button>
             </>
           }
@@ -1193,8 +1715,36 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
               <p className="font-semibold text-slate-950">Organization mapping</p>
-              <div className="mt-3 space-y-3 text-sm">
-                <div className="flex justify-between gap-3"><span className="text-slate-500">Category</span><span className="font-semibold text-slate-800">{selectedSocialAccount.category ?? "Unmapped"}</span></div>
+              <div className="mt-3 grid gap-3 text-sm">
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">Category</span>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.category ?? ""} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ category: event.target.value || null }) })}>
+                    <option value="">Unmapped</option>
+                    <option value="partner">Partner</option>
+                    <option value="athlete">Athlete</option>
+                    <option value="school">School</option>
+                    <option value="greek">Greek</option>
+                    <option value="competitor">Competitor</option>
+                    <option value="media">Media</option>
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">Priority</span>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.priority ?? ""} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ priority: event.target.value || null }) })}>
+                    <option value="">Unscored</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="font-semibold text-slate-500">Ownership</span>
+                  <select className="rounded-md border border-slate-200 px-3 py-2" value={selectedSocialAccount.ownership} onChange={(event) => runAction("Update social account", `${apiBase}/social/accounts/${selectedSocialAccount.id}`, { method: "PATCH", body: JSON.stringify({ ownership: event.target.value }) })}>
+                    <option value="owned">Owned</option>
+                    <option value="watched">Watched</option>
+                    <option value="tracked">Tracked</option>
+                  </select>
+                </label>
                 <div className="flex justify-between gap-3"><span className="text-slate-500">School/org key</span><span className="font-semibold text-slate-800">{selectedSocialAccount.schoolOrOrgKey ?? "Unmapped"}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-slate-500">Customer link</span><span className="font-semibold text-slate-800">{selectedSocialAccount.accountId ? "Linked" : "Not linked"}</span></div>
               </div>
@@ -1207,14 +1757,28 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   }
 
   function renderPosts(inputPosts = socialPosts) {
+    const filteredPosts = inputPosts.filter((post) => postTypeFilter === "all" || post.postType === postTypeFilter || post.status === postTypeFilter);
+    const postTypes = Array.from(new Set(inputPosts.flatMap((post) => [post.postType, post.status]).filter(Boolean))).sort();
     return (
-      <Section title="Posts" description="Synced posts, reels, and stories with available metrics. Missing metrics indicate provider permissions or manual-import limitations.">
-        {inputPosts.length ? (
+      <Section
+        title="Posts"
+        description="Synced posts, reels, stories, and draft content with available metrics. Missing metrics indicate provider permissions or manual-import limitations."
+        actions={<Button icon={Send} onClick={() => setComposerOpen(true)} disabled={!socialAccounts.length}>Compose draft</Button>}
+      >
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setPostTypeFilter("all")} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", postTypeFilter === "all" ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>All {formatNumber(inputPosts.length)}</button>
+          {postTypes.map((type) => (
+            <button key={type} type="button" onClick={() => setPostTypeFilter(type)} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", postTypeFilter === type ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>
+              {labelFromKey(type)} {formatNumber(inputPosts.filter((post) => post.postType === type || post.status === type).length)}
+            </button>
+          ))}
+        </div>
+        {filteredPosts.length ? (
           <div className="space-y-3">
-            {inputPosts.map((post) => (
+            {filteredPosts.map((post) => (
               <div key={post.id} className="flex flex-col gap-4 rounded-lg border border-slate-200 p-4 md:flex-row md:items-center">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                  {post.mediaUrl ? <img src={post.mediaUrl} alt="" className="h-full w-full rounded-md object-cover" /> : <FileText className="h-6 w-6" />}
+                  {post.mediaUrl ? <img src={post.mediaUrl} alt={post.caption ? `Post media: ${post.caption.slice(0, 80)}` : "Social post media"} className="h-full w-full rounded-md object-cover" /> : <FileText className="h-6 w-6" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1232,28 +1796,58 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {post.permalink ? <Button icon={ExternalLink} onClick={() => window.open(post.permalink ?? "", "_blank", "noopener,noreferrer")}>Open</Button> : null}
+                  {post.status !== "published" ? (
+                    <Button
+                      icon={Send}
+                      disabled={!socialConnection.capabilities.publishPosts}
+                      title={socialConnection.capabilities.publishPosts ? "Publish through the connected owned Instagram account." : "Meta publishing requires connector token, publishing scope, feature flag, owned account ID, and a public media URL."}
+                      onClick={() => runAction("Publish to Instagram", `${apiBase}/social/posts/${post.id}/publish`, { method: "POST" })}
+                    >
+                      Publish
+                    </Button>
+                  ) : null}
                   <Button icon={Eye} onClick={() => setSelectedPost(post)}>Insights</Button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <EmptyState title="No social posts synced" body="Connect or manually import posts for owned/watched accounts to populate post tracking, insights, calendar, and alert rules." />
+          <EmptyState title="No matching social posts" body="No post, reel, story, or draft content matches the selected post filter." />
         )}
       </Section>
     );
   }
 
   function renderAlerts() {
+    const eventTypes = Array.from(new Set(alerts.map((alert) => alert.eventType))).sort();
+    const filteredAlerts = alerts.filter((alert) => {
+      if (alertStatusFilter === "all") return true;
+      if (alertStatusFilter === "unread" || alertStatusFilter === "read" || alertStatusFilter === "resolved") {
+        return alert.status === alertStatusFilter;
+      }
+      return alert.eventType === alertStatusFilter;
+    });
     return (
       <Section
         title="Alerts"
         description="Actionable social alerts are generated from tenant-configured alert rules. Demo or metadata-derived candidates are labeled."
         actions={<Button icon={CheckCircle2} onClick={() => runAction("Mark all alerts read", `${apiBase}/social/alerts/mark-all-read`, { method: "POST" })}>Mark all read</Button>}
       >
-        {alerts.length ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {["unread", "all", "read", "resolved"].map((status) => (
+            <button key={status} type="button" onClick={() => setAlertStatusFilter(status)} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", alertStatusFilter === status ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>
+              {labelFromKey(status)}
+            </button>
+          ))}
+          {eventTypes.map((type) => (
+            <button key={type} type="button" onClick={() => setAlertStatusFilter(type)} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", alertStatusFilter === type ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>
+              {labelFromKey(type)}
+            </button>
+          ))}
+        </div>
+        {filteredAlerts.length ? (
           <div className="space-y-3">
-            {alerts.map((alert) => (
+            {filteredAlerts.map((alert) => (
               <div key={alert.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -1269,7 +1863,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
             ))}
           </div>
         ) : (
-          <EmptyState title="No alerts" body="No persisted alerts or metadata alert candidates are available for this tenant." />
+          <EmptyState title="No matching alerts" body="No persisted alerts or metadata alert candidates match the selected filter." />
         )}
       </Section>
     );
@@ -1281,7 +1875,7 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
       .filter((item): item is { post: SocialPost; date: string } => Boolean(item.date))
       .sort((left, right) => left.date.localeCompare(right.date));
     return (
-      <Section title="Content Calendar" description="Calendar is read-only until owned-account publishing is authorized. It still tracks scheduled and published synced posts.">
+      <Section title="Content Calendar" description="Calendar tracks scheduled, draft, and published content. Publish actions stay gated by owned-account Meta authorization.">
         {calendarItems.length ? (
           <div className="space-y-3">
             {calendarItems.map(({ post, date }) => (
@@ -1365,6 +1959,22 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                   </div>
                 </div>
                 {thread.metadata?.summary ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-600">{String(thread.metadata.summary)}</p> : null}
+                <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                  <input
+                    className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="Reply through connected Instagram account"
+                    value={threadReplies[thread.id] ?? ""}
+                    onChange={(event) => setThreadReplies((current) => ({ ...current, [thread.id]: event.target.value }))}
+                  />
+                  <Button
+                    icon={Send}
+                    disabled={!socialConnection.capabilities.replyToMessages || !threadReplies[thread.id]?.trim()}
+                    title={socialConnection.capabilities.replyToMessages ? "Send through Meta Graph API." : "Messages require Meta token, message scope, feature flag, owned account, and Instagram recipient ID."}
+                    onClick={() => sendThreadReply(thread)}
+                  >
+                    Reply
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -1445,11 +2055,18 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                   ...newSocialAccount,
                   handle: newSocialAccount.handle.replace(/^@/, ""),
                   category: newSocialAccount.category || null,
+                  priority: newSocialAccount.priority || null,
+                  externalAccountId: newSocialAccount.externalAccountId || null,
+                  metaPageId: newSocialAccount.metaPageId || null,
+                  metaBusinessId: newSocialAccount.metaBusinessId || null,
+                  profileUrl: newSocialAccount.profileUrl || null,
+                  followerCount: newSocialAccount.followerCount || null,
                 }),
               });
             }}
           >
-            <h3 className="font-semibold text-slate-950">Manual account import</h3>
+            <h3 className="font-semibold text-slate-950">Watchlist or owned account import</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-500">Watched handles can be tracked without ownership. Owned accounts can include Instagram user/Page IDs now so Meta sync and publishing work as soon as the connector is authorized.</p>
             <div className="mt-4 grid gap-3">
               <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="@handle" value={newSocialAccount.handle} onChange={(event) => setNewSocialAccount((current) => ({ ...current, handle: event.target.value }))} />
               <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={newSocialAccount.platform} onChange={(event) => setNewSocialAccount((current) => ({ ...current, platform: event.target.value }))}>
@@ -1461,13 +2078,23 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
                 <option value="watched">Watched</option>
                 <option value="owned">Owned</option>
               </select>
+              <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={newSocialAccount.priority} onChange={(event) => setNewSocialAccount((current) => ({ ...current, priority: event.target.value }))}>
+                <option value="high">High priority</option>
+                <option value="medium">Medium priority</option>
+                <option value="low">Low priority</option>
+              </select>
               <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Category, e.g. greek, school, athlete, competitor" value={newSocialAccount.category} onChange={(event) => setNewSocialAccount((current) => ({ ...current, category: event.target.value }))} />
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Instagram user ID for owned accounts" value={newSocialAccount.externalAccountId} onChange={(event) => setNewSocialAccount((current) => ({ ...current, externalAccountId: event.target.value }))} />
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Meta Page ID if Page-linked" value={newSocialAccount.metaPageId} onChange={(event) => setNewSocialAccount((current) => ({ ...current, metaPageId: event.target.value }))} />
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Meta Business ID" value={newSocialAccount.metaBusinessId} onChange={(event) => setNewSocialAccount((current) => ({ ...current, metaBusinessId: event.target.value }))} />
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Profile URL" value={newSocialAccount.profileUrl} onChange={(event) => setNewSocialAccount((current) => ({ ...current, profileUrl: event.target.value }))} />
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" inputMode="numeric" placeholder="Follower count" value={newSocialAccount.followerCount} onChange={(event) => setNewSocialAccount((current) => ({ ...current, followerCount: event.target.value }))} />
               <Button type="submit" icon={Plus} variant="primary">Add account</Button>
             </div>
           </form>
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-950">Connected account scan</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Scan uses the tenant's connected social credentials when available. If permissions are missing, the API returns a clear warning instead of pretending data exists.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Scan uses the tenant's Meta connector when a token and required scopes are present. Watched-account API enrichment is kept separate from owned-account discovery because Meta limits arbitrary public profile access.</p>
             <Button icon={Instagram} onClick={() => runAction("Scan social accounts", `${apiBase}/social/accounts/scan`, { method: "POST" })}>Scan Meta accounts</Button>
           </div>
         </div>
@@ -1546,17 +2173,277 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
   function renderAdmin() {
     return (
       <div className="space-y-5">
-        <Section title="Tenant Configuration" description="Stable internal primitives with tenant-controlled mappings. These settings drive every sales and social surface.">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <ConfigList title="Status mappings" items={summary.config.statusMappings.map((item) => `${item.sourceValue} -> ${item.targetBucket}`)} />
-            <ConfigList title="Payment mappings" items={summary.config.paymentMappings.map((item) => `${item.sourceValue} -> ${item.targetBucket}`)} />
-            <ConfigList title="Field trust" items={summary.config.fieldTrust.map((item) => `${item.fieldKey}: ${item.trustLevel}`)} />
-            <ConfigList title="Social alert rules" items={summary.config.alertRules.map((item) => `${item.ruleKey}: ${item.enabled ? "enabled" : "disabled"}`)} />
-            <ConfigList title="Email templates" items={summary.config.emailTemplates.map((item) => item.templateKey)} />
-            <ConfigList title="Feature flags" items={Object.entries(summary.featureFlags).map(([key, value]) => `${key}: ${value ? "on" : "off"}`)} />
+        <Section title="Tenant Setup Guide" description="Use this checklist before treating FraterniTees or a new Screenprinting tenant as configured. Each item below has a matching editor or review queue on this page.">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <SupportTile
+              title="1. Connect providers"
+              detail="Save Printavo read-only credentials, then add Meta auth mode, app/business IDs, granted scopes, and access token from Integrations."
+              actions={["Open Integrations", "Scan Meta accounts", "Check connection readiness"]}
+            />
+            <SupportTile
+              title="2. Confirm mappings"
+              detail="Map Printavo statuses, payment states, tags, dirty fields, reorder cycles, and alert thresholds before reporting becomes authoritative."
+              actions={["Preview impact", "Save section", "Review history"]}
+            />
+            <SupportTile
+              title="3. Review identities"
+              detail="Approve or reject social/customer suggestions without merging source records. Use watched account import when an account is not owned."
+              actions={["Add watched account", "Approve link", "Reject suggestion"]}
+            />
+          </div>
+        </Section>
+        <Section title="Onboarding Help" description="Tenant admins can use this as the setup playbook. Each decision should be reviewed here before the tenant relies on the data operationally.">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <HelpDocCard
+              title="Provider connection"
+              steps={[
+                "Use Integrations to save Printavo read-only credentials and Meta / Instagram connector fields.",
+                "For Meta, pick Business Login for Instagram for direct professional accounts or Facebook Login for Business for Page-linked Business Suite accounts.",
+                "Return to Social Monitor and run Scan Meta accounts. If the scan is gated, the connection panel lists the missing token or scopes.",
+              ]}
+            />
+            <HelpDocCard
+              title="Mapping review"
+              steps={[
+                "Edit status, payment, tag, field-trust, reorder, and alert settings in Tenant Configuration.",
+                "Click Preview impact before saving to see affected orders, dirty rows, and dashboard surfaces.",
+                "Save one section at a time after review so the change history stays readable and revertable.",
+              ]}
+            />
+            <HelpDocCard
+              title="Owned vs watched accounts"
+              steps={[
+                "Owned accounts are accounts the tenant can authorize through Meta. They can publish, reply, sync posts, and receive enriched data when scopes allow.",
+                "Watched accounts do not require ownership. Add them manually for competitors, partner stores, athletes, schools, and media handles.",
+                "Watched-account API enrichment remains limited to what Meta or another provider legally exposes; manual tracking stays first-class.",
+              ]}
+            />
+            <HelpDocCard
+              title="Review queues"
+              steps={[
+                "Use Identity Resolution to approve or reject links between social accounts, comments, messages, customers, contacts, and organizations.",
+                "Use Account cleanup and dirty field warnings before treating reports as authoritative.",
+                "No approval destructively merges Printavo customers, organizations, contacts, or social identities.",
+              ]}
+            />
+          </div>
+        </Section>
+        <Section title="Tenant Configuration" description="Editable tenant-controlled settings. Preview each section, then save it through the tenant-scoped config API.">
+          <div className="space-y-6">
+            {configPreview ? (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-semibold">Preview: {labelFromKey(configPreview.section)}</p>
+                    <p className="mt-1">
+                      {formatNumber(configPreview.affectedOrders)} affected orders, {formatNumber(configPreview.affectedAccounts)} affected accounts,
+                      {" "}{formatNumber(configPreview.dirtyRecords)} dirty records.
+                    </p>
+                    {configPreview.affectedDashboards.length ? <p className="mt-1">Dashboards touched: {configPreview.affectedDashboards.join(", ")}</p> : null}
+                    {configPreview.warnings.length ? <p className="mt-1 text-amber-800">{configPreview.warnings.join(" ")}</p> : null}
+                  </div>
+                  <Pill tone="blue">Token {configPreview.previewToken}</Pill>
+                </div>
+              </div>
+            ) : null}
+            <ConfigActionBar section="statusMappings" label="Status mappings" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.statusMappings.map((item, index) => (
+                <div key={`${item.sourceValue}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1.2fr_1fr_160px_120px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.sourceValue} onChange={(event) => setConfigItem("statusMappings", index, { sourceValue: event.target.value })} placeholder="Printavo status" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.targetBucket} onChange={(event) => setConfigItem("statusMappings", index, { targetBucket: event.target.value })} placeholder="Bucket" />
+                  <TrustSelect value={item.trustLevel} onChange={(value) => setConfigItem("statusMappings", index, { trustLevel: value })} />
+                  <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("statusMappings", index, { enabled: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("statusMappings", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("statusMappings", { sourceValue: "", targetBucket: "needs_review", trustLevel: "needs_review", enabled: true, priority: 100 })}>Add status mapping</Button>
+            </div>
+
+            <ConfigActionBar section="paymentMappings" label="Payment mappings" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.paymentMappings.map((item, index) => (
+                <div key={`${item.sourceValue}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1.2fr_1fr_160px_120px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.sourceValue} onChange={(event) => setConfigItem("paymentMappings", index, { sourceValue: event.target.value })} placeholder="Printavo payment state" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.targetBucket} onChange={(event) => setConfigItem("paymentMappings", index, { targetBucket: event.target.value })} placeholder="Bucket" />
+                  <TrustSelect value={item.trustLevel} onChange={(value) => setConfigItem("paymentMappings", index, { trustLevel: value })} />
+                  <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("paymentMappings", index, { enabled: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("paymentMappings", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("paymentMappings", { sourceValue: "", targetBucket: "needs_review", trustLevel: "needs_review", enabled: true, priority: 100 })}>Add payment mapping</Button>
+            </div>
+
+            <ConfigActionBar section="tagMappings" label="Tag/category mappings" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.tagMappings.map((item, index) => (
+                <div key={`${item.sourceValue}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1.2fr_1fr_160px_120px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.sourceValue} onChange={(event) => setConfigItem("tagMappings", index, { sourceValue: event.target.value })} placeholder="Printavo tag" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.category} onChange={(event) => setConfigItem("tagMappings", index, { category: event.target.value })} placeholder="Category" />
+                  <TrustSelect value={item.trustLevel} onChange={(value) => setConfigItem("tagMappings", index, { trustLevel: value })} />
+                  <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("tagMappings", index, { enabled: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("tagMappings", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("tagMappings", { sourceValue: "", category: "needs_review", trustLevel: "needs_review", enabled: true, priority: 100 })}>Add tag mapping</Button>
+            </div>
+
+            <ConfigActionBar section="fieldTrust" label="Field trust review" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.fieldTrust.map((item, index) => (
+                <div key={`${item.fieldKey}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1fr_160px_150px_1.4fr_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.fieldKey} onChange={(event) => setConfigItem("fieldTrust", index, { fieldKey: event.target.value })} placeholder="Field key" />
+                  <TrustSelect value={item.trustLevel} onChange={(value) => setConfigItem("fieldTrust", index, { trustLevel: value })} />
+                  <EnabledSelect trueLabel="Authoritative" falseLabel="Review" value={item.authoritative} onChange={(value) => setConfigItem("fieldTrust", index, { authoritative: value })} />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.warning ?? ""} onChange={(event) => setConfigItem("fieldTrust", index, { warning: event.target.value || null })} placeholder="Warning shown to operators" />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("fieldTrust", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("fieldTrust", { fieldKey: "", trustLevel: "needs_review", authoritative: false, warning: null })}>Add field trust rule</Button>
+            </div>
+
+            <ConfigActionBar section="reorderRules" label="Reorder rules" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.reorderRules.map((item, index) => (
+                <div key={`${item.ruleKey}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_120px_140px_120px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.ruleKey} onChange={(event) => setConfigItem("reorderRules", index, { ruleKey: event.target.value })} placeholder="Rule key" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.category} onChange={(event) => setConfigItem("reorderRules", index, { category: event.target.value })} placeholder="Category" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" inputMode="numeric" value={item.cycleDays} onChange={(event) => setConfigItem("reorderRules", index, { cycleDays: Number(event.target.value) || 1 })} placeholder="Cycle days" />
+                  <PrioritySelect value={item.priority} onChange={(value) => setConfigItem("reorderRules", index, { priority: value })} />
+                  <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("reorderRules", index, { enabled: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("reorderRules", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("reorderRules", { ruleKey: "", category: "general", cycleDays: 365, priority: "medium", enabled: true })}>Add reorder rule</Button>
+            </div>
+
+            <ConfigActionBar section="emailTemplates" label="Email templates" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-3">
+              {configDraft.emailTemplates.map((item, index) => (
+                <div key={`${item.templateKey}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="grid gap-2 lg:grid-cols-[1fr_1fr_120px_auto]">
+                    <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.templateKey} onChange={(event) => setConfigItem("emailTemplates", index, { templateKey: event.target.value })} placeholder="Template key" />
+                    <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.name} onChange={(event) => setConfigItem("emailTemplates", index, { name: event.target.value })} placeholder="Name" />
+                    <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("emailTemplates", index, { enabled: value })} />
+                    <Button icon={X} variant="ghost" onClick={() => removeConfigItem("emailTemplates", index)}>Remove</Button>
+                  </div>
+                  <input className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.subjectTemplate} onChange={(event) => setConfigItem("emailTemplates", index, { subjectTemplate: event.target.value })} placeholder="Subject template" />
+                  <textarea className="mt-2 min-h-28 w-full rounded-md border border-slate-200 p-3 text-sm" value={item.bodyTemplate} onChange={(event) => setConfigItem("emailTemplates", index, { bodyTemplate: event.target.value })} placeholder="Body template" />
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("emailTemplates", { templateKey: "", name: "", subjectTemplate: "{{accountName}} follow-up", bodyTemplate: "Hi {{contactName}},", enabled: true })}>Add email template</Button>
+            </div>
+
+            <ConfigActionBar section="socialAccountCategories" label="Social account categories" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.socialAccountCategories.map((item, index) => (
+                <div key={`${item.key}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_140px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.key} onChange={(event) => setConfigItem("socialAccountCategories", index, { key: event.target.value })} placeholder="Category key" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.label} onChange={(event) => setConfigItem("socialAccountCategories", index, { label: event.target.value })} placeholder="Label" />
+                  <PrioritySelect value={item.priority} onChange={(value) => setConfigItem("socialAccountCategories", index, { priority: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("socialAccountCategories", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("socialAccountCategories", { key: "", label: "", priority: "medium" })}>Add social category</Button>
+            </div>
+
+            <ConfigActionBar section="alertRules" label="Alert rules" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="space-y-2">
+              {configDraft.alertRules.map((item, index) => (
+                <div key={`${item.ruleKey}-${index}`} className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 lg:grid-cols-[1fr_1fr_120px_140px_120px_auto]">
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.ruleKey} onChange={(event) => setConfigItem("alertRules", index, { ruleKey: event.target.value })} placeholder="Rule key" />
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.name} onChange={(event) => setConfigItem("alertRules", index, { name: event.target.value })} placeholder="Name" />
+                  <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.module} onChange={(event) => setConfigItem("alertRules", index, { module: event.target.value as "sales" | "social" })}>
+                    <option value="sales">Sales</option>
+                    <option value="social">Social</option>
+                  </select>
+                  <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={item.eventType} onChange={(event) => setConfigItem("alertRules", index, { eventType: event.target.value })} placeholder="Event type" />
+                  <EnabledSelect value={item.enabled} onChange={(value) => setConfigItem("alertRules", index, { enabled: value })} />
+                  <Button icon={X} variant="ghost" onClick={() => removeConfigItem("alertRules", index)}>Remove</Button>
+                </div>
+              ))}
+              <Button icon={Plus} onClick={() => addConfigItem("alertRules", { ruleKey: "", name: "", module: "social", eventType: "new_post", severity: "medium", threshold: {}, enabled: true })}>Add alert rule</Button>
+            </div>
+
+            <ConfigActionBar section="featureFlags" label="Feature flags" onPreview={previewConfigSection} onSave={saveConfigSection} />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {Object.entries(configDraft.featureFlags).map(([key, value]) => (
+                <label key={key} className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+                  <span>{labelFromKey(key)}</span>
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(event) =>
+                      setConfigDraft((current) => ({
+                        ...current,
+                        featureFlags: { ...current.featureFlags, [key]: event.target.checked },
+                      }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
           </div>
         </Section>
         {renderIdentitySuggestions()}
+        <Section title="Custom Dashboards" description="Create tenant-scoped dashboards from approved widget primitives. Saved views and goals use the same product-owned storage.">
+          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <form
+              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveCustomDashboard();
+              }}
+            >
+              <h3 className="font-semibold text-slate-950">New dashboard</h3>
+              <input className="mt-4 w-full rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Dashboard name" value={dashboardDraft.name} onChange={(event) => setDashboardDraft((current) => ({ ...current, name: event.target.value }))} />
+              <div className="mt-4 grid gap-2">
+                {[
+                  ["sales_pulse", "Sales pulse"],
+                  ["reorder_queue", "Reorder queue"],
+                  ["opportunity_pipeline", "Opportunity pipeline"],
+                  ["order_cockpit", "Order cockpit"],
+                  ["social_alerts", "Social alerts"],
+                  ["post_library", "Post library"],
+                ].map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={dashboardDraft.widgets.includes(key)}
+                      onChange={(event) =>
+                        setDashboardDraft((current) => ({
+                          ...current,
+                          widgets: event.target.checked ? [...current.widgets, key] : current.widgets.filter((item) => item !== key),
+                        }))
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <Button type="submit" icon={Plus} variant="primary">Create dashboard</Button>
+            </form>
+            <div className="space-y-3">
+              {summary.customDashboards.dashboards.length ? (
+                summary.customDashboards.dashboards.map((dashboard) => (
+                  <div key={dashboard.id} className="rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-slate-950">{dashboard.name}</p>
+                      <Pill tone={dashboard.isDefault ? "green" : "blue"}>{dashboard.isDefault ? "Default" : "Custom"}</Pill>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {Array.isArray(dashboard.definition.widgets)
+                        ? dashboard.definition.widgets.map((widget) => <Pill key={String(widget)} tone="slate">{labelFromKey(String(widget))}</Pill>)
+                        : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState title="No custom dashboards" body="Create a dashboard from the widget library to save role-specific views for the tenant." />
+              )}
+            </div>
+          </div>
+        </Section>
         <Section title="UI Self-Audit Rules" description="Rules for future Codex/browser iterations on this workspace.">
           <div className="grid gap-3 text-sm text-slate-700 md:grid-cols-2">
             {[
@@ -1702,14 +2589,35 @@ export function ScreenprintingWorkspace({ summary, orgSlug }: { summary: Screenp
         </div>
       </div>
 
-      {selectedPost ? <SocialPostDrawer post={selectedPost} account={socialAccounts.find((account) => account.id === selectedPost.socialAccountId)} commentText={commentText} setCommentText={setCommentText} onClose={() => setSelectedPost(null)} runAction={runAction} apiBase={apiBase} /> : null}
+      {selectedPost ? <SocialPostDrawer post={selectedPost} account={socialAccounts.find((account) => account.id === selectedPost.socialAccountId)} connection={socialConnection} commentText={commentText} setCommentText={setCommentText} onClose={() => setSelectedPost(null)} runAction={runAction} apiBase={apiBase} /> : null}
       {selectedOrder ? <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} /> : null}
-      {draft ? <EmailDraftModal draft={draft} onClose={() => setDraft(null)} onCopy={() => copyText(`${draft.subject}\n\n${draft.body}`, "Email draft copied.")} /> : null}
+      {draft ? (
+        <EmailDraftModal
+          draft={draft}
+          onClose={() => setDraft(null)}
+          onCopy={() => copyText(`${draft.subject}\n\n${draft.body}`, "Email draft copied.")}
+          onMarkSent={() =>
+            draft.id
+              ? runAction("Mark email draft sent", `${apiBase}/sales/email-drafts/${draft.id}/mark-sent`, { method: "POST" })
+              : setNotice({ tone: "error", message: "Only API-rendered drafts can be marked sent." })
+          }
+        />
+      ) : null}
+      {composerOpen ? (
+        <SocialComposerModal
+          draft={composerDraft}
+          accounts={socialAccounts}
+          setDraft={setComposerDraft}
+          onClose={() => setComposerOpen(false)}
+          onSave={saveSocialDraft}
+        />
+      ) : null}
     </div>
   );
 }
 
-function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+function OpportunityCard({ opportunity, onStageChange }: { opportunity: Opportunity; onStageChange: (stageKey: string) => void }) {
+  const isDerived = Boolean(opportunity.metadata?.derived);
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <div className="flex items-start justify-between gap-3">
@@ -1720,25 +2628,186 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
         <p className="font-semibold text-emerald-700">{opportunity.value ? formatMoney(opportunity.value) : "No value"}</p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Pill tone={opportunity.metadata?.derived ? "blue" : "green"}>{opportunity.metadata?.derived ? "Derived read-only" : "Persisted"}</Pill>
+        <Pill tone={isDerived ? "blue" : "green"}>{isDerived ? "Derived read-only" : "Persisted"}</Pill>
         <Pill tone="slate">{labelFromKey(opportunity.sourceType)}</Pill>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {["contacted", "proposal_sent", "won"].map((stageKey) => (
+          <Button
+            key={stageKey}
+            disabled={isDerived}
+            title={isDerived ? "Derived opportunities must be persisted before stage changes." : undefined}
+            onClick={() => onStageChange(stageKey)}
+          >
+            {labelFromKey(stageKey)}
+          </Button>
+        ))}
       </div>
     </div>
   );
 }
 
-function ConfigList({ title, items }: { title: string; items: string[] }) {
+function SupportTile({ title, detail, actions }: { title: string; detail: string; actions: string[] }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <h3 className="font-semibold text-slate-950">{title}</h3>
-      <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
-        {items.length ? items.slice(0, 40).map((item) => <p key={item} className="rounded-md bg-white px-3 py-2 text-sm text-slate-600">{item}</p>) : <p className="text-sm text-slate-500">No entries configured.</p>}
+      <p className="font-semibold text-slate-950">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{detail}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {actions.map((action) => <Pill key={action} tone="blue">{action}</Pill>)}
       </div>
     </div>
+  );
+}
+
+function HelpDocCard({ title, steps }: { title: string; steps: string[] }) {
+  return (
+    <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <h3 className="font-semibold text-slate-950">{title}</h3>
+      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+        {steps.map((step, index) => (
+          <li key={step} className="grid grid-cols-[24px_1fr] gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-xs font-semibold text-blue-700">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </article>
+  );
+}
+
+function ConfigActionBar({
+  section,
+  label,
+  onPreview,
+  onSave,
+}: {
+  section: EditableConfigSection;
+  label: string;
+  onPreview: (section: EditableConfigSection) => void;
+  onSave: (section: EditableConfigSection) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-slate-200 pt-5 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h3 className="font-semibold text-slate-950">{label}</h3>
+        <p className="mt-1 text-sm text-slate-500">Preview the impact before saving this section.</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button icon={Eye} onClick={() => onPreview(section)}>Preview impact</Button>
+        <Button icon={CheckCircle2} variant="primary" onClick={() => onSave(section)}>Save {label}</Button>
+      </div>
+    </div>
+  );
+}
+
+function TrustSelect({ value, onChange }: { value: ScreenprintingConfig["fieldTrust"][number]["trustLevel"]; onChange: (value: ScreenprintingConfig["fieldTrust"][number]["trustLevel"]) => void }) {
+  return (
+    <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={value} onChange={(event) => onChange(event.target.value as ScreenprintingConfig["fieldTrust"][number]["trustLevel"])}>
+      <option value="trusted">Trusted</option>
+      <option value="needs_review">Needs review</option>
+      <option value="review">Review</option>
+      <option value="dirty">Dirty</option>
+      <option value="ignored">Ignored</option>
+    </select>
+  );
+}
+
+function PrioritySelect({ value, onChange }: { value: "low" | "medium" | "high"; onChange: (value: "low" | "medium" | "high") => void }) {
+  return (
+    <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={value} onChange={(event) => onChange(event.target.value as "low" | "medium" | "high")}>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+  );
+}
+
+function EnabledSelect({
+  value,
+  onChange,
+  trueLabel = "Enabled",
+  falseLabel = "Disabled",
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+  trueLabel?: string;
+  falseLabel?: string;
+}) {
+  return (
+    <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={value ? "true" : "false"} onChange={(event) => onChange(event.target.value === "true")}>
+      <option value="true">{trueLabel}</option>
+      <option value="false">{falseLabel}</option>
+    </select>
+  );
+}
+
+function MetaConnectionPanel({ connection, orgSlug }: { connection: ScreenprintingWorkspaceSummary["socialConnection"]; orgSlug: string }) {
+  const activeMode = connection.modes.find((mode) => mode.key === connection.preferredMode) ?? connection.modes[0];
+  const capabilityRows = [
+    ["Owned account scan", connection.capabilities.ownedAccountDiscovery],
+    ["Watchlist import", connection.capabilities.watchedAccountManualImport],
+    ["Watchlist API enrichment", connection.capabilities.watchedAccountApiEnrichment],
+    ["Post sync + insights", connection.capabilities.readPosts && connection.capabilities.readInsights],
+    ["Comment replies", connection.capabilities.replyToComments],
+    ["Message replies", connection.capabilities.replyToMessages],
+    ["Publishing", connection.capabilities.publishPosts],
+  ] as const;
+
+  return (
+    <Section
+      title="Meta / Instagram connection"
+      description={`${activeMode?.label ?? "Meta Graph"} uses ${activeMode?.hostUrl ?? "Graph API"} with ${activeMode?.tokenType ?? "access tokens"}. Watched accounts can be added now; API enrichment depends on Meta-permitted professional account data and owned-account interactions.`}
+      actions={<Button icon={Settings2} onClick={() => { window.location.href = `/integrations?org=${encodeURIComponent(orgSlug)}`; }}>Connector setup</Button>}
+    >
+      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={connection.configured ? "green" : "amber"}>{connection.configured ? "Connector saved" : "Needs connector"}</Pill>
+            <Pill tone={connection.providerWriteBackAvailable ? "green" : "slate"}>{connection.providerWriteBackAvailable ? "Live actions ready" : "Setup required"}</Pill>
+            <Pill tone={connection.publishingAvailable ? "green" : "amber"}>{connection.publishingAvailable ? "Publishing ready" : "Publishing gated"}</Pill>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm text-slate-600">
+            <div className="flex justify-between gap-3"><span>Mode</span><span className="font-semibold text-slate-900">{activeMode?.loginType ?? labelFromKey(connection.preferredMode)}</span></div>
+            <div className="flex justify-between gap-3"><span>Graph version</span><span className="font-semibold text-slate-900">{connection.graphApiVersion}</span></div>
+            <div className="flex justify-between gap-3"><span>Owned accounts</span><span className="font-semibold text-slate-900">{connection.accountCounts.owned}</span></div>
+            <div className="flex justify-between gap-3"><span>Watched accounts</span><span className="font-semibold text-slate-900">{connection.accountCounts.watched}</span></div>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {capabilityRows.map(([label, enabled]) => (
+            <div key={label} className={cx("rounded-lg border p-3 text-sm", enabled ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-600")}>
+              <div className="flex items-center gap-2 font-semibold">
+                {enabled ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {connection.permissionState.missingPermissions.length ? (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Missing required scopes: {connection.permissionState.missingPermissions.join(", ")}.
+        </p>
+      ) : null}
+    </Section>
   );
 }
 
 function OrderDetailModal({ order, onClose }: { order: SalesOrder; onClose: () => void }) {
+  const [worksheet, setWorksheet] = useState({
+    quantity: "24",
+    priceEach: order.orderTotal ? String(Math.max(1, Math.round((order.orderTotal / 24) * 100) / 100)) : "0",
+    blankCost: "0",
+    decoCost: "0",
+  });
+  const quantity = Number(worksheet.quantity) || 0;
+  const priceEach = Number(worksheet.priceEach) || 0;
+  const blankCost = Number(worksheet.blankCost) || 0;
+  const decoCost = Number(worksheet.decoCost) || 0;
+  const estimateRevenue = quantity * priceEach;
+  const estimateCost = quantity * (blankCost + decoCost);
+  const estimateMargin = estimateRevenue - estimateCost;
+  const estimateMarginRate = estimateRevenue > 0 ? estimateMargin / estimateRevenue : 0;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
       <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-lg bg-white">
@@ -1762,7 +2831,33 @@ function OrderDetailModal({ order, onClose }: { order: SalesOrder; onClose: () =
         </div>
         <div className="px-5 pb-5">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Profitability and line-item costs are intentionally not shown as actuals yet because catalog/decorator cost data is not stable in the synced order foundation. This avoids displaying fake margin values.
+            Profitability below is an operator worksheet, not synced actual cost. It stays out of Printavo and should be treated as needs-review until catalog and decorator cost data are configured.
+          </div>
+          <div className="mt-4 rounded-lg border border-slate-200">
+            <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-4 md:grid-cols-4">
+              <label className="grid gap-1 text-sm font-semibold text-slate-600">
+                Quantity
+                <input className="rounded-md border border-slate-200 px-3 py-2 text-right" inputMode="numeric" value={worksheet.quantity} onChange={(event) => setWorksheet((current) => ({ ...current, quantity: event.target.value }))} />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold text-slate-600">
+                Price each
+                <input className="rounded-md border border-slate-200 px-3 py-2 text-right" inputMode="decimal" value={worksheet.priceEach} onChange={(event) => setWorksheet((current) => ({ ...current, priceEach: event.target.value }))} />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold text-slate-600">
+                Blank cost
+                <input className="rounded-md border border-slate-200 px-3 py-2 text-right" inputMode="decimal" value={worksheet.blankCost} onChange={(event) => setWorksheet((current) => ({ ...current, blankCost: event.target.value }))} />
+              </label>
+              <label className="grid gap-1 text-sm font-semibold text-slate-600">
+                Decoration cost
+                <input className="rounded-md border border-slate-200 px-3 py-2 text-right" inputMode="decimal" value={worksheet.decoCost} onChange={(event) => setWorksheet((current) => ({ ...current, decoCost: event.target.value }))} />
+              </label>
+            </div>
+            <div className="grid gap-3 p-4 md:grid-cols-4">
+              <MetricCard label="Estimated revenue" value={formatMoney(estimateRevenue)} icon={DollarSign} tone="green" />
+              <MetricCard label="Estimated cost" value={formatMoney(estimateCost)} icon={Package} tone="amber" />
+              <MetricCard label="Estimated margin" value={formatMoney(estimateMargin)} icon={Trophy} tone={estimateMargin >= 0 ? "green" : "amber"} />
+              <MetricCard label="Margin rate" value={formatPercent(estimateMarginRate)} icon={BarChart3} tone={estimateMargin >= 0 ? "green" : "amber"} />
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {order.sourceUrl ? <Button icon={ExternalLink} onClick={() => window.open(order.sourceUrl ?? "", "_blank", "noopener,noreferrer")}>Open in Printavo</Button> : null}
@@ -1777,6 +2872,7 @@ function OrderDetailModal({ order, onClose }: { order: SalesOrder; onClose: () =
 function SocialPostDrawer({
   post,
   account,
+  connection,
   commentText,
   setCommentText,
   onClose,
@@ -1785,12 +2881,14 @@ function SocialPostDrawer({
 }: {
   post: SocialPost;
   account?: SocialAccount;
+  connection: ScreenprintingWorkspaceSummary["socialConnection"];
   commentText: string;
   setCommentText: (value: string) => void;
   onClose: () => void;
   runAction: (label: string, path: string, init?: RequestInit, reload?: boolean) => Promise<unknown>;
   apiBase: string;
 }) {
+  const [commentId, setCommentId] = useState("");
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/50">
       <aside className="h-full w-full max-w-2xl overflow-auto bg-white">
@@ -1816,22 +2914,24 @@ function SocialPostDrawer({
           </div>
           <div className="mt-5 rounded-lg border border-slate-200 p-4">
             <p className="font-semibold text-slate-950">Comments and replies</p>
-            <p className="mt-1 text-sm text-slate-500">Replying posts to Instagram requires the tenant's connected account to have manage-comments permission. The MVP prevents silent social write-back.</p>
+            <p className="mt-1 text-sm text-slate-500">Replies use Meta Graph API when the tenant has an owned account, comments scope, and the comments/replies feature flag.</p>
+            <input className="mt-3 w-full rounded-md border border-slate-200 px-3 py-2 text-sm" value={commentId} onChange={(event) => setCommentId(event.target.value)} placeholder="Instagram comment ID to reply to" />
             <textarea className="mt-3 min-h-28 w-full rounded-md border border-slate-200 p-3 text-sm" value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={`Add a comment as @${account?.handle ?? "account"}...`} />
             <div className="mt-3 flex justify-end">
               <Button
                 icon={Send}
-                disabled={!commentText.trim()}
+                disabled={!connection.capabilities.replyToComments || !commentText.trim() || !commentId.trim()}
+                title={connection.capabilities.replyToComments ? "Reply through Meta Graph API." : "Comment replies require Meta token, comments scope, feature flag, owned account, and an Instagram comment ID."}
                 onClick={() =>
                   runAction(
-                    "Post comment",
+                    "Reply to comment",
                     `${apiBase}/social/posts/${post.id}/comments`,
-                    { method: "POST", body: JSON.stringify({ body: commentText }) },
+                    { method: "POST", body: JSON.stringify({ commentId, message: commentText }) },
                     false,
                   )
                 }
               >
-                Post comment
+                Reply
               </Button>
             </div>
           </div>
@@ -1841,14 +2941,100 @@ function SocialPostDrawer({
   );
 }
 
+function SocialComposerModal({
+  draft,
+  accounts,
+  setDraft,
+  onClose,
+  onSave,
+}: {
+  draft: SocialComposerDraft;
+  accounts: SocialAccount[];
+  setDraft: Dispatch<SetStateAction<SocialComposerDraft>>;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-lg bg-white">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Social composer</h2>
+            <p className="text-sm text-slate-500">Creates a tenant-scoped draft. Drafts can publish when Meta permissions and owned-account IDs are configured.</p>
+          </div>
+          <Button icon={X} onClick={onClose}>Close</Button>
+        </div>
+        <div className="grid gap-4 p-5">
+          <label className="grid gap-1 text-sm font-semibold text-slate-600">
+            Account
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={draft.socialAccountId} onChange={(event) => setDraft((current) => ({ ...current, socialAccountId: event.target.value }))}>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  @{account.handle} - {labelFromKey(account.ownership)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="grid gap-1 text-sm font-semibold text-slate-600">
+              Type
+              <select className="rounded-md border border-slate-200 px-3 py-2 text-sm" value={draft.postType} onChange={(event) => setDraft((current) => ({ ...current, postType: event.target.value }))}>
+                <option value="post">Post</option>
+                <option value="reel">Reel</option>
+                <option value="story">Story</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-slate-600">
+              Schedule
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" type="datetime-local" value={draft.scheduledFor} onChange={(event) => setDraft((current) => ({ ...current, scheduledFor: event.target.value }))} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-slate-600">
+              Location
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Optional" value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} />
+            </label>
+          </div>
+          <label className="grid gap-1 text-sm font-semibold text-slate-600">
+            Public media URL
+            <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="https://..." value={draft.mediaUrl} onChange={(event) => setDraft((current) => ({ ...current, mediaUrl: event.target.value }))} />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-slate-600">
+            Caption
+            <textarea className="min-h-40 rounded-md border border-slate-200 p-3 text-sm" maxLength={2200} placeholder="Write the caption. Hashtags and mentions stay in draft." value={draft.caption} onChange={(event) => setDraft((current) => ({ ...current, caption: event.target.value }))} />
+            <span className="text-xs text-slate-400">{draft.caption.length} / 2200</span>
+          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-sm font-semibold text-slate-600">
+              Collaborators
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="@handle, @handle" value={draft.collaborators} onChange={(event) => setDraft((current) => ({ ...current, collaborators: event.target.value }))} />
+            </label>
+            <label className="grid gap-1 text-sm font-semibold text-slate-600">
+              Tags
+              <input className="rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="campaign, school, drop" value={draft.tags} onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))} />
+            </label>
+          </div>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            Saving the draft does not publish. Publishing is a separate Meta action so operators can review copy and assets first.
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button icon={X} onClick={onClose}>Cancel</Button>
+            <Button icon={Send} variant="primary" onClick={onSave}>Save draft</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmailDraftModal({
   draft,
   onClose,
   onCopy,
+  onMarkSent,
 }: {
-  draft: { to: string | null; subject: string; body: string; source: "api" | "local" };
+  draft: { id?: string; to: string | null; subject: string; body: string; source: "api" | "local" };
   onClose: () => void;
   onCopy: () => void;
+  onMarkSent: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
@@ -1870,6 +3056,7 @@ function EmailDraftModal({
           <div className="flex flex-wrap justify-end gap-2">
             <Button icon={Copy} onClick={onCopy}>Copy email</Button>
             <Button icon={ExternalLink} onClick={() => window.open(`mailto:${draft.to ?? ""}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`)}>Open email client</Button>
+            <Button icon={CheckCircle2} variant="primary" disabled={!draft.id} onClick={onMarkSent}>Mark as sent</Button>
           </div>
         </div>
       </div>

@@ -56,7 +56,7 @@ The workspace config treats these as unusable or suppressed address patterns for
 
 These values must be chosen by FraterniTees in the admin UI or recorded here after confirmation. Until then, implementation should use safe defaults, show dirty/unmapped warnings, and avoid presenting affected reports as fully authoritative.
 
-The current workspace seed enables Screenprinting Sales and Social while leaving social publishing, catalog costs, and profitability disabled. Comments/replies and messages are feature-flagged on for FraterniTees, but live provider write-back remains permission-gated and disabled unless explicit provider capability is added later.
+The current workspace seed enables Screenprinting Sales, Social, social publishing, comments/replies, and messages for FraterniTees while leaving catalog costs and profitability disabled. Live Meta actions remain permission-gated until FraterniTees stores a Meta connector token, grants the required scopes, and maps owned Instagram account IDs.
 
 | Decision | Owner in app | Required for | Current status |
 |---|---|---|---|

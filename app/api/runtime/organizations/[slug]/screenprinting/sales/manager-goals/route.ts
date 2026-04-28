@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import {
-  createScreenprintingSocialPost,
-  listScreenprintingSocialPosts,
+  listScreenprintingManagerGoals,
+  saveScreenprintingManagerGoals,
 } from "@/lib/application/screenprinting/screenprinting-service";
 import { readJson, requireTenantSession, resolveSlug, screenprintingErrorResponse } from "../../_shared";
 
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   try {
-    return NextResponse.json({ ok: true, ...(await listScreenprintingSocialPosts(await resolveSlug(context))) });
+    const url = new URL(request.url);
+    return NextResponse.json({
+      ok: true,
+      ...(await listScreenprintingManagerGoals(await resolveSlug(context), { period: url.searchParams.get("period") })),
+    });
   } catch (error) {
     return screenprintingErrorResponse(error);
   }
@@ -20,8 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     if (session.error) {
       return session.error;
     }
-    const post = await createScreenprintingSocialPost(slug, await readJson(request));
-    return NextResponse.json({ ok: true, post });
+    return NextResponse.json({ ok: true, ...(await saveScreenprintingManagerGoals(slug, await readJson(request))) });
   } catch (error) {
     return screenprintingErrorResponse(error);
   }

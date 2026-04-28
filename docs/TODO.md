@@ -16,6 +16,9 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 - [x] Build the Screenprinting admin configuration UX for statuses, payment states, tags, fields, dirty-data trust, categories, owners, reorder rules, social account rules, alerts, dashboards, and feature flags.
 - [x] Build the Screenprinting Sales module from [tenant-types/screenprinting/SALES_MODULE.md](tenant-types/screenprinting/SALES_MODULE.md).
 - [x] Build the Screenprinting Social module from [tenant-types/screenprinting/SOCIAL_MODULE.md](tenant-types/screenprinting/SOCIAL_MODULE.md).
+- [x] Close the competitor-demo parity gaps that are safe for the current MVP: order cockpit saved views, reorder lifecycle controls, editable goals, account cleanup queues, opportunity editing, margin worksheet, social alert/post filters, account taxonomy controls, draft-only composer, and custom dashboard definitions.
+- [x] Add Meta/Instagram-ready owned account connection, watched account import, publishing, comment replies, and message replies behind token/scope/owned-account feature gates.
+- [x] Add tenant-facing onboarding/help docs in the Screenprinting Admin UI and repo docs.
 - [x] Preserve existing FraterniTees Printavo sync, lead scoring, score trends, DNC behavior, top-customer leaderboard, account directory, account detail, map, and change-request capabilities while improving the UI/UX.
 
 ## Architecture Runway Tasks
@@ -38,7 +41,7 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 - [x] Add acceptance tests that use [fixtures/screenprinting/sample-screenprinting-data.json](../fixtures/screenprinting/sample-screenprinting-data.json).
 - [ ] Add targeted tests for mapping-rule evaluation, dirty-data exclusions, reorder signal generation, alert-rule evaluation, and identity-resolution decisions.
 - [x] Add browser/runtime verification for Screenprinting Sales and Social flows once UI routes exist.
-- [ ] Add authenticated tenant-session E2E tests for Screenprinting manual social import, manual thread logging, campaign creation, alert updates, and identity-resolution approvals.
+- [ ] Add authenticated tenant-session E2E tests for Screenprinting saved views, manager goals, draft social posts, manual social import, manual thread logging, campaign creation, alert updates, and identity-resolution approvals.
 - [ ] Convert more FraterniTees score/trend/read-model behavior into reusable primitives and package contracts.
 - [ ] Move remaining tenant-specific map filter/facet behavior into explicit registry config.
 - [ ] Generalize recurring connector sync beyond the first FraterniTees Printavo automation slice.
@@ -51,7 +54,7 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 - [ ] FraterniTees must choose which Printavo statuses count as quoted, in production, completed, cancelled/lost, paid, unpaid, ignored, or dirty.
 - [ ] FraterniTees must choose tag/category mappings and field trust settings before new reports are authoritative.
 - [ ] FraterniTees must choose reorder cycles, high-value windows, follow-up owners, and email templates.
-- [ ] FraterniTees must choose owned and watched Instagram/social accounts, alert thresholds, and social follow-up owners.
+- [ ] FraterniTees must choose final owned and watched Instagram/social accounts, alert thresholds, social follow-up owners, and production Meta app/token setup.
 - [ ] Tenant role enforcement for admin-only config changes needs a final auth policy decision before broad customer rollout.
 - [ ] Direct browser Supabase access needs explicit RLS policies before any tenant table is exposed to the client.
 

@@ -11,7 +11,7 @@ Tenant-specific differences belong in tenant workspace config, organization over
 ## Product stance
 
 - Monitoring plus calendar planning is required for MVP.
-- Publishing is not required for MVP.
+- Publishing, comment replies, and message replies are supported when tenant feature flags, owned-account records, and Meta permissions allow them.
 - Real saved tenants must not silently fall back to demo social accounts, posts, alerts, campaigns, or identity suggestions. Show real rows, manual-import rows, provider permission states, or explicit empty states.
 - Demo fixtures are allowed only for no-organization development paths and must be visibly labeled as demo data.
 - Comments/replies should be available for owned accounts when API permissions allow.
@@ -23,8 +23,8 @@ Tenant-specific differences belong in tenant workspace config, organization over
 ## Current FraterniTees implementation state
 
 - The `/screenprinting?org=fraternitees` Social workspace shows honest zero/empty states until FraterniTees connects or manually imports social accounts, posts, messages, campaigns, or identity suggestions.
-- Manual account import, connected-account scan fallback, manual Instagram thread logging, campaign creation, alert read updates, comment/reply attempts, and identity-resolution decisions all route through tenant-scoped APIs or show explicit permission/session errors.
-- Publishing remains disabled. The content calendar is read-only and populated from synced or manually logged social posts when present.
+- Manual account import, Meta connected-account scan, account taxonomy updates, manual Instagram thread logging, draft post creation, campaign creation, alert read updates, live comment/message replies, live publish attempts, and identity-resolution decisions all route through tenant-scoped APIs or show explicit permission/session errors.
+- The composer saves product-owned draft posts first. Publishing is a separate Meta action gated by owned account, public media URL, access token, scopes, and tenant feature flag.
 - Messages/comments can be manually logged and then reviewed in identity resolution for non-destructive customer/organization linking.
 - Buttons must either call a tenant-scoped API, open a local workflow, or be disabled with an explicit reason.
 
@@ -138,7 +138,7 @@ interface SocialDashboardPayload {
 ### Side effects
 
 - Saved dashboard preferences write product-owned config.
-- No social publishing in MVP.
+- Social publishing is available only behind tenant feature flag and Meta publish permission.
 
 ### Acceptance criteria
 
@@ -305,7 +305,7 @@ interface SocialAccountDetailPayload {
 - Re-authorize/disconnect changes tenant connector state only.
 - Sync/import writes tenant-scoped posts and metrics.
 - Link changes write non-destructive identity records.
-- Publishing remains feature-gated and disabled for MVP by default.
+- Publishing remains feature-gated by default; FraterniTees enables it once Meta permissions are connected.
 
 ### Acceptance criteria
 
@@ -378,7 +378,7 @@ interface SocialPostsPayload {
 
 - Mark seen writes tenant/user seen state.
 - Links write product-owned records.
-- No publishing in MVP unless feature flag is enabled.
+- No publishing unless the tenant feature flag, owned-account mapping, and Meta content-publish scope are present.
 
 ### Acceptance criteria
 
@@ -463,7 +463,7 @@ interface SocialPostDetailPayload {
 
 ### Side effects
 
-- Reply/comment writes to provider only when owned-account permissions allow and future feature flag permits it.
+- Reply/comment writes to provider only when owned-account permissions and tenant feature flags allow it.
 - Manual comment/log fallback writes product-owned `social_thread` and `activity` only.
 - Links write non-destructive identity records.
 
@@ -626,7 +626,7 @@ interface SocialCalendarPayload {
 | Loading | Stable calendar grid/list. |
 | Empty | Show create planned post/campaign actions. |
 | Missing assets | Show asset warning without blocking planning. |
-| Publishing disabled | Allow planning and scheduling labels, but do not show live publish as available. |
+| Publishing unavailable | Allow planning and scheduling labels, but show the missing connector/scope/owned-account reason before live publish is available. |
 
 ### Primary actions
 
@@ -641,7 +641,7 @@ interface SocialCalendarPayload {
 ### Side effects
 
 - Writes product-owned calendar/campaign/post records.
-- No provider publishing in MVP.
+- Provider publishing is allowed only through the permission-gated Meta route.
 
 ### Acceptance criteria
 
@@ -765,15 +765,15 @@ interface SocialThreadsPayload {
 
 ### Job
 
-Support future live publishing without making it required for MVP.
+Support live publishing without making it required for every tenant or every draft.
 
 ### MVP behavior
 
 - The UI may allow creating a planned post with media/caption/date/account/campaign links.
-- Live publish buttons remain hidden or disabled unless a feature flag and owned-account permission allow them.
-- Caption length, media type, location, tags, collaborators, and co-author invites should be modeled so future publishing is possible.
+- Live publish buttons remain hidden or disabled unless a feature flag, owned-account mapping, public media URL, token, and Meta permission allow them.
+- Caption length, media type, location, tags, collaborators, and co-author invites should be modeled so publishing can be extended without changing the core draft model.
 
-### Future publishing data shape
+### Publishing data shape
 
 ```ts
 interface ComposePostDraft {
@@ -795,7 +795,7 @@ interface ComposePostDraft {
 
 ### Acceptance criteria
 
-- In MVP, planned posts can be created without live publishing.
+- In MVP, planned posts can be created without live publishing and published later when authorization is complete.
 - Publish is unavailable unless the tenant enables the capability, owns the account, and provider permissions are valid.
 - Collaborator/tag search can be added later without changing the core post model.
 
@@ -840,4 +840,4 @@ The current Social MVP is implemented through:
 - `/api/runtime/organizations/[slug]/screenprinting/social/alerts`
 - `/api/runtime/organizations/[slug]/screenprinting/social/threads`
 
-Manual import is the first-class fallback. Comments/replies and publishing are permission-gated; publishing remains disabled by default.
+Manual import is the first-class fallback. Comments/replies, messages, and publishing are permission-gated by Meta connector state, scopes, owned-account IDs, and tenant feature flags.

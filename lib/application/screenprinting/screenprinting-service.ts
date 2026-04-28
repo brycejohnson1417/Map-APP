@@ -24,6 +24,7 @@ import {
   ScreenprintingRepository,
   type ScreenprintingAlertRow,
   type ScreenprintingCampaignRow,
+  type ScreenprintingDashboardDefinitionRow,
   type ScreenprintingIdentityResolutionRow,
   type ScreenprintingOpportunityRow,
   type ScreenprintingOrderRow,
@@ -35,11 +36,20 @@ import {
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { createManualSocialAdapter } from "@/lib/infrastructure/adapters/social/manual-social-adapter";
+import {
+  buildMetaInstagramReadiness,
+  discoverOwnedInstagramAccounts,
+  publishInstagramMedia,
+  replyToInstagramComment,
+  sendInstagramMessage,
+} from "@/lib/infrastructure/adapters/social/meta-instagram-adapter";
+import { IntegrationRepository } from "@/lib/infrastructure/supabase/integration-repository";
 import type { Organization } from "@/lib/domain/runtime";
 import type { WorkspaceRuntimeExperience } from "@/lib/application/workspace/workspace-service";
 
 const repository = new ScreenprintingRepository();
 const organizations = new OrganizationRepository();
+const integrations = new IntegrationRepository();
 const allOrderCache = new Map<string, { expiresAt: number; promise: Promise<ScreenprintingOrder[]> }>();
 
 export class ScreenprintingServiceError extends Error {
@@ -52,6 +62,16 @@ export class ScreenprintingServiceError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+function isMetaProviderEnumMissing(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : "";
+  return /invalid input value for enum external_provider: "meta"/i.test(message);
 }
 
 type FixtureOrder = {
@@ -175,6 +195,18 @@ type ScreenprintingReorderSignal = {
   metadata: Record<string, unknown>;
 };
 
+type ScreenprintingDashboardDefinition = {
+  id: string;
+  dashboardKey: string;
+  name: string;
+  module: string;
+  roleScope: string[];
+  definition: Record<string, unknown>;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 function hashId(parts: unknown[]) {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 24);
 }
@@ -186,6 +218,22 @@ function numberOrZero(value: number | string | null | undefined) {
 
 function firstString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function safeKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
 function toDateOnly(value: string | null | undefined) {
@@ -352,6 +400,7 @@ function socialAccountFromRow(row: ScreenprintingSocialAccountRow) {
     platform: row.platform,
     handle: row.handle,
     displayName: row.display_name,
+    externalAccountId: row.external_account_id,
     ownership: row.ownership,
     source: row.source,
     category: row.category,
@@ -393,6 +442,7 @@ function socialThreadFromRow(row: ScreenprintingSocialThreadRow) {
     threadType: row.thread_type,
     socialAccountId: row.social_account_id,
     socialPostId: row.social_post_id,
+    externalThreadId: row.external_thread_id,
     participantHandle: row.participant_handle,
     accountId: row.account_id,
     contactId: row.contact_id,
@@ -450,6 +500,20 @@ function identityFromRow(row: ScreenprintingIdentityResolutionRow) {
     reason: row.reason,
     metadata: row.metadata ?? {},
     reviewedAt: row.reviewed_at,
+  };
+}
+
+function dashboardDefinitionFromRow(row: ScreenprintingDashboardDefinitionRow): ScreenprintingDashboardDefinition {
+  return {
+    id: row.id,
+    dashboardKey: row.dashboard_key,
+    name: row.name,
+    module: row.module,
+    roleScope: row.role_scope ?? [],
+    definition: row.definition ?? {},
+    isDefault: row.is_default,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -964,9 +1028,10 @@ export async function getScreenprintingSalesDashboard(slug: string) {
 
 export async function listScreenprintingOrders(slug: string, input: { q?: string | null; pageSize?: number } = {}) {
   const context = await resolveContext(slug);
-  const [orders, total] = await Promise.all([
+  const [orders, total, savedViews] = await Promise.all([
     listOrdersForContext(context, input),
     context.organization ? repository.countOrders(context.organization.id, { q: input.q }) : Promise.resolve(fixtureOrders(context.slug, context.config).length),
+    listScreenprintingSavedViewsForContext(context, "sales_orders"),
   ]);
   return {
     orders,
@@ -983,7 +1048,22 @@ export async function listScreenprintingOrders(slug: string, input: { q?: string
           return counts;
         }, {}),
       ).map(([name, count]) => ({ name, count })),
+      teams: Object.entries(
+        orders.reduce<Record<string, number>>((counts, order) => {
+          const name = order.teamName ?? "Unassigned";
+          counts[name] = (counts[name] ?? 0) + 1;
+          return counts;
+        }, {}),
+      ).map(([name, count]) => ({ name, count })),
+      managers: Object.entries(
+        orders.reduce<Record<string, number>>((counts, order) => {
+          const name = order.managerName ?? "Unassigned";
+          counts[name] = (counts[name] ?? 0) + 1;
+          return counts;
+        }, {}),
+      ).map(([name, count]) => ({ name, count })),
     },
+    savedViews,
     pagination: { page: 1, pageSize: orders.length, total },
   };
 }
@@ -1132,6 +1212,193 @@ export async function markScreenprintingEmailDraftSent(slug: string, draftId: st
   return activity;
 }
 
+async function listScreenprintingSavedViewsForContext(context: Awaited<ReturnType<typeof resolveContext>>, module = "sales_orders") {
+  const rows = context.organization ? await repository.listDashboardDefinitions(context.organization.id, module) : [];
+  return rows
+    .map(dashboardDefinitionFromRow)
+    .filter((definition) => definition.definition.type === "saved_view")
+    .map((definition) => ({
+      id: definition.id,
+      name: definition.name,
+      module: definition.module,
+      dashboardKey: definition.dashboardKey,
+      filters: asRecord(definition.definition.filters),
+      columns: asStringArray(definition.definition.columns),
+      sort: asRecord(definition.definition.sort),
+      isDefault: definition.isDefault,
+      updatedAt: definition.updatedAt,
+    }));
+}
+
+export async function listScreenprintingSavedViews(slug: string, module = "sales_orders") {
+  const context = await resolveContext(slug);
+  return { savedViews: await listScreenprintingSavedViewsForContext(context, module) };
+}
+
+export async function createScreenprintingSavedView(slug: string, input: Record<string, unknown>) {
+  const context = await resolveContext(slug);
+  const organization = requireOrganization(context);
+  const module = firstString(input.module) ?? "sales_orders";
+  const name = firstString(input.name) ?? "Untitled view";
+  const dashboardKey = `saved_view:${module}:${safeKey(name) || "view"}:${hashId([organization.id, name, Date.now()])}`;
+  const row = await repository.createDashboardDefinition(organization.id, {
+    dashboardKey,
+    name,
+    module,
+    roleScope: asStringArray(input.roleScope),
+    isDefault: Boolean(input.isDefault),
+    definition: {
+      type: "saved_view",
+      filters: asRecord(input.filters),
+      columns: asStringArray(input.columns),
+      sort: asRecord(input.sort),
+      providerWriteBack: false,
+    },
+  });
+  const savedView = (await listScreenprintingSavedViewsForContext(context, module)).find((candidate) => candidate.id === row.id) ?? {
+    id: row.id,
+    name: row.name,
+    module: row.module,
+    dashboardKey: row.dashboard_key,
+    filters: asRecord(row.definition?.filters),
+    columns: asStringArray(row.definition?.columns),
+    sort: asRecord(row.definition?.sort),
+    isDefault: row.is_default,
+    updatedAt: row.updated_at,
+  };
+
+  await recordScreenprintingAuditEvent({
+    organizationId: organization.id,
+    action: "dashboard_updated",
+    entityType: "dashboard_definition",
+    entityId: row.id,
+    payload: { operation: "saved_view_created", module, providerWriteBack: false },
+  });
+
+  return savedView;
+}
+
+function periodKey(value: unknown) {
+  const now = new Date();
+  const fallback = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const candidate = firstString(value) ?? fallback;
+  return /^\d{4}-\d{2}$/.test(candidate) ? candidate : fallback;
+}
+
+function normalizeManagerGoal(value: unknown) {
+  const goal = asRecord(value);
+  const managerName = firstString(goal.managerName) ?? "Unassigned";
+  const toFiniteNumber = (input: unknown) => {
+    const parsed = Number(input);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  };
+  return {
+    managerName,
+    revenueGoal: toFiniteNumber(goal.revenueGoal),
+    ordersGoal: toFiniteNumber(goal.ordersGoal),
+    storesGoal: toFiniteNumber(goal.storesGoal),
+  };
+}
+
+export async function listScreenprintingManagerGoals(slug: string, input: { period?: string | null } = {}) {
+  const context = await resolveContext(slug);
+  const period = periodKey(input.period);
+  const rows = context.organization ? await repository.listDashboardDefinitions(context.organization.id, "sales_goals") : [];
+  const definition = rows.map(dashboardDefinitionFromRow).find((row) => row.dashboardKey === `manager_goals:${period}`);
+  const persistedGoals = Array.isArray(definition?.definition.goals) ? definition.definition.goals.map(normalizeManagerGoal) : [];
+  const actuals = (await getScreenprintingSalesDashboard(slug)).managerPerformance ?? [];
+  const goalByManager = new Map(persistedGoals.map((goal) => [goal.managerName, goal]));
+  const goals = actuals.length
+    ? actuals.map((manager) => ({
+        managerName: manager.managerName,
+        revenueGoal: goalByManager.get(manager.managerName)?.revenueGoal ?? 0,
+        ordersGoal: goalByManager.get(manager.managerName)?.ordersGoal ?? 0,
+        storesGoal: goalByManager.get(manager.managerName)?.storesGoal ?? 0,
+        actualRevenue: manager.revenue,
+        actualOrders: manager.orders,
+      }))
+    : persistedGoals.map((goal) => ({
+        ...goal,
+        actualRevenue: 0,
+        actualOrders: 0,
+      }));
+
+  return {
+    period,
+    goals,
+    source: definition ? "persisted" : "default",
+    updatedAt: definition?.updatedAt ?? null,
+  };
+}
+
+export async function saveScreenprintingManagerGoals(slug: string, input: Record<string, unknown>) {
+  const context = await resolveContext(slug);
+  const organization = requireOrganization(context);
+  const period = periodKey(input.period);
+  const goals = Array.isArray(input.goals) ? input.goals.map(normalizeManagerGoal) : [];
+  const row = await repository.upsertDashboardDefinition(organization.id, {
+    dashboardKey: `manager_goals:${period}`,
+    name: `Manager goals ${period}`,
+    module: "sales_goals",
+    definition: {
+      type: "manager_goals",
+      period,
+      goals,
+      providerWriteBack: false,
+    },
+  });
+
+  await recordScreenprintingAuditEvent({
+    organizationId: organization.id,
+    action: "dashboard_updated",
+    entityType: "dashboard_definition",
+    entityId: row.id,
+    payload: { operation: "manager_goals_saved", period, providerWriteBack: false },
+  });
+
+  return listScreenprintingManagerGoals(slug, { period });
+}
+
+export async function listScreenprintingCustomDashboards(slug: string) {
+  const context = await resolveContext(slug);
+  const rows = context.organization ? await repository.listDashboardDefinitions(context.organization.id, "workspace_dashboard") : [];
+  return {
+    dashboards: rows
+      .map(dashboardDefinitionFromRow)
+      .filter((definition) => definition.definition.type === "custom_dashboard"),
+  };
+}
+
+export async function createScreenprintingCustomDashboard(slug: string, input: Record<string, unknown>) {
+  const context = await resolveContext(slug);
+  const organization = requireOrganization(context);
+  const name = firstString(input.name) ?? "Screenprinting dashboard";
+  const widgets = asStringArray(input.widgets);
+  const row = await repository.createDashboardDefinition(organization.id, {
+    dashboardKey: `custom_dashboard:${safeKey(name) || "dashboard"}:${hashId([organization.id, name, Date.now()])}`,
+    name,
+    module: "workspace_dashboard",
+    roleScope: asStringArray(input.roleScope),
+    definition: {
+      type: "custom_dashboard",
+      widgets: widgets.length ? widgets : ["sales_pulse", "reorder_queue", "social_alerts"],
+      filters: asRecord(input.filters),
+      providerWriteBack: false,
+    },
+    isDefault: Boolean(input.isDefault),
+  });
+
+  await recordScreenprintingAuditEvent({
+    organizationId: organization.id,
+    action: "dashboard_updated",
+    entityType: "dashboard_definition",
+    entityId: row.id,
+    payload: { operation: "custom_dashboard_created", providerWriteBack: false },
+  });
+
+  return dashboardDefinitionFromRow(row);
+}
+
 async function listSocialAccountsForContext(context: Awaited<ReturnType<typeof resolveContext>>) {
   const rows = context.organization ? await repository.listSocialAccounts(context.organization.id) : [];
   if (rows.length) {
@@ -1146,6 +1413,7 @@ async function listSocialAccountsForContext(context: Awaited<ReturnType<typeof r
     platform: account.platform,
     handle: account.handle,
     displayName: account.displayName,
+    externalAccountId: null,
     ownership: account.ownership,
     source: account.source,
     category: account.category,
@@ -1203,6 +1471,7 @@ async function listSocialThreadsForContext(context: Awaited<ReturnType<typeof re
     threadType: thread.threadType,
     socialAccountId: null,
     socialPostId: null,
+    externalThreadId: null,
     participantHandle: thread.participantHandle,
     accountId: null,
     contactId: null,
@@ -1262,7 +1531,39 @@ export async function listScreenprintingSocialAccounts(slug: string) {
 export async function createScreenprintingSocialAccount(slug: string, input: Record<string, unknown>) {
   const context = await resolveContext(slug);
   const organization = requireOrganization(context);
-  const socialAccount = socialAccountFromRow(await repository.createSocialAccount(organization.id, input));
+  const platform = firstString(input.platform) ?? "instagram";
+  const handle = firstString(input.handle);
+  if (!handle) {
+    throw new ScreenprintingServiceError("social_handle_required", 400, "A social handle is required.");
+  }
+  const metadata = {
+    ...asRecord(input.metadata),
+    providerWriteBack: false,
+    addedVia: "manual_social_import",
+    ...(platform === "instagram"
+      ? {
+          meta: {
+          connectionMode: firstString(input.metaConnectionMode) ?? null,
+          pageId: firstString(input.metaPageId) ?? null,
+          businessId: firstString(input.metaBusinessId) ?? null,
+          source: input.ownership === "owned" ? "owned_account_registration" : "watchlist_registration",
+          },
+        }
+      : {}),
+  };
+  const socialAccount = socialAccountFromRow(
+    await repository.createSocialAccount(organization.id, {
+      ...input,
+      platform,
+      handle,
+      source: firstString(input.source) ?? "manual",
+      externalAccountId: firstString(input.externalAccountId),
+      schoolOrOrgKey: firstString(input.schoolOrOrgKey),
+      profileUrl: firstString(input.profileUrl),
+      followerCount: input.followerCount,
+      metadata,
+    }),
+  );
   await recordScreenprintingAuditEvent({
     organizationId: organization.id,
     action: "social_account_updated",
@@ -1273,14 +1574,196 @@ export async function createScreenprintingSocialAccount(slug: string, input: Rec
   return socialAccount;
 }
 
+async function buildSocialConnectionReadinessForContext(context: Awaited<ReturnType<typeof resolveContext>>) {
+  const accounts = await listSocialAccountsForContext(context);
+  const accountCounts = {
+    owned: accounts.filter((account) => account.ownership === "owned").length,
+    watched: accounts.filter((account) => account.ownership === "watched").length,
+    ignored: accounts.filter((account) => account.ownership === "ignored").length,
+  };
+  let installation = null;
+  if (context.organization) {
+    try {
+      installation = await integrations.findByProvider(context.organization.id, "meta");
+    } catch (error) {
+      if (!isMetaProviderEnumMissing(error)) {
+        throw error;
+      }
+    }
+  }
+  return buildMetaInstagramReadiness({
+    installation,
+    accountCounts,
+    featureFlags: context.config.featureFlags,
+  });
+}
+
+async function resolveMetaActionContext(
+  context: Awaited<ReturnType<typeof resolveContext>>,
+  capability: "publishPosts" | "replyToComments" | "replyToMessages",
+) {
+  const organization = requireOrganization(context);
+  let installation = null;
+  try {
+    installation = await integrations.findByProvider(organization.id, "meta");
+  } catch (error) {
+    if (isMetaProviderEnumMissing(error)) {
+      throw new ScreenprintingServiceError("meta_provider_migration_required", 503, "Apply the Meta provider migration before using live social actions.");
+    }
+    throw error;
+  }
+  const connection = await buildSocialConnectionReadinessForContext(context);
+  if (!installation) {
+    throw new ScreenprintingServiceError("meta_connector_required", 403, "Connect Meta Business / Instagram before using live social actions.");
+  }
+  const accessToken = await integrations.readSecret<string>(organization.id, installation.id, "accessToken");
+  if (!accessToken) {
+    throw new ScreenprintingServiceError("meta_access_token_required", 403, "A Meta access token is required for live social actions.");
+  }
+  if (connection.permissionState.missingPermissions.length) {
+    throw new ScreenprintingServiceError(
+      "meta_required_scopes_missing",
+      403,
+      `Meta connector is missing required scopes: ${connection.permissionState.missingPermissions.join(", ")}.`,
+    );
+  }
+  if (!connection.capabilities[capability]) {
+    const featureError = capability === "publishPosts"
+      ? "social_publishing_unavailable"
+      : capability === "replyToComments"
+        ? "comments_replies_unavailable"
+        : "messages_unavailable";
+    throw new ScreenprintingServiceError(featureError, 403, "The tenant feature flag and matching Meta scope must both be enabled for this action.");
+  }
+  return {
+    organization,
+    connection,
+    accessToken,
+  };
+}
+
+async function resolveMetaReadContext(context: Awaited<ReturnType<typeof resolveContext>>) {
+  const organization = requireOrganization(context);
+  let installation = null;
+  try {
+    installation = await integrations.findByProvider(organization.id, "meta");
+  } catch (error) {
+    if (isMetaProviderEnumMissing(error)) {
+      throw new ScreenprintingServiceError("meta_provider_migration_required", 503, "Apply the Meta provider migration before scanning owned accounts.");
+    }
+    throw error;
+  }
+  const connection = await buildSocialConnectionReadinessForContext(context);
+  if (!installation) {
+    throw new ScreenprintingServiceError("meta_connector_required", 403, "Connect Meta Business / Instagram before scanning owned accounts.");
+  }
+  const accessToken = await integrations.readSecret<string>(organization.id, installation.id, "accessToken");
+  if (!accessToken) {
+    throw new ScreenprintingServiceError("meta_access_token_required", 403, "A Meta access token is required for owned-account scanning.");
+  }
+  if (connection.permissionState.missingPermissions.length) {
+    throw new ScreenprintingServiceError(
+      "meta_required_scopes_missing",
+      403,
+      `Meta connector is missing required scopes: ${connection.permissionState.missingPermissions.join(", ")}.`,
+    );
+  }
+  return { organization, connection, accessToken };
+}
+
+export async function getScreenprintingSocialConnectionReadiness(slug: string) {
+  const context = await resolveContext(slug);
+  return buildSocialConnectionReadinessForContext(context);
+}
+
 export async function scanScreenprintingSocialAccounts(slug: string) {
   const context = await resolveContext(slug);
-  const adapter = createManualSocialAdapter({ tenantSlug: context.slug });
+  const connection = await buildSocialConnectionReadinessForContext(context);
+  if (connection.permissionState.ownedAccountDiscovery !== "available") {
+    return {
+      provider: connection.provider,
+      connection,
+      discovered: [],
+      created: 0,
+      updated: 0,
+      warnings: [
+        "Meta account scanning is ready at the adapter boundary but needs a configured Meta connector, access token, and required read scopes before live discovery can run.",
+        "Manual owned-account registration and watched-account import remain available without provider write-back.",
+      ],
+    };
+  }
+  const action = await resolveMetaReadContext(context);
+  const discovered = await discoverOwnedInstagramAccounts({
+    mode: action.connection.preferredMode,
+    apiVersion: action.connection.graphApiVersion,
+    accessToken: action.accessToken,
+  });
+  const existing = await listSocialAccountsForContext(context);
+  let created = 0;
+  let updated = 0;
+  const saved = [];
+  for (const account of discovered) {
+    const scannedAt = new Date().toISOString();
+    const current = existing.find(
+      (candidate) => candidate.platform === account.platform && candidate.handle.toLowerCase() === account.handle.toLowerCase(),
+    );
+    if (current) {
+      saved.push(
+        socialAccountFromRow(
+          await repository.updateSocialAccount(action.organization.id, current.id, {
+            externalAccountId: account.externalAccountId,
+            ownership: "owned",
+            source: "api",
+            status: "active",
+            profileUrl: account.profileUrl,
+            followerCount: account.followerCount,
+            lastSyncedAt: scannedAt,
+            metadata: {
+              ...current.metadata,
+              ...account.metadata,
+              providerWriteBack: false,
+              lastProviderScanAt: scannedAt,
+            },
+          }),
+        ),
+      );
+      updated += 1;
+    } else {
+      saved.push(
+        socialAccountFromRow(
+          await repository.createSocialAccount(action.organization.id, {
+            platform: account.platform,
+            handle: account.handle,
+            displayName: account.displayName,
+            externalAccountId: account.externalAccountId,
+            ownership: "owned",
+            source: "api",
+            category: null,
+            priority: "medium",
+            status: "active",
+            profileUrl: account.profileUrl,
+            followerCount: account.followerCount,
+            lastSyncedAt: scannedAt,
+            metadata: {
+              ...account.metadata,
+              providerWriteBack: false,
+              lastProviderScanAt: scannedAt,
+            },
+          }),
+        ),
+      );
+      created += 1;
+    }
+  }
   return {
-    discovered: [...(await adapter.listOwnedAccounts()), ...(await adapter.listWatchedAccounts())],
-    created: 0,
-    updated: 0,
-    warnings: ["Live social provider scanning is unavailable; manual import fallback is active."],
+    provider: connection.provider,
+    connection,
+    discovered: saved,
+    created,
+    updated,
+    warnings: discovered.length
+      ? ["Owned Instagram accounts were discovered through Meta Graph and saved as tenant-owned accounts."]
+      : ["Meta scan completed but no owned Instagram professional accounts were returned for this token."],
   };
 }
 
@@ -1324,6 +1807,43 @@ export async function listScreenprintingSocialPosts(slug: string) {
   return { posts, pagination: { page: 1, pageSize: posts.length, total: posts.length } };
 }
 
+export async function createScreenprintingSocialPost(slug: string, input: Record<string, unknown>) {
+  const context = await resolveContext(slug);
+  const organization = requireOrganization(context);
+  const socialAccountId = firstString(input.socialAccountId);
+  if (!socialAccountId) {
+    throw new ScreenprintingServiceError("social_account_required", 400, "A social account is required for a draft post.");
+  }
+  const post = socialPostFromRow(
+    await repository.createSocialPost(organization.id, {
+      socialAccountId,
+      postType: firstString(input.postType) ?? "post",
+      caption: firstString(input.caption) ?? "",
+      mediaUrl: firstString(input.mediaUrl),
+      status: "draft",
+      scheduledFor: firstString(input.scheduledFor),
+      campaignId: firstString(input.campaignId),
+      accountId: firstString(input.accountId),
+      metadata: {
+        draftOnly: true,
+        providerWriteBack: false,
+        location: firstString(input.location),
+        collaborators: asStringArray(input.collaborators),
+        tags: asStringArray(input.tags),
+        assetStatus: firstString(input.assetStatus) ?? "needs_upload",
+      },
+    }),
+  );
+  await recordScreenprintingAuditEvent({
+    organizationId: organization.id,
+    action: "social_post_updated",
+    entityType: "social_post",
+    entityId: post.id,
+    payload: { operation: "draft_created", providerWriteBack: false, status: post.status },
+  });
+  return post;
+}
+
 export async function getScreenprintingSocialPost(slug: string, postId: string) {
   const context = await resolveContext(slug);
   const posts = await listSocialPostsForContext(context);
@@ -1343,12 +1863,100 @@ export async function getScreenprintingSocialPost(slug: string, postId: string) 
   };
 }
 
-export async function createScreenprintingSocialComment(slug: string, _postId: string) {
+export async function publishScreenprintingSocialPost(slug: string, postId: string) {
   const context = await resolveContext(slug);
-  if (!context.config.featureFlags.comments_replies) {
-    throw new ScreenprintingServiceError("comments_replies_feature_disabled", 403);
+  const action = await resolveMetaActionContext(context, "publishPosts");
+  const [posts, accounts] = await Promise.all([listSocialPostsForContext(context), listSocialAccountsForContext(context)]);
+  const post = posts.find((candidate) => candidate.id === postId);
+  if (!post) {
+    throw new ScreenprintingServiceError("social_post_not_found", 404);
   }
-  throw new ScreenprintingServiceError("live_social_writeback_disabled", 403, "Social write-back is disabled for the MVP.");
+  const account = accounts.find((candidate) => candidate.id === post.socialAccountId);
+  if (!account || account.ownership !== "owned") {
+    throw new ScreenprintingServiceError("owned_social_account_required", 403, "Publishing requires an owned Instagram account.");
+  }
+  const igUserId = account.externalAccountId ?? firstString(account.metadata?.metaIgUserId) ?? firstString(account.metadata?.igUserId);
+  if (!igUserId) {
+    throw new ScreenprintingServiceError("instagram_user_id_required", 400, "The owned social account needs an Instagram user ID before publishing.");
+  }
+  const mediaUrl = post.mediaUrl ?? firstString(post.metadata?.mediaUrl);
+  if (!mediaUrl) {
+    throw new ScreenprintingServiceError("public_media_url_required", 400, "Publishing requires a public image or video URL.");
+  }
+  const result = await publishInstagramMedia({
+    mode: action.connection.preferredMode,
+    apiVersion: action.connection.graphApiVersion,
+    accessToken: action.accessToken,
+    igUserId,
+    caption: post.caption,
+    mediaUrl,
+    postType: post.postType,
+  });
+  const updated = socialPostFromRow(
+    await repository.updateSocialPost(action.organization.id, post.id, {
+      externalPostId: result.mediaId,
+      status: "published",
+      publishedAt: new Date().toISOString(),
+      metadata: {
+        ...post.metadata,
+        provider: "meta",
+        providerWriteBack: true,
+        metaPublish: result,
+      },
+    }),
+  );
+  await recordScreenprintingAuditEvent({
+    organizationId: action.organization.id,
+    action: "social_post_updated",
+    entityType: "social_post",
+    entityId: updated.id,
+    payload: { operation: "published_to_meta", providerWriteBack: true, externalPostId: updated.externalPostId },
+  });
+  return updated;
+}
+
+export async function createScreenprintingSocialComment(slug: string, postId: string, input: Record<string, unknown> = {}) {
+  const context = await resolveContext(slug);
+  const action = await resolveMetaActionContext(context, "replyToComments");
+  const message = firstString(input.message);
+  const commentId = firstString(input.commentId) ?? firstString(input.externalCommentId);
+  if (!message) {
+    throw new ScreenprintingServiceError("comment_message_required", 400, "A reply message is required.");
+  }
+  if (!commentId) {
+    throw new ScreenprintingServiceError("instagram_comment_id_required", 400, "An Instagram comment ID is required to reply.");
+  }
+  const result = await replyToInstagramComment({
+    mode: action.connection.preferredMode,
+    apiVersion: action.connection.graphApiVersion,
+    accessToken: action.accessToken,
+    commentId,
+    message,
+  });
+  const thread = socialThreadFromRow(
+    await repository.createSocialThread(action.organization.id, {
+      platform: "instagram",
+      threadType: "comment",
+      socialPostId: postId,
+      externalThreadId: result.id,
+      status: "replied",
+      source: "meta_graph_api",
+      metadata: {
+        providerWriteBack: true,
+        commentId,
+        replyId: result.id,
+        message,
+      },
+    }),
+  );
+  await recordScreenprintingAuditEvent({
+    organizationId: action.organization.id,
+    action: "social_thread_logged",
+    entityType: "social_thread",
+    entityId: thread.id,
+    payload: { operation: "comment_reply_sent", providerWriteBack: true, socialPostId: postId },
+  });
+  return thread;
 }
 
 export async function getScreenprintingSocialCalendar(slug: string) {
@@ -1465,6 +2073,73 @@ export async function createScreenprintingSocialThread(slug: string, input: Reco
   return thread;
 }
 
+export async function replyToScreenprintingSocialThread(slug: string, threadId: string, input: Record<string, unknown>) {
+  const context = await resolveContext(slug);
+  const action = await resolveMetaActionContext(context, "replyToMessages");
+  const [threads, accounts] = await Promise.all([listSocialThreadsForContext(context), listSocialAccountsForContext(context)]);
+  const thread = threads.find((candidate) => candidate.id === threadId);
+  if (!thread) {
+    throw new ScreenprintingServiceError("social_thread_not_found", 404);
+  }
+  const account = accounts.find((candidate) => candidate.id === thread.socialAccountId);
+  if (!account || account.ownership !== "owned") {
+    throw new ScreenprintingServiceError("owned_social_account_required", 403, "Messaging requires an owned Instagram account.");
+  }
+  const message = firstString(input.message);
+  if (!message) {
+    throw new ScreenprintingServiceError("message_body_required", 400, "A message body is required.");
+  }
+  const igUserId = account.externalAccountId ?? firstString(account.metadata?.metaIgUserId) ?? firstString(account.metadata?.igUserId);
+  const recipientId =
+    firstString(input.recipientId) ??
+    firstString(thread.externalThreadId) ??
+    firstString(thread.metadata?.instagramScopedId) ??
+    firstString(thread.metadata?.participantId);
+  if (!igUserId) {
+    throw new ScreenprintingServiceError("instagram_user_id_required", 400, "The owned social account needs an Instagram user ID before messaging.");
+  }
+  if (!recipientId) {
+    throw new ScreenprintingServiceError("instagram_recipient_id_required", 400, "An Instagram-scoped recipient ID is required to send a message.");
+  }
+  const result = await sendInstagramMessage({
+    mode: action.connection.preferredMode,
+    apiVersion: action.connection.graphApiVersion,
+    accessToken: action.accessToken,
+    igUserId,
+    recipientId,
+    message,
+  });
+  const reply = socialThreadFromRow(
+    await repository.createSocialThread(action.organization.id, {
+      platform: "instagram",
+      threadType: "dm",
+      socialAccountId: account.id,
+      externalThreadId: result.message_id,
+      participantHandle: thread.participantHandle,
+      accountId: thread.accountId,
+      contactId: thread.contactId,
+      opportunityId: thread.opportunityId,
+      status: "replied",
+      source: "meta_graph_api",
+      metadata: {
+        providerWriteBack: true,
+        parentThreadId: thread.id,
+        recipientId: result.recipient_id,
+        messageId: result.message_id,
+        message,
+      },
+    }),
+  );
+  await recordScreenprintingAuditEvent({
+    organizationId: action.organization.id,
+    action: "social_thread_logged",
+    entityType: "social_thread",
+    entityId: reply.id,
+    payload: { operation: "message_reply_sent", providerWriteBack: true, parentThreadId: thread.id },
+  });
+  return reply;
+}
+
 export async function listScreenprintingIdentityResolutions(slug: string) {
   const context = await resolveContext(slug);
   const rows = context.organization ? await repository.listIdentityResolutions(context.organization.id) : [];
@@ -1509,9 +2184,95 @@ export async function updateScreenprintingIdentityResolution(slug: string, sugge
   return { suggestion, createdLinks: [] };
 }
 
+function buildAccountCleanup(orders: ScreenprintingOrder[]) {
+  const unlinkedOrders = orders
+    .filter((order) => !order.accountId)
+    .sort((left, right) => (right.orderTotal ?? 0) - (left.orderTotal ?? 0))
+    .slice(0, 100)
+    .map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      jobName: order.jobName,
+      orderTotal: order.orderTotal,
+      managerName: order.managerName,
+      orderCreatedAt: order.orderCreatedAt,
+      sourceUrl: order.sourceUrl,
+    }));
+
+  const variants = orders.reduce<
+    Record<
+      string,
+      {
+        names: Set<string>;
+        orderCount: number;
+        total: number;
+        accountIds: Set<string>;
+      }
+    >
+  >((groups, order) => {
+    const key = normalizeName(order.customerName).replace(/[^a-z0-9]/g, "");
+    if (!key) {
+      return groups;
+    }
+    const group = groups[key] ?? { names: new Set<string>(), orderCount: 0, total: 0, accountIds: new Set<string>() };
+    group.names.add(order.customerName);
+    group.orderCount += 1;
+    group.total += nonCancelledOrderValue(order);
+    if (order.accountId) {
+      group.accountIds.add(order.accountId);
+    }
+    groups[key] = group;
+    return groups;
+  }, {});
+
+  const mergeSuggestions = Object.entries(variants)
+    .filter(([, group]) => group.names.size > 1 || group.accountIds.size > 1)
+    .map(([key, group]) => ({
+      suggestionKey: key,
+      names: [...group.names],
+      accountIds: [...group.accountIds],
+      orderCount: group.orderCount,
+      total: group.total,
+      status: "needs_review",
+      destructiveMerge: false,
+    }))
+    .sort((left, right) => right.total - left.total)
+    .slice(0, 50);
+
+  return {
+    unlinkedOrders,
+    mergeSuggestions,
+    counts: {
+      unlinkedOrders: unlinkedOrders.length,
+      mergeSuggestions: mergeSuggestions.length,
+    },
+  };
+}
+
+export async function getScreenprintingAccountCleanup(slug: string) {
+  const context = await resolveContext(slug);
+  return buildAccountCleanup(await listAllOrdersForContext(context));
+}
+
 export async function getScreenprintingWorkspaceSummary(slug: string) {
   const context = await resolveContext(slug);
-  const [salesDashboard, orders, opportunities, reorders, socialDashboard, socialAccounts, socialPosts, threads, identity, campaigns] =
+  const [
+    salesDashboard,
+    orders,
+    opportunities,
+    reorders,
+    socialDashboard,
+    socialAccounts,
+    socialPosts,
+    threads,
+    identity,
+    campaigns,
+    managerGoals,
+    customDashboards,
+    accountCleanup,
+    socialConnection,
+  ] =
     await Promise.all([
       getScreenprintingSalesDashboard(slug),
       listScreenprintingOrders(slug, { pageSize: 25 }),
@@ -1523,6 +2284,10 @@ export async function getScreenprintingWorkspaceSummary(slug: string) {
       listScreenprintingSocialThreads(slug),
       listScreenprintingIdentityResolutions(slug),
       listScreenprintingCampaigns(slug),
+      listScreenprintingManagerGoals(slug),
+      listScreenprintingCustomDashboards(slug),
+      getScreenprintingAccountCleanup(slug),
+      getScreenprintingSocialConnectionReadiness(slug),
     ]);
 
   return {
@@ -1540,5 +2305,9 @@ export async function getScreenprintingWorkspaceSummary(slug: string) {
     threads,
     identity,
     campaigns,
+    managerGoals,
+    customDashboards,
+    accountCleanup,
+    socialConnection,
   };
 }

@@ -71,7 +71,7 @@ The product should feel tenant-customized through configuration while keeping st
 | Comments/replies for owned accounts | staged by permission | yes |
 | Message/comment/manual-thread linking | yes | yes |
 | Social-to-sales links | yes | yes |
-| Publishing | future | yes |
+| Publishing | live gated | yes |
 
 ## Screen inventory
 
@@ -101,6 +101,8 @@ The product should feel tenant-customized through configuration while keeping st
 
 ## Configuration contract
 
+Tenant-facing setup instructions live in [TENANT_ONBOARDING_GUIDE.md](TENANT_ONBOARDING_GUIDE.md) and in the Screenprinting Admin tab's Tenant Setup Guide and Onboarding Help sections.
+
 Tenant admins must be able to configure:
 
 - business profile and timezone
@@ -125,7 +127,7 @@ Risky mapping changes should show impact previews when feasible.
 - A new Screenprinting tenant can connect Printavo read-only, configure mappings, and see orders/accounts/reorders without code edits.
 - A tenant can add owned and watched social accounts through API scan or manual import.
 - A tenant can configure social alerts and mark alerts read/resolved.
-- A tenant can create planned calendar items and campaigns without live publishing.
+- A tenant can create planned calendar items and campaigns without live publishing, and can publish through Meta when owned-account authorization is complete.
 - A tenant can link social accounts/posts/threads to customers, contacts, opportunities, and campaigns.
 - A tenant can render draft-only email follow-up from editable templates.
 - Existing FraterniTees lead scoring, score trends, account directory, account detail, map, top-customer leaderboard, Printavo sync, and change-request flow remain available.

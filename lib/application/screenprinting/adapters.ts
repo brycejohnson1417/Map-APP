@@ -94,13 +94,93 @@ export interface OrderingPlatformAdapter<TOrder extends OrderingPlatformOrder = 
 }
 
 export interface SocialPermissionState {
+  provider?: string;
+  authMode?: "manual" | "instagram_business_login" | "facebook_login_business";
+  connectionMode?: "manual_import" | "instagram_business_login" | "facebook_login_business";
+  requiredScopes?: string[];
+  optionalScopes?: string[];
+  grantedScopes?: string[];
+  graphApiBaseUrl?: string;
+  instagramGraphApiBaseUrl?: string;
+  authorizationUrl?: string | null;
+  ownedAccountDiscovery?: "available" | "needs_token" | "needs_scope" | "manual_only";
+  watchlistDiscovery?: "manual_import" | "limited_by_meta_permissions";
+  webhookTopics?: string[];
   canReadAccounts: boolean;
   canReadPosts: boolean;
   canReadComments: boolean;
   canReadMessages: boolean;
   canPublish: boolean;
+  canReplyToComments?: boolean;
+  canReplyToMessages?: boolean;
   missingPermissions: string[];
   manualFallbackAvailable: boolean;
+}
+
+export interface SocialProviderScope {
+  scope: string;
+  label: string;
+  requiredFor: string;
+  required: boolean;
+}
+
+export interface SocialProviderEndpoint {
+  label: string;
+  method: "GET" | "POST" | "DELETE";
+  host: "graph.instagram.com" | "graph.facebook.com";
+  path: string;
+  purpose: string;
+}
+
+export interface SocialConnectionModeState {
+  key: "instagram_business_login" | "facebook_login_business";
+  label: string;
+  recommended: boolean;
+  hostUrl: "graph.instagram.com" | "graph.facebook.com";
+  loginType: "Business Login for Instagram" | "Facebook Login for Business";
+  tokenType: "Instagram user access token" | "Facebook user/Page access token";
+  pageLinkRequired: boolean;
+  requiredScopes: SocialProviderScope[];
+  optionalScopes: SocialProviderScope[];
+  endpoints: SocialProviderEndpoint[];
+  setupNotes: string[];
+}
+
+export interface SocialProviderReadiness {
+  provider: "meta";
+  platform: "instagram";
+  graphApiVersion: string;
+  configured: boolean;
+  installationId: string | null;
+  installationStatus: string | null;
+  displayName: string;
+  externalAccountId: string | null;
+  preferredMode: SocialConnectionModeState["key"];
+  permissionState: SocialPermissionState;
+  modes: SocialConnectionModeState[];
+  webhookTopics: string[];
+  requiredSetup: string[];
+  limitations: string[];
+  accountCounts: {
+    owned: number;
+    watched: number;
+    ignored: number;
+  };
+  capabilities: {
+    ownedAccountDiscovery: boolean;
+    watchedAccountManualImport: boolean;
+    watchedAccountApiEnrichment: boolean;
+    readPosts: boolean;
+    readInsights: boolean;
+    readComments: boolean;
+    replyToComments: boolean;
+    readMessages: boolean;
+    replyToMessages: boolean;
+    publishPosts: boolean;
+  };
+  providerWriteBackAvailable: boolean;
+  publishingAvailable: boolean;
+  manualFallbackAvailable: true;
 }
 
 export interface SocialPlatformAccount {

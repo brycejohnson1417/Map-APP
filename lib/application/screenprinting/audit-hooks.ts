@@ -14,7 +14,9 @@ export type ScreenprintingAuditAction =
   | "opportunity_updated"
   | "reorder_updated"
   | "email_draft_recorded"
+  | "dashboard_updated"
   | "social_account_updated"
+  | "social_post_updated"
   | "social_thread_logged"
   | "alert_updated";
 
@@ -26,7 +28,9 @@ const auditEventByAction: Record<ScreenprintingAuditAction, AuditEventType> = {
   opportunity_updated: "opportunity_updated",
   reorder_updated: "reorder_updated",
   email_draft_recorded: "email_draft_recorded",
+  dashboard_updated: "dashboard_updated",
   social_account_updated: "social_account_updated",
+  social_post_updated: "social_post_updated",
   social_thread_logged: "social_thread_logged",
   alert_updated: "alert_updated",
 };

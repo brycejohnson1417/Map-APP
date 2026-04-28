@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createScreenprintingSocialComment } from "@/lib/application/screenprinting/screenprinting-service";
+import { publishScreenprintingSocialPost } from "@/lib/application/screenprinting/screenprinting-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
-import { readJson, requireTenantSession, resolveSlug, screenprintingErrorResponse } from "../../../../_shared";
+import { requireTenantSession, resolveSlug, screenprintingErrorResponse } from "../../../../_shared";
 
 export async function POST(
-  request: Request,
+  _request: Request,
   context: { params: Promise<{ slug: string; postId: string }> | { slug: string; postId: string } },
 ) {
   try {
@@ -14,8 +14,8 @@ export async function POST(
       return session.error;
     }
     const { postId } = await resolveRouteParams(context.params);
-    const comment = await createScreenprintingSocialComment(slug, postId, await readJson(request));
-    return NextResponse.json({ ok: true, comment });
+    const post = await publishScreenprintingSocialPost(slug, postId);
+    return NextResponse.json({ ok: true, post });
   } catch (error) {
     return screenprintingErrorResponse(error);
   }

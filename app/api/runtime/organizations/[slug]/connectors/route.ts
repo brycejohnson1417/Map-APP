@@ -49,8 +49,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     savedByEmail: sessionEmail,
     selfServeConfiguredAt: new Date().toISOString(),
     fields: {},
+    secretFieldKeys: [],
   };
   const secrets: Record<string, unknown> = {};
+  const secretFieldKeys: string[] = [];
 
   for (const field of connector.fields) {
     const value = parsed.data.fields[field.key]?.trim() ?? "";
@@ -59,10 +61,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     }
     if (field.type === "secret") {
       secrets[field.key] = value;
+      secretFieldKeys.push(field.key);
     } else {
       (config.fields as Record<string, string>)[field.key] = value;
     }
   }
+  config.secretFieldKeys = secretFieldKeys;
 
   const integrationSecrets =
     connector.provider === "printavo" &&
@@ -74,6 +78,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
             apiKey: String(secrets.apiKey),
           },
         }
+      : connector.provider === "meta" && typeof secrets.accessToken === "string"
+        ? { accessToken: String(secrets.accessToken) }
       : Object.keys(secrets).length
         ? { selfServeForm: secrets }
         : undefined;
@@ -85,6 +91,8 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     externalAccountId:
       parsed.data.fields.email?.trim() ||
       parsed.data.fields.sheetUrl?.trim() ||
+      parsed.data.fields.businessId?.trim() ||
+      parsed.data.fields.appId?.trim() ||
       null,
     config,
     secrets: integrationSecrets,

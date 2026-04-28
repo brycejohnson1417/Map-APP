@@ -962,7 +962,51 @@ Response:
     }
   ],
   "facets": {},
+  "savedViews": [],
   "pagination": {}
+}
+```
+
+### `GET /api/runtime/organizations/[slug]/screenprinting/sales/saved-views`
+
+Purpose: list tenant-scoped order saved views stored in `dashboard_definition`.
+
+Query parameters: `module` (defaults to `sales_orders`).
+
+Response:
+
+```json
+{
+  "ok": true,
+  "savedViews": []
+}
+```
+
+### `POST /api/runtime/organizations/[slug]/screenprinting/sales/saved-views`
+
+Purpose: create a product-owned saved view. No Printavo write-back.
+
+Request:
+
+```json
+{
+  "module": "sales_orders",
+  "name": "Unpaid Greek orders",
+  "filters": {
+    "paymentBucket": "unpaid",
+    "teamName": "Greek"
+  },
+  "columns": ["customer", "job", "total", "status"],
+  "sort": { "key": "orderCreatedAt", "direction": "desc" }
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "savedView": {}
 }
 ```
 
@@ -988,6 +1032,53 @@ Response:
     "customer": {},
     "sourcePayloadAvailable": true
   }
+}
+```
+
+### `GET /api/runtime/organizations/[slug]/screenprinting/sales/manager-goals`
+
+Purpose: read persisted monthly manager goals with current Printavo-derived actuals.
+
+Query parameters: `period` as `YYYY-MM`.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "period": "2026-04",
+  "goals": [],
+  "source": "persisted"
+}
+```
+
+### `POST /api/runtime/organizations/[slug]/screenprinting/sales/manager-goals`
+
+Purpose: save monthly manager goals in product-owned tenant storage.
+
+Request:
+
+```json
+{
+  "period": "2026-04",
+  "goals": [
+    {
+      "managerName": "Jenna Koss",
+      "revenueGoal": 50000,
+      "ordersGoal": 20,
+      "storesGoal": 3
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "period": "2026-04",
+  "goals": []
 }
 ```
 
@@ -1181,6 +1272,40 @@ Response:
 }
 ```
 
+### `GET /api/runtime/organizations/[slug]/screenprinting/social/connection`
+
+Purpose: Meta/Instagram connector readiness and capability state.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "connection": {
+    "provider": "meta",
+    "platform": "instagram",
+    "graphApiVersion": "v24.0",
+    "configured": true,
+    "preferredMode": "instagram_business_login",
+    "permissionState": {
+      "requiredScopes": ["instagram_business_basic", "instagram_business_manage_insights"],
+      "optionalScopes": ["instagram_business_manage_comments", "instagram_business_manage_messages", "instagram_business_content_publish"],
+      "missingPermissions": []
+    },
+    "capabilities": {
+      "ownedAccountDiscovery": true,
+      "watchedAccountManualImport": true,
+      "watchedAccountApiEnrichment": true,
+      "readPosts": true,
+      "readInsights": true,
+      "replyToComments": true,
+      "replyToMessages": true,
+      "publishPosts": true
+    }
+  }
+}
+```
+
 ### `GET /api/runtime/organizations/[slug]/screenprinting/social/accounts`
 
 Purpose: owned/watched social account registry.
@@ -1226,7 +1351,12 @@ Request:
   "ownership": "watched",
   "category": "customer",
   "priority": "high",
-  "accountId": "uuid"
+  "accountId": "uuid",
+  "externalAccountId": "178414...",
+  "metaPageId": "123456789",
+  "metaBusinessId": "987654321",
+  "profileUrl": "https://www.instagram.com/example.store/",
+  "followerCount": 7900
 }
 ```
 
@@ -1241,7 +1371,7 @@ Response:
 
 ### `POST /api/runtime/organizations/[slug]/screenprinting/social/accounts/scan`
 
-Purpose: scan connected provider accounts when API credentials permit it.
+Purpose: scan connected Meta-owned Instagram accounts when API credentials permit it.
 
 Request:
 
@@ -1257,7 +1387,9 @@ Response:
 ```json
 {
   "ok": true,
-  "discovered": [],
+  "provider": "meta",
+  "connection": {},
+  "discovered": [{ "handle": "example.store", "ownership": "owned" }],
   "created": 0,
   "updated": 0,
   "warnings": []
@@ -1329,6 +1461,63 @@ Response:
 }
 ```
 
+### `POST /api/runtime/organizations/[slug]/screenprinting/social/posts`
+
+Purpose: create a product-owned draft social post for an owned/watched tenant account. Live publishing is a separate feature-gated Meta action.
+
+Request:
+
+```json
+{
+  "socialAccountId": "uuid",
+  "postType": "post",
+  "caption": "Draft caption",
+  "mediaUrl": "https://cdn.example.com/post.png",
+  "scheduledFor": "2026-05-01T15:00",
+  "location": "Champaign, IL",
+  "collaborators": ["athlete_handle"],
+  "tags": ["drop", "illinois"]
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "post": {
+    "status": "draft"
+  }
+}
+```
+
+### `POST /api/runtime/organizations/[slug]/screenprinting/social/posts/[postId]/publish`
+
+Purpose: publish a draft/planned post to an owned Instagram professional account through Meta Graph API.
+
+Required:
+
+- tenant session
+- Meta connector with encrypted access token
+- owned `social_account`
+- `social_account.external_account_id` or metadata Instagram user ID
+- public `mediaUrl`
+- required read scopes
+- `instagram_business_content_publish` or `instagram_content_publish`
+- `social_publishing` feature flag
+
+Response:
+
+```json
+{
+  "ok": true,
+  "post": {
+    "status": "published",
+    "externalPostId": "180..."
+  }
+}
+```
+
 ### `GET /api/runtime/organizations/[slug]/screenprinting/social/posts/[postId]`
 
 Purpose: post detail, metrics, comments, account stats, and links.
@@ -1357,7 +1546,8 @@ Request:
 
 ```json
 {
-  "body": "Thanks for reaching out."
+  "commentId": "18006022967821076",
+  "message": "Thanks for the comment."
 }
 ```
 
@@ -1400,7 +1590,7 @@ Response:
 }
 ```
 
-Publishing is not required for MVP; planned calendar records are product-owned.
+Calendar records are product-owned. Publishing happens through the explicit `publish` route when Meta permissions and feature flags allow it.
 
 ### `GET /api/runtime/organizations/[slug]/screenprinting/social/campaigns`
 
@@ -1557,6 +1747,76 @@ Response:
 }
 ```
 
+### `POST /api/runtime/organizations/[slug]/screenprinting/social/threads/[threadId]/reply`
+
+Purpose: send a reply through a connected owned Instagram account.
+
+Required:
+
+- tenant session
+- Meta connector with encrypted access token
+- owned `social_account`
+- Instagram user ID for the owned account
+- Instagram-scoped recipient ID from the thread or request body
+- required read scopes
+- `instagram_business_manage_messages` or `instagram_manage_messages`
+- `messages` feature flag
+
+Request:
+
+```json
+{
+  "message": "Can you send sizes and a due date?",
+  "recipientId": "IGSID"
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "thread": {
+    "status": "replied"
+  }
+}
+```
+
+### `GET /api/runtime/organizations/[slug]/screenprinting/dashboards`
+
+Purpose: list custom tenant dashboards backed by `dashboard_definition`.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "dashboards": []
+}
+```
+
+### `POST /api/runtime/organizations/[slug]/screenprinting/dashboards`
+
+Purpose: create a custom dashboard from approved Screenprinting widget primitives.
+
+Request:
+
+```json
+{
+  "name": "Sales operator board",
+  "widgets": ["sales_pulse", "reorder_queue", "social_alerts"]
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "dashboard": {}
+}
+```
+
 ### `GET /api/runtime/organizations/[slug]/screenprinting/identity-resolution`
 
 Purpose: non-destructive merge/link suggestion queue.
@@ -1615,7 +1875,7 @@ No source record is destroyed.
 - Admin/config mutations are role-gated when role enforcement exists; until then they must still be tenant-session gated and auditable.
 - Printavo routes remain read-only to Printavo during the first Screenprinting implementation.
 - Email routes create drafts and activity records only; they do not send email.
-- Social publishing routes are not required for MVP and must remain feature-flagged when added.
+- Social publishing and reply routes must remain feature-flagged and permission-gated by Meta connector state.
 - Error responses are JSON and actionable.
 - `npm run verify` passes after route changes.
 
@@ -1630,5 +1890,5 @@ Current behavior:
 - config mutation writes tenant-owned organization settings and records audit events
 - Printavo-derived order routes are read-only
 - email draft routes render or record draft state only and do not send email
-- social comments/replies return permission-gated errors when provider write-back is unavailable
+- social publish/comment/message routes call Meta only when connector token, scopes, owned-account IDs, and feature flags are present; otherwise they return permission/setup errors
 - fixture fallback is available for Screenprinting tenant seeds without live product rows, including `second-screenprinter`

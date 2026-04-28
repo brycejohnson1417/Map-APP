@@ -89,7 +89,7 @@ Status: MVP complete
 
 Definition of done:
 
-- [x] Sales dashboard, Orders, Order Detail, Accounts Cleanup, Opportunities, Reorders, Email Templates, Goals, and Sales Admin screens exist at MVP/API level
+- [x] Sales dashboard, Orders cockpit/saved views, Order Detail/margin worksheet, Accounts Cleanup, Opportunities, Reorders, Email Templates, Goals, custom dashboards, and Sales Admin screens exist at MVP/API level
 - [x] Printavo remains read-only
 - [x] email remains draft-only
 - [x] tenant mappings drive reporting buckets
@@ -107,12 +107,12 @@ Status: MVP complete
 
 Definition of done:
 
-- [x] Social dashboard, Accounts Registry, Account Detail, Posts, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist at MVP/API level
-- [x] owned and watched accounts support manual import paths, with API-backed scan represented as permission-gated fallback
+- [x] Social dashboard, Accounts Registry/taxonomy, Account Detail, Posts, draft-only composer, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist at MVP/API level
+- [x] owned and watched accounts support manual import paths, with Meta-owned account scan available after token and scope authorization
 - [x] real saved tenants show real social data or explicit empty/permission states, not silent fixture rows
 - [x] comments/replies are permission-gated
 - [x] messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
-- [x] publishing is disabled by default and remains feature-gated
+- [x] publishing is disabled by default for generic tenants and remains feature-gated through owned-account Meta authorization
 - [x] fixture-backed checks cover alert route availability and identity link prerequisites
 
 Primary risk: platform API limitations creating false UI promises.
@@ -127,7 +127,7 @@ Definition of done:
 
 - [x] a second Screenprinting tenant can onboard from the Screenprinting tenant type without a code fork
 - tenant type versioning and upgrade previews are implemented
-- tenant dashboards and saved views are configurable by role
+- [x] tenant dashboards and saved views are configurable by role at MVP storage/API level
 - tenant-specific docs record actual tenant decisions after configuration
 - direct browser Supabase access either remains avoided or has explicit RLS policies
 

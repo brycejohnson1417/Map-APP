@@ -73,12 +73,14 @@ SMOKE_BASE_URL=http://127.0.0.1:3000 PLAYWRIGHT_VERIFY=1 npm run verify:browser
 
 ## Remaining Risk
 
-- The additive migration must be applied to the target Supabase environment before product-owned Screenprinting writes are used live.
 - Admin-only role enforcement is still tenant-session gated until final role policy is implemented.
 - MVP UI is intentionally compact; deeper per-screen workflows should follow tenant feedback.
 
 ## Follow-Up
 
-- Apply migration in the intended environment before live product-owned Screenprinting writes.
 - Add service-level edge-case tests for mapping, reorders, alerts, draft templates, and identity resolution.
 - Keep future catalog/profitability/art/warehouse items planned until explicitly promoted.
+
+## 2026-04-28 Migration Follow-Up
+
+- Applied `20260427120000_screenprinting_foundation.sql` and `20260428100000_meta_instagram_provider.sql` to the linked Supabase project with `supabase db push --yes`.

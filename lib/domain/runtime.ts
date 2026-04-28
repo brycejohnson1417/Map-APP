@@ -7,6 +7,7 @@ export type ExternalProvider =
   | "google_sheets"
   | "google_calendar"
   | "google_maps"
+  | "meta"
   | "hubspot"
   | "salesforce"
   | "airtable"
@@ -34,7 +35,9 @@ export type AuditEventType =
   | "opportunity_updated"
   | "reorder_updated"
   | "email_draft_recorded"
+  | "dashboard_updated"
   | "social_account_updated"
+  | "social_post_updated"
   | "social_thread_logged"
   | "alert_updated";
 

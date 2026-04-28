@@ -21,7 +21,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md). API payloads are documented in 
 | Type | Values |
 |---|---|
 | `public.membership_role` | `owner`, `admin`, `manager`, `member`, `guest` |
-| `public.external_provider` | `notion`, `nabis`, `printavo`, `google_sheets`, `google_calendar`, `google_maps`, `hubspot`, `salesforce`, `airtable`, `csv_import` |
+| `public.external_provider` | `notion`, `nabis`, `printavo`, `google_sheets`, `google_calendar`, `google_maps`, `meta`, `hubspot`, `salesforce`, `airtable`, `csv_import` |
 | `public.external_entity_type` | `organization`, `account`, `contact`, `order`, `calendar`, `calendar_event`, `territory_boundary`, `territory_marker` |
 | `public.sync_status` | `idle`, `queued`, `running`, `success`, `error` |
 | `public.sync_job_kind` | `notion_pages`, `notion_comments`, `orders_accounts`, `orders_events`, `calendar_pull`, `calendar_push`, `read_model_refresh`, `reconciliation` |
@@ -759,14 +759,20 @@ Tenant dashboard and saved-view definition.
 | `organization_id` | `uuid` | yes | Tenant boundary. |
 | `dashboard_key` | `text` | yes | Stable key. |
 | `name` | `text` | yes | Tenant-visible name. |
-| `module` | `text` | yes | `sales`, `social`, `territory`, `accounts`, or custom. |
+| `module` | `text` | yes | `sales`, `social`, `territory`, `accounts`, `sales_orders`, `sales_goals`, `workspace_dashboard`, or custom. |
 | `role_scope` | `text[]` | yes | Roles that see it by default. |
-| `definition` | `jsonb` | yes | Widgets, filters, layouts, metrics, saved views. |
+| `definition` | `jsonb` | yes | Widgets, filters, layouts, metrics, saved views, manager goals, and custom dashboard widget selections. |
 | `is_default` | `boolean` | yes | Default `false`. |
 | `created_at` | `timestamptz` | yes | Default `now()`. |
 | `updated_at` | `timestamptz` | yes | Default `now()`. |
 
 Required indexes: unique `(organization_id, dashboard_key)`, `(organization_id, module, is_default)`.
+
+Current product-owned Screenprinting definitions use these `definition.type` values:
+
+- `saved_view`: order cockpit filters, columns, and sort definitions.
+- `manager_goals`: monthly manager revenue/order/store goals with actuals computed from Printavo rows at read time.
+- `custom_dashboard`: approved Screenprinting widget selections such as sales pulse, reorder queue, order cockpit, social alerts, and post library.
 
 ## Additive Migration Acceptance Criteria
 
@@ -787,4 +793,4 @@ The additive Screenprinting data foundation is committed in `supabase/migrations
 
 It adds `mapping_rule`, `opportunity`, `reorder_signal`, `email_template`, `social_account`, `social_post`, `social_thread`, `campaign`, `alert_rule`, `alert_instance`, `identity_resolution`, and `dashboard_definition`.
 
-Every new table includes `organization_id`, has RLS enabled, and preserves product-owned source metadata where applicable. The migration also adds Screenprinting-specific audit event values for config changes, identity review, opportunities, reorders, draft email events, social account changes, manual social threads, and alert state changes.
+Every new table includes `organization_id`, has RLS enabled, and preserves product-owned source metadata where applicable. The migration also adds Screenprinting-specific audit event values for config changes, identity review, opportunities, reorders, draft email events, social account changes, manual social threads, and alert state changes. `supabase/migrations/20260428100000_meta_instagram_provider.sql` adds the `meta` provider enum value for Meta Business / Instagram connector installations.
