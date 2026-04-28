@@ -816,3 +816,18 @@ Let tenant admins configure account categories, ownership rules, alert threshold
 - Tenant admin can add a new account category and use it in registry filters and alert-rule scopes.
 - Tenant admin can change what counts as an actionable alert without code edits.
 - Tenant admin can disable publishing while preserving calendar planning.
+
+## Current MVP Implementation
+
+The current Social MVP is implemented through:
+
+- `/screenprinting` for the first combined admin/sales/social workspace UI
+- `/api/runtime/organizations/[slug]/screenprinting/social/dashboard`
+- `/api/runtime/organizations/[slug]/screenprinting/social/accounts`
+- `/api/runtime/organizations/[slug]/screenprinting/social/posts`
+- `/api/runtime/organizations/[slug]/screenprinting/social/calendar`
+- `/api/runtime/organizations/[slug]/screenprinting/social/campaigns`
+- `/api/runtime/organizations/[slug]/screenprinting/social/alerts`
+- `/api/runtime/organizations/[slug]/screenprinting/social/threads`
+
+Manual import is the first-class fallback. Comments/replies and publishing are permission-gated; publishing remains disabled by default.

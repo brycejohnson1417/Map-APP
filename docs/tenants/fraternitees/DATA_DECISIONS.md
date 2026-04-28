@@ -21,8 +21,8 @@ This file is not a complete source of implementation input yet. It records curre
 | Existing account detail sections | score summary, identity/location, score trend, contacts, orders, activities |
 | Existing map module | Lead map with no-address and DNC flags |
 | Existing change requests | Enabled |
-| Existing social module | Not yet implemented |
-| Existing Sales/Social admin mappings | Not yet implemented |
+| Existing social module | Screenprinting Social MVP route/API implemented; tenant account lists still need admin confirmation |
+| Existing Sales/Social admin mappings | Safe defaults committed; tenant confirmation still pending before reports are authoritative |
 
 ## Current committed scoring config
 
@@ -55,6 +55,8 @@ The workspace config treats these as unusable or suppressed address patterns for
 ## Pending decisions before new Sales/Social reporting is authoritative
 
 These values must be chosen by FraterniTees in the admin UI or recorded here after confirmation. Until then, implementation should use safe defaults, show dirty/unmapped warnings, and avoid presenting affected reports as fully authoritative.
+
+The current workspace seed enables Screenprinting Sales and Social while leaving social publishing, catalog costs, and profitability disabled. Comments/replies and messages are feature-flagged on for FraterniTees, but live provider write-back remains permission-gated and disabled unless explicit provider capability is added later.
 
 | Decision | Owner in app | Required for | Current status |
 |---|---|---|---|

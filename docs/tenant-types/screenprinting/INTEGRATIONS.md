@@ -100,3 +100,10 @@ Future catalog adapters should expose:
 - tenant-specific credentials
 
 Examples may include S&S Activewear, AlphaBroder, SanMar, or tenant-specific vendor feeds. No single catalog provider should be hardcoded as the only path.
+
+## Current Implementation
+
+- `OrderingPlatformAdapter`, `SocialPlatformAdapter`, and a future `CatalogAdapter` stub are defined in `lib/application/screenprinting/adapters.ts`.
+- Printavo preview and sync use `lib/infrastructure/adapters/printavo/ordering-adapter.ts`, which wraps the existing read-only Printavo client.
+- Manual social fallback uses `lib/infrastructure/adapters/social/manual-social-adapter.ts` and fixture-backed owned/watched account data.
+- Social publishing remains disabled by default and live social write-back routes return permission-gated errors until a tenant explicitly enables the capability and provider permissions exist.

@@ -677,4 +677,18 @@ interface CatalogCostAdapter {
 }
 ```
 
+## Current MVP Implementation
+
+The current Sales MVP is implemented through:
+
+- `/screenprinting` for the first combined admin/sales/social workspace UI
+- `/api/runtime/organizations/[slug]/screenprinting/sales/dashboard`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/orders`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/orders/[orderId]`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/opportunities`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/reorders`
+- `/api/runtime/organizations/[slug]/screenprinting/sales/email-drafts`
+
+Printavo remains read-only, email remains draft-only, and tenant mappings drive status/payment reporting buckets.
+
 No implementation should hardcode one apparel vendor as the only path.

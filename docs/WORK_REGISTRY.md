@@ -86,3 +86,17 @@ npm run check:work-registry
 The check validates JSON parseability, unique IDs, allowed status/priority values, dependency references, non-empty acceptance criteria, non-empty verification commands, non-empty docs update lists, stop conditions, and safe defaults.
 
 `npm run verify` includes this check.
+
+## Current Queue State
+
+The current Screenprinting foundation run completed all non-future registry items through `SCALE-001`.
+
+Remaining planned/future items are intentionally not promoted by this run:
+
+- `FUTURE-001` Catalog adapter foundation
+- `FUTURE-002` Profitability and cost reporting
+- `FUTURE-003` Screenprinting art workflow module
+- `FUTURE-004` Screenprinting warehouse workflow module
+- `FUTURE-005` Future stack extraction proposal
+
+Those items still require separate approval or a future registry promotion.

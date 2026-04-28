@@ -1,0 +1,608 @@
+import "server-only";
+
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export interface ScreenprintingOrderRow {
+  id: string;
+  account_id: string | null;
+  external_order_id: string;
+  order_number: string | null;
+  licensed_location_name: string | null;
+  status: string | null;
+  payment_status: string | null;
+  order_total: number | string | null;
+  order_created_at: string | null;
+  delivery_date: string | null;
+  sales_rep_name: string | null;
+  source_payload: Record<string, unknown> | null;
+}
+
+export interface ScreenprintingOpportunityRow {
+  id: string;
+  organization_id: string;
+  account_id: string | null;
+  contact_id: string | null;
+  source_order_id: string | null;
+  source_activity_id: string | null;
+  pipeline_key: string;
+  stage_key: string;
+  title: string;
+  value: number | string | null;
+  currency: string;
+  owner_member_id: string | null;
+  source_type: string;
+  status: string;
+  due_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingReorderSignalRow {
+  id: string;
+  organization_id: string;
+  account_id: string;
+  source_order_id: string | null;
+  opportunity_id: string | null;
+  rule_key: string;
+  bucket: string;
+  expected_reorder_date: string;
+  last_action_at: string | null;
+  snoozed_until: string | null;
+  owner_member_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingSocialAccountRow {
+  id: string;
+  organization_id: string;
+  platform: string;
+  handle: string;
+  display_name: string | null;
+  external_account_id: string | null;
+  ownership: string;
+  source: string;
+  category: string | null;
+  priority: string | null;
+  status: string;
+  account_id: string | null;
+  contact_id: string | null;
+  school_or_org_key: string | null;
+  profile_url: string | null;
+  follower_count: number | null;
+  last_synced_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingSocialPostRow {
+  id: string;
+  organization_id: string;
+  social_account_id: string;
+  external_post_id: string | null;
+  post_type: string;
+  caption: string | null;
+  permalink: string | null;
+  media_url: string | null;
+  status: string;
+  published_at: string | null;
+  scheduled_for: string | null;
+  metrics: Record<string, unknown> | null;
+  campaign_id: string | null;
+  account_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingSocialThreadRow {
+  id: string;
+  organization_id: string;
+  platform: string;
+  thread_type: string;
+  social_account_id: string | null;
+  social_post_id: string | null;
+  external_thread_id: string | null;
+  participant_handle: string | null;
+  account_id: string | null;
+  contact_id: string | null;
+  opportunity_id: string | null;
+  status: string;
+  owner_member_id: string | null;
+  last_message_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingCampaignRow {
+  id: string;
+  organization_id: string;
+  name: string;
+  campaign_type: string;
+  status: string;
+  owner_member_id: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+  goal: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingAlertRow {
+  id: string;
+  organization_id: string;
+  alert_rule_id: string | null;
+  module: string;
+  event_type: string;
+  title: string;
+  body: string | null;
+  severity: string;
+  status: string;
+  owner_member_id: string | null;
+  account_id: string | null;
+  opportunity_id: string | null;
+  social_account_id: string | null;
+  social_post_id: string | null;
+  dedupe_key: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScreenprintingIdentityResolutionRow {
+  id: string;
+  organization_id: string;
+  source_type: string;
+  source_ref: Record<string, unknown>;
+  target_type: string;
+  target_id: string | null;
+  status: string;
+  confidence: number | string;
+  reason: string;
+  metadata: Record<string, unknown> | null;
+  reviewed_by_member_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function isMissingTableError(error: unknown) {
+  const message = error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "";
+  return /does not exist|schema cache|Could not find the table|PGRST205/i.test(message);
+}
+
+function toNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function maybeSelect<T>(query: PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingTableError(error)) {
+      return [];
+    }
+    throw error;
+  }
+  return data ?? [];
+}
+
+async function maybeSingle<T>(query: PromiseLike<{ data: T | null; error: unknown }>): Promise<T | null> {
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingTableError(error)) {
+      return null;
+    }
+    throw error;
+  }
+  return data ?? null;
+}
+
+export class ScreenprintingRepository {
+  async listOrders(organizationId: string, input: { q?: string | null; pageSize?: number } = {}) {
+    const supabase = getSupabaseAdminClient() as any;
+    let query = supabase
+      .from("order_record")
+      .select(
+        "id,account_id,external_order_id,order_number,licensed_location_name,status,payment_status,order_total,order_created_at,delivery_date,sales_rep_name,source_payload",
+      )
+      .eq("organization_id", organizationId)
+      .eq("provider", "printavo")
+      .order("order_created_at", { ascending: false, nullsFirst: false })
+      .limit(Math.max(1, Math.min(200, Math.floor(input.pageSize ?? 100))));
+
+    if (input.q?.trim()) {
+      query = query.or(`licensed_location_name.ilike.%${input.q.trim()}%,order_number.ilike.%${input.q.trim()}%`);
+    }
+
+    return maybeSelect<ScreenprintingOrderRow>(query);
+  }
+
+  async findOrder(organizationId: string, orderId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSingle<ScreenprintingOrderRow>(
+      supabase
+        .from("order_record")
+        .select(
+          "id,account_id,external_order_id,order_number,licensed_location_name,status,payment_status,order_total,order_created_at,delivery_date,sales_rep_name,source_payload",
+        )
+        .eq("organization_id", organizationId)
+        .eq("id", orderId)
+        .maybeSingle(),
+    );
+  }
+
+  async listOpportunities(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingOpportunityRow>(
+      supabase
+        .from("opportunity")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("updated_at", { ascending: false })
+        .limit(200),
+    );
+  }
+
+  async createOpportunity(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("opportunity")
+      .insert({
+        organization_id: organizationId,
+        account_id: input.accountId ?? null,
+        contact_id: input.contactId ?? null,
+        source_order_id: input.sourceOrderId ?? null,
+        pipeline_key: input.pipelineKey ?? "sales_pipeline",
+        stage_key: input.stageKey ?? "new_lead",
+        title: input.title,
+        value: input.value ?? null,
+        currency: input.currency ?? "USD",
+        source_type: input.sourceType ?? "manual",
+        status: input.status ?? "open",
+        due_at: input.dueAt ?? null,
+        metadata: input.metadata ?? {},
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingOpportunityRow;
+  }
+
+  async updateOpportunity(organizationId: string, opportunityId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    for (const [inputKey, column] of [
+      ["stageKey", "stage_key"],
+      ["pipelineKey", "pipeline_key"],
+      ["title", "title"],
+      ["value", "value"],
+      ["status", "status"],
+      ["dueAt", "due_at"],
+      ["ownerMemberId", "owner_member_id"],
+      ["accountId", "account_id"],
+      ["contactId", "contact_id"],
+    ]) {
+      if (inputKey in input) {
+        patch[column] = input[inputKey];
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("opportunity")
+      .update(patch)
+      .eq("organization_id", organizationId)
+      .eq("id", opportunityId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingOpportunityRow;
+  }
+
+  async listReorderSignals(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingReorderSignalRow>(
+      supabase
+        .from("reorder_signal")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("expected_reorder_date", { ascending: true })
+        .limit(300),
+    );
+  }
+
+  async snoozeReorderSignal(organizationId: string, signalId: string, input: { snoozedUntil: string; reason?: string | null }) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("reorder_signal")
+      .update({
+        bucket: "snoozed",
+        snoozed_until: input.snoozedUntil,
+        last_action_at: new Date().toISOString(),
+        metadata: {
+          snoozeReason: input.reason ?? null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", signalId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingReorderSignalRow;
+  }
+
+  async listSocialAccounts(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingSocialAccountRow>(
+      supabase
+        .from("social_account")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("updated_at", { ascending: false })
+        .limit(300),
+    );
+  }
+
+  async createSocialAccount(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("social_account")
+      .insert({
+        organization_id: organizationId,
+        platform: input.platform,
+        handle: String(input.handle ?? "").replace(/^@/, ""),
+        display_name: input.displayName ?? null,
+        ownership: input.ownership ?? "watched",
+        source: "manual",
+        category: input.category ?? null,
+        priority: input.priority ?? null,
+        status: input.status ?? "active",
+        account_id: input.accountId ?? null,
+        contact_id: input.contactId ?? null,
+        metadata: input.metadata ?? {},
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingSocialAccountRow;
+  }
+
+  async updateSocialAccount(organizationId: string, socialAccountId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const [inputKey, column] of [
+      ["category", "category"],
+      ["priority", "priority"],
+      ["ownership", "ownership"],
+      ["status", "status"],
+      ["accountId", "account_id"],
+      ["contactId", "contact_id"],
+    ]) {
+      if (inputKey in input) {
+        patch[column] = input[inputKey];
+      }
+    }
+    const { data, error } = await supabase
+      .from("social_account")
+      .update(patch)
+      .eq("organization_id", organizationId)
+      .eq("id", socialAccountId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingSocialAccountRow;
+  }
+
+  async listSocialPosts(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingSocialPostRow>(
+      supabase
+        .from("social_post")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .limit(300),
+    );
+  }
+
+  async listSocialThreads(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingSocialThreadRow>(
+      supabase
+        .from("social_thread")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(300),
+    );
+  }
+
+  async createSocialThread(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("social_thread")
+      .insert({
+        organization_id: organizationId,
+        platform: input.platform ?? "instagram",
+        thread_type: input.threadType ?? "manual",
+        participant_handle: input.participantHandle ?? null,
+        account_id: input.accountId ?? null,
+        contact_id: input.contactId ?? null,
+        opportunity_id: input.opportunityId ?? null,
+        status: "needs_review",
+        last_message_at: new Date().toISOString(),
+        metadata: {
+          summary: input.summary ?? null,
+          source: "manual",
+        },
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingSocialThreadRow;
+  }
+
+  async listCampaigns(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingCampaignRow>(
+      supabase
+        .from("campaign")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("updated_at", { ascending: false })
+        .limit(200),
+    );
+  }
+
+  async createCampaign(organizationId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("campaign")
+      .insert({
+        organization_id: organizationId,
+        name: input.name,
+        campaign_type: input.campaignType ?? "general",
+        status: input.status ?? "planned",
+        starts_on: input.startsOn ?? null,
+        ends_on: input.endsOn ?? null,
+        goal: input.goal ?? null,
+        metadata: input.metadata ?? {},
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingCampaignRow;
+  }
+
+  async listAlerts(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingAlertRow>(
+      supabase
+        .from("alert_instance")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(300),
+    );
+  }
+
+  async updateAlert(organizationId: string, alertId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("alert_instance")
+      .update({
+        status: input.status ?? "read",
+        owner_member_id: input.ownerMemberId ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", alertId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingAlertRow;
+  }
+
+  async markAllAlertsRead(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("alert_instance")
+      .update({ status: "read", updated_at: new Date().toISOString() })
+      .eq("organization_id", organizationId)
+      .eq("status", "unread")
+      .select("id");
+
+    if (error) {
+      if (isMissingTableError(error)) {
+        return 0;
+      }
+      throw error;
+    }
+
+    return (data ?? []).length;
+  }
+
+  async listIdentityResolutions(organizationId: string) {
+    const supabase = getSupabaseAdminClient() as any;
+    return maybeSelect<ScreenprintingIdentityResolutionRow>(
+      supabase
+        .from("identity_resolution")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .order("confidence", { ascending: false })
+        .limit(300),
+    );
+  }
+
+  async updateIdentityResolution(organizationId: string, suggestionId: string, input: Record<string, unknown>) {
+    const supabase = getSupabaseAdminClient() as any;
+    const { data, error } = await supabase
+      .from("identity_resolution")
+      .update({
+        status: input.status,
+        reviewed_at: new Date().toISOString(),
+        metadata: {
+          reviewNote: input.note ?? null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("organization_id", organizationId)
+      .eq("id", suggestionId)
+      .select("*")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ScreenprintingIdentityResolutionRow;
+  }
+
+  toNumber(value: number | string | null | undefined) {
+    return toNumber(value);
+  }
+}

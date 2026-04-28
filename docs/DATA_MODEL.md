@@ -780,3 +780,11 @@ Any migration adding Screenprinting tables must satisfy:
 - read-heavy list screens have indexes matching expected filters
 - existing FraterniTees lead scoring, account directory, top-customer leaderboard, Printavo sync, map, and change-request flows still work
 - `npm run verify` passes after the migration and related code changes
+
+## Current Screenprinting Implementation
+
+The additive Screenprinting data foundation is committed in `supabase/migrations/20260427120000_screenprinting_foundation.sql`.
+
+It adds `mapping_rule`, `opportunity`, `reorder_signal`, `email_template`, `social_account`, `social_post`, `social_thread`, `campaign`, `alert_rule`, `alert_instance`, `identity_resolution`, and `dashboard_definition`.
+
+Every new table includes `organization_id`, has RLS enabled, and preserves product-owned source metadata where applicable. The migration also adds Screenprinting-specific audit event values for config changes, identity review, opportunities, reorders, draft email events, social account changes, manual social threads, and alert state changes.

@@ -1618,3 +1618,17 @@ No source record is destroyed.
 - Social publishing routes are not required for MVP and must remain feature-flagged when added.
 - Error responses are JSON and actionable.
 - `npm run verify` passes after route changes.
+
+## Current Screenprinting API Implementation
+
+The Screenprinting API contract is implemented under `/api/runtime/organizations/[slug]/screenprinting/*`.
+
+Current behavior:
+
+- read routes resolve the workspace slug and require `tenantType.id=screenprinting`
+- mutating routes require tenant-session access
+- config mutation writes tenant-owned organization settings and records audit events
+- Printavo-derived order routes are read-only
+- email draft routes render or record draft state only and do not send email
+- social comments/replies return permission-gated errors when provider write-back is unavailable
+- fixture fallback is available for Screenprinting tenant seeds without live product rows, including `second-screenprinter`

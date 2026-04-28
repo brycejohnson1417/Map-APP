@@ -9,33 +9,33 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 ## Current Focus
 
 - [x] Add the autonomous execution control plane: work registry, authority order, definition of done, fixture policy, environment/deployment policy, migration safety policy, and registry validation.
-- [ ] Implement the architecture runway before Screenprinting: config schema foundation, adapter ports, feature flags, audit/activity hooks, static boundary checks, and run-report discipline.
-- [ ] During implementation, promote any documented future foundation item that becomes the best prerequisite for the current feature, then continue the feature after documenting the promotion.
-- [ ] Implement the Screenprinting additive database foundation from [DATA_MODEL.md](DATA_MODEL.md): `mapping_rule`, `opportunity`, `reorder_signal`, `email_template`, `social_account`, `social_post`, `social_thread`, `campaign`, `alert_rule`, `alert_instance`, `identity_resolution`, and `dashboard_definition`.
-- [ ] Implement the Screenprinting API routes from [API_CONTRACTS.md](API_CONTRACTS.md) with tenant-session protection and `organization_id` scoping.
-- [ ] Build the Screenprinting admin configuration UX for statuses, payment states, tags, fields, dirty-data trust, categories, owners, reorder rules, social account rules, alerts, dashboards, and feature flags.
-- [ ] Build the Screenprinting Sales module from [tenant-types/screenprinting/SALES_MODULE.md](tenant-types/screenprinting/SALES_MODULE.md).
-- [ ] Build the Screenprinting Social module from [tenant-types/screenprinting/SOCIAL_MODULE.md](tenant-types/screenprinting/SOCIAL_MODULE.md).
-- [ ] Preserve existing FraterniTees Printavo sync, lead scoring, score trends, DNC behavior, top-customer leaderboard, account directory, account detail, map, and change-request capabilities while improving the UI/UX.
+- [x] Implement the architecture runway before Screenprinting: config schema foundation, adapter ports, feature flags, audit/activity hooks, static boundary checks, and run-report discipline.
+- [x] During implementation, promote any documented future foundation item that becomes the best prerequisite for the current feature, then continue the feature after documenting the promotion.
+- [x] Implement the Screenprinting additive database foundation from [DATA_MODEL.md](DATA_MODEL.md): `mapping_rule`, `opportunity`, `reorder_signal`, `email_template`, `social_account`, `social_post`, `social_thread`, `campaign`, `alert_rule`, `alert_instance`, `identity_resolution`, and `dashboard_definition`.
+- [x] Implement the Screenprinting API routes from [API_CONTRACTS.md](API_CONTRACTS.md) with tenant-session protection and `organization_id` scoping.
+- [x] Build the Screenprinting admin configuration UX for statuses, payment states, tags, fields, dirty-data trust, categories, owners, reorder rules, social account rules, alerts, dashboards, and feature flags.
+- [x] Build the Screenprinting Sales module from [tenant-types/screenprinting/SALES_MODULE.md](tenant-types/screenprinting/SALES_MODULE.md).
+- [x] Build the Screenprinting Social module from [tenant-types/screenprinting/SOCIAL_MODULE.md](tenant-types/screenprinting/SOCIAL_MODULE.md).
+- [x] Preserve existing FraterniTees Printavo sync, lead scoring, score trends, DNC behavior, top-customer leaderboard, account directory, account detail, map, and change-request capabilities while improving the UI/UX.
 
 ## Architecture Runway Tasks
 
-- [ ] Keep [WORK_REGISTRY.json](WORK_REGISTRY.json) current as items move from `planned` to `ready`, `in_progress`, `blocked`, or `done`.
-- [ ] Add typed config definition and tenant override resolution.
-- [ ] Add config validation, impact preview interface, change history, and undo path.
-- [ ] Add initial config definitions for Screenprinting status mapping, payment mapping, tag mapping, field trust, reorder rules, email templates, social account categories, alert rules, dashboard defaults, and feature flags.
-- [ ] Add `OrderingPlatformAdapter` port and contract tests.
-- [ ] Move Printavo read-only fetch/preview/sync behavior behind the ordering adapter boundary.
-- [ ] Add `SocialPlatformAdapter` port and manual social adapter stub.
-- [ ] Add future `CatalogAdapter` stub without implementing profitability.
-- [ ] Add Screenprinting tenant-scoped feature flags.
-- [ ] Add audit/activity helpers for config changes, identity decisions, opportunities, reorders, draft emails, social links, alert state, and manual social threads.
-- [ ] Extend static boundary checks for tenant type leaks, missing `organization_id`, missing RLS, and provider credential leakage.
-- [ ] Add run report for the foundation build under `docs/runs/`.
+- [x] Keep [WORK_REGISTRY.json](WORK_REGISTRY.json) current as items move from `planned` to `ready`, `in_progress`, `blocked`, or `done`.
+- [x] Add typed config definition and tenant override resolution.
+- [x] Add config validation, impact preview interface, change history, and undo path.
+- [x] Add initial config definitions for Screenprinting status mapping, payment mapping, tag mapping, field trust, reorder rules, email templates, social account categories, alert rules, dashboard defaults, and feature flags.
+- [x] Add `OrderingPlatformAdapter` port and contract tests.
+- [x] Move Printavo read-only fetch/preview/sync behavior behind the ordering adapter boundary.
+- [x] Add `SocialPlatformAdapter` port and manual social adapter stub.
+- [x] Add future `CatalogAdapter` stub without implementing profitability.
+- [x] Add Screenprinting tenant-scoped feature flags.
+- [x] Add audit/activity helpers for config changes, identity decisions, opportunities, reorders, draft emails, social links, alert state, and manual social threads.
+- [x] Extend static boundary checks for tenant type leaks, missing `organization_id`, missing RLS, and provider credential leakage.
+- [x] Add run report for the foundation build under `docs/runs/`.
 
 ## Next Slices
 
-- [ ] Add acceptance tests that use [fixtures/screenprinting/sample-screenprinting-data.json](../fixtures/screenprinting/sample-screenprinting-data.json).
+- [x] Add acceptance tests that use [fixtures/screenprinting/sample-screenprinting-data.json](../fixtures/screenprinting/sample-screenprinting-data.json).
 - [ ] Add targeted tests for mapping-rule evaluation, dirty-data exclusions, reorder signal generation, alert-rule evaluation, and identity-resolution decisions.
 - [ ] Add browser/runtime verification for Screenprinting Sales and Social flows once UI routes exist.
 - [ ] Convert more FraterniTees score/trend/read-model behavior into reusable primitives and package contracts.

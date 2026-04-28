@@ -2,7 +2,7 @@ import "server-only";
 
 import { importFraterniteesOrdersToRuntime } from "@/lib/application/fraternitees/runtime-import-service";
 import { scoreFraterniteesLeads } from "@/lib/application/fraternitees/lead-scoring";
-import { fetchPrintavoLeadOrdersBatch } from "@/lib/infrastructure/adapters/printavo/client";
+import { createPrintavoOrderingAdapter } from "@/lib/infrastructure/adapters/printavo/ordering-adapter";
 import { IntegrationRepository } from "@/lib/infrastructure/supabase/integration-repository";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -235,7 +235,8 @@ export async function runPrintavoSync(input: {
 
   const backfillYear = input.mode === "backfill" ? currentBackfillYear(previousBackfill) : null;
   const backfillWindow = backfillYear ? productionWindowForYear(backfillYear) : null;
-  const batch = await fetchPrintavoLeadOrdersBatch(credentials, {
+  const orderingAdapter = createPrintavoOrderingAdapter(credentials);
+  const batch = await orderingAdapter.fetchOrders({
     pageLimit: input.pageLimit,
     pageSize: input.pageSize,
     pageDelayMs: input.mode === "backfill" ? 250 : 0,

@@ -69,7 +69,7 @@
     {
       "id": "RUNWAY-001",
       "title": "Configuration schema foundation",
-      "status": "ready",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -108,7 +108,7 @@
     {
       "id": "RUNWAY-002",
       "title": "Adapter port contracts",
-      "status": "ready",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -144,7 +144,7 @@
     {
       "id": "RUNWAY-003",
       "title": "Printavo read-only ordering adapter boundary",
-      "status": "planned",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -180,7 +180,7 @@
     {
       "id": "RUNWAY-004",
       "title": "Social adapter and manual import foundation",
-      "status": "planned",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -216,7 +216,7 @@
     {
       "id": "RUNWAY-005",
       "title": "Tenant-scoped Screenprinting feature flags",
-      "status": "planned",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -249,7 +249,7 @@
     {
       "id": "RUNWAY-006",
       "title": "Audit and activity hooks",
-      "status": "planned",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -282,7 +282,7 @@
     {
       "id": "RUNWAY-007",
       "title": "Static boundary and documentation checks",
-      "status": "ready",
+      "status": "done",
       "phase": "architecture-runway",
       "priority": "P0",
       "type": "foundation",
@@ -315,7 +315,7 @@
     {
       "id": "DATA-001",
       "title": "Screenprinting additive data foundation",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-foundation",
       "priority": "P0",
       "type": "database",
@@ -352,7 +352,7 @@
     {
       "id": "API-001",
       "title": "Screenprinting API contracts",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-foundation",
       "priority": "P0",
       "type": "api",
@@ -386,7 +386,7 @@
     {
       "id": "ADMIN-001",
       "title": "Screenprinting admin configuration UI",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-product",
       "priority": "P1",
       "type": "ui-workflow",
@@ -422,7 +422,7 @@
     {
       "id": "SALES-001",
       "title": "Screenprinting Sales MVP",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-product",
       "priority": "P1",
       "type": "ui-workflow",
@@ -458,7 +458,7 @@
     {
       "id": "SOCIAL-001",
       "title": "Screenprinting Social MVP",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-product",
       "priority": "P1",
       "type": "ui-workflow",
@@ -495,7 +495,7 @@
     {
       "id": "IDENTITY-001",
       "title": "Identity resolution and merge suggestions",
-      "status": "planned",
+      "status": "done",
       "phase": "screenprinting-product",
       "priority": "P1",
       "type": "data-workflow",
@@ -531,7 +531,7 @@
     {
       "id": "QA-001",
       "title": "Screenprinting fixtures and acceptance coverage",
-      "status": "planned",
+      "status": "done",
       "phase": "quality",
       "priority": "P1",
       "type": "testing",
@@ -565,7 +565,7 @@
     {
       "id": "SCALE-001",
       "title": "Second Screenprinting tenant onboarding proof",
-      "status": "planned",
+      "status": "done",
       "phase": "multi-tenant-scale",
       "priority": "P2",
       "type": "tenant-type-proof",

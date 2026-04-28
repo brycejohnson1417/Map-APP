@@ -23,6 +23,7 @@
   },
   "navigation": [
     { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "screenprinting", "label": "Sales & Social", "href": "/screenprinting", "icon": "BarChart3" },
     { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
     { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
     { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
@@ -86,6 +87,21 @@
     "integrations": {
       "variant": "fraternity_integrations",
       "allowRoutePlanning": false
+    },
+    "screenprinting": {
+      "variant": "screenprinting_mvp",
+      "defaultView": "sales"
+    }
+  },
+  "screenprinting": {
+    "featureFlags": {
+      "sales": true,
+      "social": true,
+      "social_publishing": false,
+      "comments_replies": true,
+      "messages": true,
+      "catalog_costs": false,
+      "profitability": false
     }
   },
   "geocoding": {

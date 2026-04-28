@@ -1,4 +1,5 @@
 import fraterniteesWorkspace from "@/tenants/fraternitees/workspace.json";
+import secondScreenprinterWorkspace from "@/tenants/second-screenprinter/workspace.json";
 import starterWorkspace from "@/tenants/field-ops-starter/workspace.json";
 import piccWorkspace from "@/tenants/picc/workspace.json";
 import coreRuntimeManifest from "@/packages/core-runtime/manifest.json";
@@ -21,11 +22,13 @@ const CHANGE_REQUEST_NAV_ITEM: WorkspaceDefinition["navigation"][number] = {
 };
 
 const fraterniteesWorkspaceDefinition = fraterniteesWorkspace as WorkspaceDefinition;
+const secondScreenprinterWorkspaceDefinition = secondScreenprinterWorkspace as WorkspaceDefinition;
 const piccWorkspaceDefinition = piccWorkspace as WorkspaceDefinition;
 const starterWorkspaceDefinition = starterWorkspace as WorkspaceDefinition;
 
 const workspaceTemplates = [
   fraterniteesWorkspaceDefinition,
+  secondScreenprinterWorkspaceDefinition,
   piccWorkspaceDefinition,
   starterWorkspaceDefinition,
 ] satisfies WorkspaceDefinition[];

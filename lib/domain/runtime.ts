@@ -26,7 +26,17 @@ export type AuditEventType =
   | "marker_updated"
   | "integration_connected"
   | "integration_updated"
-  | "integration_disconnected";
+  | "integration_disconnected"
+  | "screenprinting_config_changed"
+  | "screenprinting_config_undone"
+  | "screenprinting_mapping_changed"
+  | "identity_resolution_updated"
+  | "opportunity_updated"
+  | "reorder_updated"
+  | "email_draft_recorded"
+  | "social_account_updated"
+  | "social_thread_logged"
+  | "alert_updated";
 
 export type SyncJobKind =
   | "notion_pages"

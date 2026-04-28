@@ -60,3 +60,23 @@ The tenant can customize:
 - installed plugins
 
 The tenant cannot redefine core isolation, credential ownership, or canonical primitive meaning. That boundary keeps every customer feeling custom without creating a separate app per tenant.
+
+## Current Implementation
+
+The typed config foundation lives in `lib/application/screenprinting/config.ts`.
+
+Implemented sections:
+
+- `statusMappings`
+- `paymentMappings`
+- `tagMappings`
+- `fieldTrust`
+- `categories`
+- `reorderRules`
+- `emailTemplates`
+- `socialAccountCategories`
+- `alertRules`
+- `dashboards`
+- `featureFlags`
+
+Tenant-specific values can come from tenant workspace seeds, fixture-backed defaults, or `organization.settings.screenprinting.config`. Config PATCH routes validate values, produce impact metadata, maintain a bounded change history, and write audit events. The initial admin UI is exposed through `/screenprinting`.

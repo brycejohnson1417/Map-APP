@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FRATERNITEES_STATUS_FILTERS, scoreFraterniteesLeads } from "@/lib/application/fraternitees/lead-scoring";
 import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
-import { fetchPrintavoLeadOrders, fetchPrintavoStatuses } from "@/lib/infrastructure/adapters/printavo/client";
+import { createPrintavoOrderingAdapter } from "@/lib/infrastructure/adapters/printavo/ordering-adapter";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
@@ -20,9 +20,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   }
 
   try {
+    const orderingAdapter = createPrintavoOrderingAdapter({ email, apiKey });
     const [statuses, orders] = await Promise.all([
-      fetchPrintavoStatuses({ email, apiKey }),
-      fetchPrintavoLeadOrders({ email, apiKey }, { pageLimit: 5 }),
+      orderingAdapter.listStatuses(),
+      orderingAdapter.fetchOrders({ pageLimit: 5 }).then((result) => result.orders),
     ]);
 
     return NextResponse.json({

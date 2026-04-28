@@ -126,3 +126,17 @@ A Screenprinting implementation is not complete unless:
 - dashboards and saved views are tenant-scoped and configurable
 - all tenant type and tenant-specific docs are updated
 - `npm run verify` passes
+
+## Current MVP Coverage
+
+The current implementation covers the Screenprinting foundation and MVP surfaces:
+
+- `/screenprinting` renders admin config, Sales, Social, and identity review sections.
+- API routes exist for config, config preview, sales dashboard/orders/order detail/opportunities/reorders/email drafts, social dashboard/accounts/posts/calendar/campaigns/alerts/threads, and identity-resolution review.
+- Product-owned writes remain tenant-scoped and require tenant-session access.
+- Printavo remains read-only.
+- Email remains draft-only.
+- Social publishing remains disabled unless a future tenant explicitly enables it.
+- Second tenant proof is committed as `tenants/second-screenprinter/workspace.json`.
+
+Deferred beyond MVP: profitability, catalog cost reporting, art workflow, warehouse workflow, and broader package/topology extraction.

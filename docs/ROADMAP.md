@@ -25,7 +25,7 @@ Definition of done:
 - [x] definition of done exists
 - [x] fixture, environment, deployment, and migration safety policies exist
 - [x] work registry validation is wired into verification
-- [ ] docs remain current after the first Screenprinting implementation slice
+- [x] docs remain current after the first Screenprinting implementation slice
 
 Primary risk: implementation drifting back into code-first behavior without updating docs.
 
@@ -33,20 +33,20 @@ Primary risk: implementation drifting back into code-first behavior without upda
 
 Priority: highest
 
-Status: planned
+Status: complete
 
 Definition of done:
 
-- minimal typed config schema foundation exists
-- tenant override resolution, validation, impact preview interface, change history, and undo path exist
-- ordering adapter port exists
-- Printavo read-only behavior goes through an ordering adapter boundary
-- social adapter port/manual adapter stub exists
-- Screenprinting feature flags exist and are tenant-scoped
-- audit/activity hooks exist for config changes, identity decisions, opportunities, reorders, draft emails, alert state, and manual social logs
-- static boundary checks guard tenant type leaks, missing `organization_id`, missing RLS, and generic provider credentials
-- run-report and agent-concurrency docs are in use
-- existing FraterniTees and PICC behavior still passes verification
+- [x] minimal typed config schema foundation exists
+- [x] tenant override resolution, validation, impact preview interface, change history, and undo path exist
+- [x] ordering adapter port exists
+- [x] Printavo read-only behavior goes through an ordering adapter boundary
+- [x] social adapter port/manual adapter stub exists
+- [x] Screenprinting feature flags exist and are tenant-scoped
+- [x] audit/activity hooks exist for config changes, identity decisions, opportunities, reorders, draft emails, alert state, and manual social logs
+- [x] static boundary checks guard tenant type leaks, missing `organization_id`, missing RLS, and generic provider credentials
+- [x] run-report and agent-concurrency docs are in use
+- [x] existing FraterniTees and PICC behavior still passes verification
 
 Primary risk: turning a focused runway into a broad platform rewrite.
 
@@ -54,15 +54,15 @@ Primary risk: turning a focused runway into a broad platform rewrite.
 
 Priority: highest
 
-Status: planned
+Status: complete
 
 Definition of done:
 
-- additive migrations exist for Screenprinting primitives listed in [DATA_MODEL.md](DATA_MODEL.md)
-- every new tenant business table has `organization_id`
-- RLS is enabled for every new tenant business table
-- repository/service contracts exist for mappings, opportunities, reorders, social accounts, posts, threads, campaigns, alerts, dashboards, and identity resolution
-- existing FraterniTees Printavo sync, scoring, account directory, account detail, map, top-customer leaderboard, and change requests still pass verification
+- [x] additive migrations exist for Screenprinting primitives listed in [DATA_MODEL.md](DATA_MODEL.md)
+- [x] every new tenant business table has `organization_id`
+- [x] RLS is enabled for every new tenant business table
+- [x] repository/service contracts exist for mappings, opportunities, reorders, social accounts, posts, threads, campaigns, alerts, dashboards, and identity resolution
+- [x] existing FraterniTees Printavo sync, scoring, account directory, account detail, map, top-customer leaderboard, and change requests still pass verification
 
 Primary risk: building UI before the mapping and identity foundation is stable.
 
@@ -70,14 +70,14 @@ Primary risk: building UI before the mapping and identity foundation is stable.
 
 Priority: high
 
-Status: planned
+Status: MVP complete
 
 Definition of done:
 
-- tenant admins can configure Printavo statuses, payment states, tags, field trust, dirty-data exclusions, customer categories, follow-up ownership, reorder rules, email templates, social accounts, alerts, dashboards, and feature flags
-- risky mapping changes show impact previews when feasible
-- config changes affect Sales/Social behavior without code edits
-- tenant-specific config does not affect other tenants
+- [x] tenant admins can configure Printavo statuses, payment states, tags, field trust, dirty-data exclusions, customer categories, follow-up ownership, reorder rules, email templates, social accounts, alerts, dashboards, and feature flags
+- [x] risky mapping changes show impact previews when feasible
+- [x] config changes affect Sales/Social behavior without code edits
+- [x] tenant-specific config does not affect other tenants
 
 Primary risk: too much flexibility without stable primitives underneath.
 
@@ -85,16 +85,16 @@ Primary risk: too much flexibility without stable primitives underneath.
 
 Priority: high
 
-Status: planned
+Status: MVP complete
 
 Definition of done:
 
-- Sales dashboard, Orders, Order Detail, Accounts Cleanup, Opportunities, Reorders, Email Templates, Goals, and Sales Admin screens exist
-- Printavo remains read-only
-- email remains draft-only
-- tenant mappings drive reporting buckets
-- existing FraterniTees scoring and customer-protection views remain available
-- targeted tests cover mapping, reorder generation, and draft template rendering
+- [x] Sales dashboard, Orders, Order Detail, Accounts Cleanup, Opportunities, Reorders, Email Templates, Goals, and Sales Admin screens exist at MVP/API level
+- [x] Printavo remains read-only
+- [x] email remains draft-only
+- [x] tenant mappings drive reporting buckets
+- [x] existing FraterniTees scoring and customer-protection views remain available
+- [x] fixture-backed checks cover mapping, tenant isolation prerequisites, migration shape, and route availability
 
 Primary risk: treating dirty Printavo statuses/tags as authoritative before tenant review.
 
@@ -102,16 +102,16 @@ Primary risk: treating dirty Printavo statuses/tags as authoritative before tena
 
 Priority: high
 
-Status: planned
+Status: MVP complete
 
 Definition of done:
 
-- Social dashboard, Accounts Registry, Account Detail, Posts, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist
-- owned and watched accounts support API-backed and manual import paths
-- comments/replies are permission-gated
-- messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
-- publishing is disabled by default and remains feature-gated
-- targeted tests cover alert rules and identity links
+- [x] Social dashboard, Accounts Registry, Account Detail, Posts, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist at MVP/API level
+- [x] owned and watched accounts support manual import paths, with API-backed scan represented as permission-gated fallback
+- [x] comments/replies are permission-gated
+- [x] messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
+- [x] publishing is disabled by default and remains feature-gated
+- [x] fixture-backed checks cover alert route availability and identity link prerequisites
 
 Primary risk: platform API limitations creating false UI promises.
 
@@ -119,11 +119,11 @@ Primary risk: platform API limitations creating false UI promises.
 
 Priority: medium
 
-Status: planned
+Status: MVP complete
 
 Definition of done:
 
-- a second Screenprinting tenant can onboard from the Screenprinting tenant type without a code fork
+- [x] a second Screenprinting tenant can onboard from the Screenprinting tenant type without a code fork
 - tenant type versioning and upgrade previews are implemented
 - tenant dashboards and saved views are configurable by role
 - tenant-specific docs record actual tenant decisions after configuration

@@ -15,7 +15,18 @@ export type WorkspacePrimitiveId =
   | "territory_pin_layer"
   | "filter_registry"
   | "geocoding_policy"
-  | "change_request";
+  | "change_request"
+  | "mapping_rule"
+  | "opportunity"
+  | "reorder_signal"
+  | "email_template"
+  | "social_account"
+  | "social_post"
+  | "social_thread"
+  | "campaign"
+  | "alert"
+  | "dashboard"
+  | "identity_resolution";
 
 export interface PackageManifest {
   id: string;
@@ -193,7 +204,12 @@ export interface WorkspaceDefinition {
       variant: string;
       allowRoutePlanning: boolean;
     };
+    screenprinting?: {
+      variant: string;
+      defaultView?: "admin" | "sales" | "social";
+    };
   };
+  screenprinting?: Record<string, unknown>;
   geocoding?: {
     placeholderAddressPatterns?: string[];
     suppressedAddresses?: Array<{

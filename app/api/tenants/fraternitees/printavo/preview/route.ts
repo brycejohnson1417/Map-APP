@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { FRATERNITEES_STATUS_FILTERS, scoreFraterniteesLeads } from "@/lib/application/fraternitees/lead-scoring";
-import { fetchPrintavoLeadOrders, fetchPrintavoStatuses } from "@/lib/infrastructure/adapters/printavo/client";
+import { createPrintavoOrderingAdapter } from "@/lib/infrastructure/adapters/printavo/ordering-adapter";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { email?: string; apiKey?: string };
@@ -12,9 +12,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    const orderingAdapter = createPrintavoOrderingAdapter({ email, apiKey });
     const [statuses, orders] = await Promise.all([
-      fetchPrintavoStatuses({ email, apiKey }),
-      fetchPrintavoLeadOrders({ email, apiKey }, { pageLimit: 5 }),
+      orderingAdapter.listStatuses(),
+      orderingAdapter.fetchOrders({ pageLimit: 5 }).then((result) => result.orders),
     ]);
     const scores = scoreFraterniteesLeads(orders, { limit: 25 });
 
@@ -32,4 +33,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

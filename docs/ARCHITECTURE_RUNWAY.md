@@ -234,3 +234,16 @@ If a future-stack idea becomes necessary to avoid hardcoded tenant logic, duplic
 - Keep publishing disabled unless explicitly feature-flagged later.
 - Keep tenant data isolated by `organization_id`.
 - Keep docs current with every schema/API/config change.
+
+## Implemented Runway State
+
+The focused Screenprinting runway is now implemented:
+
+- typed Screenprinting config definitions live in `lib/application/screenprinting/config.ts`
+- tenant-scoped feature flags live in `lib/application/screenprinting/feature-flags.ts`
+- ordering, social, and future catalog adapter ports live in `lib/application/screenprinting/adapters.ts`
+- Printavo preview/sync now goes through `lib/infrastructure/adapters/printavo/ordering-adapter.ts`
+- manual social fallback lives in `lib/infrastructure/adapters/social/manual-social-adapter.ts`
+- audit/activity hooks live in `lib/application/screenprinting/audit-hooks.ts`
+- static Screenprinting acceptance checks live in `scripts/check-screenprinting-foundation.mjs` and are wired into `npm run verify`
+- the additive Screenprinting migration is `supabase/migrations/20260427120000_screenprinting_foundation.sql`

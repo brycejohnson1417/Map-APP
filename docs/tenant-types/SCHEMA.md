@@ -326,3 +326,9 @@ This override changes the tenant experience without changing the Screenprinting 
 - A second Screenprinting tenant can onboard with a new workspace seed and organization overrides without adding a tenant-specific code branch.
 - Risky mapping changes have an impact preview before save when feasible.
 - Tenant type docs define universal behavior; tenant-specific docs record only one-tenant decisions.
+
+## Current Second Screenprinting Proof
+
+The second Screenprinting workspace seed is committed at `tenants/second-screenprinter/workspace.json`.
+
+It uses `tenantType.id=screenprinting`, the same Screenprinting API/UI/config contracts, and different tenant-scoped feature flags and mapping defaults from FraterniTees. The runtime registry imports it as a workspace seed; no Screenprinting code branches on the tenant slug to enable it.

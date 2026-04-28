@@ -1,0 +1,120 @@
+{
+  "id": "second-screenprinter-sales",
+  "version": 1,
+  "kind": "tenant_workspace",
+  "displayName": "Second Screenprinter",
+  "tenantType": {
+    "id": "screenprinting",
+    "scope": "tenant_type",
+    "displayName": "Screenprinting",
+    "manifestPath": "tenant-types/screenprinting/type.json",
+    "docsPath": "docs/tenant-types/screenprinting/README.md"
+  },
+  "templateLabel": "Screenprinting Sales Ops",
+  "description": "Generic screenprinting workspace that proves Sales and Social configuration without FraterniTees-specific code.",
+  "selfServe": true,
+  "emailDomains": ["secondscreenprinter.example"],
+  "defaultOrgSlug": "second-screenprinter",
+  "defaultRedirectPath": "/screenprinting",
+  "branding": {
+    "heroEyebrow": "Screenprinting workspace",
+    "heroTitle": "Run sales and social from tenant-owned rules.",
+    "heroDescription": "Configure status mappings, reorder rules, draft templates, watched social accounts, and alerts without a custom code path."
+  },
+  "navigation": [
+    { "id": "screenprinting", "label": "Sales & Social", "href": "/screenprinting", "icon": "BarChart3" },
+    { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
+    { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
+  ],
+  "packages": [
+    "core-runtime",
+    "account-directory-kit",
+    "change-request-kit",
+    "connector-onboarding-kit"
+  ],
+  "connectors": [
+    {
+      "provider": "printavo",
+      "label": "Printavo",
+      "description": "Sync customers, contacts, and orders through the read-only ordering adapter.",
+      "required": true,
+      "selfServe": true,
+      "supportsPreview": true,
+      "supportsFirstSync": true,
+      "fields": [
+        { "key": "email", "label": "Printavo email", "type": "email", "required": true, "placeholder": "ops@example.com" },
+        { "key": "apiKey", "label": "Printavo API key", "type": "secret", "required": true, "placeholder": "Paste Printavo API key" }
+      ]
+    }
+  ],
+  "modules": {
+    "accounts": {
+      "variant": "standard",
+      "title": "Accounts",
+      "pageSize": 50,
+      "cacheTtlSeconds": 300,
+      "summaryCards": ["total_organizations", "orders", "reorders"]
+    },
+    "screenprinting": {
+      "variant": "screenprinting_mvp",
+      "defaultView": "admin"
+    },
+    "integrations": {
+      "variant": "screenprinting_integrations",
+      "allowRoutePlanning": false
+    }
+  },
+  "screenprinting": {
+    "statusMappings": [
+      { "sourceValue": "Estimate Sent", "targetBucket": "quoted", "trustLevel": "trusted", "enabled": true, "priority": 10 },
+      { "sourceValue": "Completed", "targetBucket": "completed", "trustLevel": "trusted", "enabled": true, "priority": 20 },
+      { "sourceValue": "Needs Cleanup", "targetBucket": "needs_review", "trustLevel": "needs_review", "enabled": true, "priority": 30 },
+      { "sourceValue": "Cancelled", "targetBucket": "cancelled", "trustLevel": "trusted", "enabled": true, "priority": 40 }
+    ],
+    "paymentMappings": [
+      { "sourceValue": "Paid", "targetBucket": "paid", "trustLevel": "trusted", "enabled": true, "priority": 10 },
+      { "sourceValue": "Unpaid", "targetBucket": "unpaid", "trustLevel": "trusted", "enabled": true, "priority": 20 }
+    ],
+    "fieldTrust": [
+      {
+        "fieldKey": "production_due_date",
+        "trustLevel": "needs_review",
+        "authoritative": false,
+        "warning": "Production due date must be reviewed before authoritative reporting."
+      },
+      {
+        "fieldKey": "customer_due_date",
+        "trustLevel": "trusted",
+        "authoritative": true,
+        "warning": null
+      },
+      {
+        "fieldKey": "tags",
+        "trustLevel": "trusted",
+        "authoritative": true,
+        "warning": null
+      }
+    ],
+    "featureFlags": {
+      "sales": true,
+      "social": true,
+      "social_publishing": false,
+      "comments_replies": false,
+      "messages": false,
+      "catalog_costs": false,
+      "profitability": false
+    }
+  },
+  "changeRequests": {
+    "enabled": true,
+    "defaultClassification": "config",
+    "classifications": ["config", "package", "primitive", "core"],
+    "allowAttachments": true
+  },
+  "onboarding": {
+    "enabled": true,
+    "summary": "Connect a read-only ordering provider, review default mappings, and enable Sales/Social workflows with publishing off.",
+    "firstSyncProvider": "printavo"
+  }
+}
