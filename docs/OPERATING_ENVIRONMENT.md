@@ -52,6 +52,7 @@ npm run verify
 - Tenant-facing tables must enable RLS.
 - The current committed runtime uses server/service-role access paths for tenant data. Do not expose direct browser Supabase access to a tenant table until matching RLS policies are committed and documented.
 - Provider secrets must be stored through tenant-scoped encrypted integration installs or tenant-scoped environment variables.
+- Platform-owned Meta OAuth app credentials are backend environment variables because they identify the product's Meta app; OAuth access tokens returned for tenants must still be stored as tenant-scoped encrypted integration secrets.
 
 ## Local Environment
 
@@ -60,6 +61,7 @@ Use [SETUP.md](SETUP.md) for environment variables. Important groups:
 - Supabase runtime and service-role keys
 - tenant-session and auth settings
 - tenant-scoped connector credentials
+- platform-owned Meta OAuth app credentials
 - tenant-scoped Google Maps keys
 - optional Vercel verification variables
 

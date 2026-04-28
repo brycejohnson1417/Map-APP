@@ -51,10 +51,12 @@ Supported connection paths:
 Tenant setup paths:
 
 - `/integrations?org=<slug>` shows a first-class Instagram and Meta Business Suite card.
-- Tenants can save app ID, app secret, Graph API version, business ID, requested scopes, and a manual long-lived-token fallback from the UI.
+- The product owner configures one platform Meta app in backend environment variables.
+- Tenants choose the login path, optionally save a Business portfolio ID, and authorize owned accounts from the frontend.
+- Meta app ID and app secret are not tenant-facing settings.
 - `Connect Instagram` starts OAuth at `/api/runtime/organizations/[slug]/connectors/meta/oauth/start?mode=instagram_business_login`.
 - `Connect Meta Business` starts OAuth at `/api/runtime/organizations/[slug]/connectors/meta/oauth/start?mode=facebook_login_business`.
-- OAuth callback stores the access token in the encrypted integration vault, records granted scopes/config, and attempts owned-account discovery.
+- OAuth returns to `/api/runtime/connectors/meta/oauth/callback`, stores the tenant access token in the encrypted integration vault, records granted scopes/config, and attempts owned-account discovery.
 
 Pull where permitted:
 

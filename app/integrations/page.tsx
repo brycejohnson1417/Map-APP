@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { BarChart3, PlugZap } from "lucide-react";
 import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { FraterniteesWorkspace } from "@/components/fraternitees/fraternitees-portal";
 import { AppFrame } from "@/components/layout/app-frame";
 import { WorkspaceIntegrationsPanel } from "@/components/onboarding/workspace-integrations-panel";
+import {
+  getPlatformMetaOAuthAvailability,
+  hasPlatformMetaOAuthCredentials,
+  metaOAuthCallbackUrl,
+} from "@/lib/application/runtime/meta-oauth";
 import { getOrganizationRuntimeSnapshot } from "@/lib/application/runtime/organization-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { resolvePrintavoAutoSyncSettings } from "@/lib/application/fraternitees/printavo-auto-sync-settings";
@@ -22,8 +28,11 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
   const metaOauthError =
     typeof resolvedSearchParams.meta_oauth_error === "string" ? resolvedSearchParams.meta_oauth_error : null;
+  const requestHeaders = await headers();
+  const requestOrigin = `${requestHeaders.get("x-forwarded-proto") ?? "https"}://${requestHeaders.get("host") ?? "localhost:3000"}`;
   const workspace = await getWorkspaceExperienceBySlug(orgSlug);
   const sessionEmail = await getTenantSessionEmailForSlug(orgSlug);
+  const metaAvailability = getPlatformMetaOAuthAvailability();
 
   if (!sessionEmail) {
     redirect(`/login?org=${encodeURIComponent(orgSlug)}`);
@@ -60,6 +69,13 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
           pluginSettings={resolveTenantPluginSettings(snapshot.organization.slug, snapshot.organization.settings)}
           autoSyncSettings={resolvePrintavoAutoSyncSettings(snapshot.organization.settings)}
           setupError={metaOauthError}
+          metaPlatform={{
+            configured: hasPlatformMetaOAuthCredentials(),
+            instagramBusinessLoginConfigured: metaAvailability.instagramBusinessLogin,
+            facebookLoginBusinessConfigured: metaAvailability.facebookLoginBusiness,
+            callbackUrl: metaOAuthCallbackUrl(requestOrigin),
+            graphApiVersion: process.env.META_GRAPH_API_VERSION ?? "v24.0",
+          }}
         />
       </AppFrame>
     );

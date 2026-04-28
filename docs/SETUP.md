@@ -56,6 +56,29 @@ Provider credentials must be tenant-scoped. Use the organization slug prefix:
 - `<ORG>_GOOGLE_MAPS_BROWSER_API_KEY`
 - `<ORG>_GOOGLE_MAPS_SERVER_API_KEY`
 
+### Platform-owned Meta OAuth app
+Meta/Instagram OAuth uses one platform-owned Meta app so tenants can authorize owned Instagram accounts from the frontend without handling app secrets.
+
+- `META_APP_ID`
+- `META_APP_SECRET`
+- `META_GRAPH_API_VERSION` defaults to `v24.0`
+- `META_OAUTH_REDIRECT_BASE_URL` is optional; use it when the callback origin differs from `NEXT_PUBLIC_APP_URL` or the current Vercel deployment URL
+
+Optional mode-specific overrides are supported when the Instagram Login app and Facebook Login for Business app are different:
+
+- `META_INSTAGRAM_APP_ID`
+- `META_INSTAGRAM_APP_SECRET`
+- `META_FACEBOOK_APP_ID`
+- `META_FACEBOOK_APP_SECRET`
+
+Register this redirect URL in the Meta app:
+
+```text
+<app-origin>/api/runtime/connectors/meta/oauth/callback
+```
+
+Tenant access tokens returned by OAuth are still tenant-scoped encrypted integration secrets.
+
 Examples:
 
 - `PICC_NABIS_API_KEY`
@@ -76,6 +99,7 @@ accidentally swapped.
 - Browser-safe Google Maps keys are still tenant-scoped configuration and should not be shared across organizations.
 - Server-side maps keys, Notion tokens, and Nabis credentials are treated as secrets.
 - Generic paid-provider env fallbacks are no longer allowed for tenant runtime paths. If a tenant needs a provider, use an organization-scoped integration install or an organization-scoped env key.
+- The exception is the platform-owned Meta OAuth app credentials, which identify this product's Meta app only; tenant access tokens remain organization-scoped encrypted integration secrets.
 - `NEXT_PUBLIC_DEFAULT_ORG_SLUG` / `ORG_SLUG` can still define a local default org, but the platform fallback is now `starter` rather than implicitly pointing at PICC.
 
 ## Live Sync Command

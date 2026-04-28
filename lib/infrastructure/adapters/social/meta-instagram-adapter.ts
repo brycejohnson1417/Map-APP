@@ -685,7 +685,7 @@ export function buildMetaInstagramReadiness(input: {
     modes: metaInstagramConnectionModes,
     webhookTopics: WEBHOOK_TOPICS,
     requiredSetup: [
-      "Create or select a Meta Business app and add the Instagram product.",
+      "Platform operator creates or selects the product-owned Meta Business app and adds the Instagram product.",
       "Use Business Login for Instagram for direct professional account onboarding, or Facebook Login for Business when accounts are Page-linked in Meta Business Suite.",
       "Request the required read scopes before first sync; comments/messages/publishing stay optional and feature-gated.",
       "Configure a webhook callback before enabling live comment or message ingestion.",

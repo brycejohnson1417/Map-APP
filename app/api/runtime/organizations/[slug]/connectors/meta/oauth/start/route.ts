@@ -10,7 +10,7 @@ import {
   metaOAuthErrorRedirect,
   metaOAuthRedirectUri,
   readMetaOAuthConfig,
-} from "../_shared";
+} from "@/lib/application/runtime/meta-oauth";
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
@@ -29,14 +29,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       new URL(
         metaOAuthErrorRedirect(
           slug,
-          "Add a Meta app ID and app secret, or configure META_APP_ID and META_APP_SECRET, before starting Instagram login.",
+          "The platform Meta app is not configured yet. Add META_APP_ID and META_APP_SECRET in the backend before starting Instagram login.",
         ),
         request.url,
       ),
     );
   }
 
-  const redirectUri = metaOAuthRedirectUri(request.url, slug);
+  const redirectUri = metaOAuthRedirectUri(request.url);
   const state = createMetaOAuthState({ slug, mode: config.mode, ts: Date.now() }, config.clientSecret);
   const authorizationUrl = buildMetaOAuthAuthorizationUrl({
     mode: config.mode,

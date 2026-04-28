@@ -70,7 +70,7 @@ Until that cache boundary exists, store social account records tenant-scoped.
 Screenprinting changes should be checked for:
 
 - `organization_id` query scoping
-- no generic Printavo or Meta credential fallback
+- no generic Printavo or tenant Meta access-token fallback; platform-owned Meta OAuth app credentials may be shared because tenant tokens remain organization-scoped encrypted secrets
 - tenant-scoped sync cursors
 - tenant-scoped dashboard filters
 - tenant-scoped alert reads/writes

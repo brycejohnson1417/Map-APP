@@ -47,6 +47,13 @@ interface FraterniteesWorkspaceProps {
     cadenceHours: number;
     hourUtc: number;
   };
+  metaPlatform?: {
+    configured: boolean;
+    instagramBusinessLoginConfigured: boolean;
+    facebookLoginBusinessConfigured: boolean;
+    callbackUrl: string;
+    graphApiVersion: string;
+  };
   setupError?: string | null;
 }
 
@@ -341,21 +348,20 @@ export function FraterniteesWorkspace({
   integrations,
   pluginSettings,
   autoSyncSettings,
+  metaPlatform,
   setupError,
 }: FraterniteesWorkspaceProps) {
   const savedPrintavoEmail = integrations.find((integration) => integration.provider === "printavo")?.externalAccountId ?? sessionEmail;
-  const savedMeta = integrations.find((integration) => integration.provider === "meta");
   const [printavoEmail, setPrintavoEmail] = useState(savedPrintavoEmail);
   const [printavoApiKey, setPrintavoApiKey] = useState("");
-  const [metaAuthMode, setMetaAuthMode] = useState("instagram_business_login");
-  const [metaGraphApiVersion, setMetaGraphApiVersion] = useState("v24.0");
-  const [metaAppId, setMetaAppId] = useState(savedMeta?.externalAccountId ?? "");
-  const [metaAppSecret, setMetaAppSecret] = useState("");
-  const [metaBusinessId, setMetaBusinessId] = useState("");
-  const [metaAccessToken, setMetaAccessToken] = useState("");
-  const [metaGrantedScopes, setMetaGrantedScopes] = useState(
-    "instagram_business_basic, instagram_business_manage_insights, instagram_business_manage_comments, instagram_business_manage_messages, instagram_business_content_publish",
+  const [metaAuthMode, setMetaAuthMode] = useState(
+    metaPlatform?.instagramBusinessLoginConfigured
+      ? "instagram_business_login"
+      : metaPlatform?.facebookLoginBusinessConfigured
+        ? "facebook_login_business"
+        : "instagram_business_login",
   );
+  const [metaBusinessId, setMetaBusinessId] = useState("");
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [liveStatuses, setLiveStatuses] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -713,12 +719,7 @@ export function FraterniteesWorkspace({
           provider: "meta",
           fields: {
             authMode: metaAuthMode,
-            graphApiVersion: metaGraphApiVersion,
-            appId: metaAppId,
-            appSecret: metaAppSecret,
             businessId: metaBusinessId,
-            grantedScopes: metaGrantedScopes,
-            accessToken: metaAccessToken,
           },
         }),
       });
@@ -737,9 +738,7 @@ export function FraterniteesWorkspace({
           return next.sort((left, right) => left.displayName.localeCompare(right.displayName));
         });
       }
-      setMetaAppSecret("");
-      setMetaAccessToken("");
-      setNotice("Meta connector settings saved. Use Connect Instagram to complete account login.");
+      setNotice("Meta tenant preference saved. Use Connect Instagram to complete account authorization.");
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : "Meta connector save failed");
     } finally {
@@ -918,8 +917,11 @@ export function FraterniteesWorkspace({
             <div className="mt-5 grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
               <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Connection status</p>
-                <p className="mt-2 text-2xl font-semibold">{connectedProviders.has("meta") ? "Meta saved" : "Needs app setup"}</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {connectedProviders.has("meta") ? "Meta connected" : metaPlatform?.configured ? "Ready to connect" : "Backend setup needed"}
+                </p>
                 <div className="mt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+                  <p>The platform Meta app is owned by this product. Tenants authorize access here; app ID and app secret stay in backend environment variables.</p>
                   <p>Instagram Login uses the newer Instagram professional-account scopes and does not require a linked Facebook Page.</p>
                   <p>Meta Business login is for accounts managed through Business Suite and can discover multiple owned Page-linked Instagram accounts.</p>
                   <p>Watched accounts are added separately in Sales & Social; they do not require ownership.</p>
@@ -928,49 +930,38 @@ export function FraterniteesWorkspace({
               <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
                 <div className="flex items-center gap-2">
                   <Settings2 className="h-4 w-4 text-[var(--accent-secondary-strong)]" />
-                  <p className="font-semibold">Advanced Meta app settings</p>
+                  <p className="font-semibold">Tenant authorization settings</p>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm">
+                    <span className="font-semibold text-[var(--text-secondary)]">Platform app</span>
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      {metaPlatform?.configured ? "Configured in backend" : "Missing backend env"}
+                    </span>
+                    <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                      Instagram {metaPlatform?.instagramBusinessLoginConfigured ? "ready" : "missing"} · Business Suite {metaPlatform?.facebookLoginBusinessConfigured ? "ready" : "missing"}
+                    </span>
+                  </div>
+                  <div className="grid gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm">
+                    <span className="font-semibold text-[var(--text-secondary)]">Graph version</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{metaPlatform?.graphApiVersion ?? "v24.0"}</span>
+                  </div>
                   <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)]">
-                    Auth mode
+                    Login path
                     <select
                       value={metaAuthMode}
                       onChange={(event) => setMetaAuthMode(event.target.value)}
                       className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
                     >
-                      <option value="instagram_business_login">Instagram Login</option>
-                      <option value="facebook_login_business">Meta Business Suite / Facebook Login</option>
+                      <option value="instagram_business_login" disabled={!metaPlatform?.instagramBusinessLoginConfigured}>
+                        Instagram Login{metaPlatform?.instagramBusinessLoginConfigured ? "" : " (backend setup needed)"}
+                      </option>
+                      <option value="facebook_login_business" disabled={!metaPlatform?.facebookLoginBusinessConfigured}>
+                        Meta Business Suite / Facebook Login{metaPlatform?.facebookLoginBusinessConfigured ? "" : " (backend setup needed)"}
+                      </option>
                     </select>
                   </label>
                   <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)]">
-                    Graph version
-                    <input
-                      value={metaGraphApiVersion}
-                      onChange={(event) => setMetaGraphApiVersion(event.target.value)}
-                      placeholder="v24.0"
-                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)]">
-                    Meta app ID
-                    <input
-                      value={metaAppId}
-                      onChange={(event) => setMetaAppId(event.target.value)}
-                      placeholder="App ID"
-                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)]">
-                    Meta app secret
-                    <input
-                      type="password"
-                      value={metaAppSecret}
-                      onChange={(event) => setMetaAppSecret(event.target.value)}
-                      placeholder={connectedProviders.has("meta") ? "Leave blank to keep saved secret" : "App secret"}
-                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)] md:col-span-2">
                     Business portfolio ID
                     <input
                       value={metaBusinessId}
@@ -979,25 +970,12 @@ export function FraterniteesWorkspace({
                       className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
                     />
                   </label>
-                  <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)] md:col-span-2">
-                    Scopes to request
-                    <textarea
-                      rows={3}
-                      value={metaGrantedScopes}
-                      onChange={(event) => setMetaGrantedScopes(event.target.value)}
-                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-semibold text-[var(--text-secondary)] md:col-span-2">
-                    Manual long-lived token fallback
-                    <input
-                      type="password"
-                      value={metaAccessToken}
-                      onChange={(event) => setMetaAccessToken(event.target.value)}
-                      placeholder="Optional. OAuth login is preferred."
-                      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm font-semibold text-[var(--text-primary)] outline-none"
-                    />
-                  </label>
+                  <div className="grid gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 text-sm md:col-span-2">
+                    <span className="font-semibold text-[var(--text-secondary)]">Meta OAuth callback URL</span>
+                    <code className="break-all rounded-lg bg-[var(--surface-elevated)] px-2 py-2 text-xs font-semibold text-[var(--text-primary)]">
+                      {metaPlatform?.callbackUrl ?? "/api/runtime/connectors/meta/oauth/callback"}
+                    </code>
+                  </div>
                 </div>
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
                   <button
@@ -1007,7 +985,7 @@ export function FraterniteesWorkspace({
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold disabled:opacity-60"
                   >
                     {busy === "meta-save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                    Save Meta settings
+                    Save preference
                   </button>
                   <button
                     type="button"

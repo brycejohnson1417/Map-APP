@@ -49,11 +49,20 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const existingSecretFieldKeys = Array.isArray(existingIntegration?.config?.secretFieldKeys)
     ? existingIntegration.config.secretFieldKeys.filter((key): key is string => typeof key === "string")
     : [];
+  const preservedSecretFieldKeys =
+    connector.provider === "meta" ? existingSecretFieldKeys.filter((key) => key === "accessToken") : existingSecretFieldKeys;
+  const existingFields =
+    existingIntegration?.config?.fields &&
+    typeof existingIntegration.config.fields === "object" &&
+    !Array.isArray(existingIntegration.config.fields)
+      ? (existingIntegration.config.fields as Record<string, unknown>)
+      : {};
 
   const config: Record<string, unknown> = {
+    ...(connector.provider === "meta" ? existingIntegration?.config ?? {} : {}),
     savedByEmail: sessionEmail,
     selfServeConfiguredAt: new Date().toISOString(),
-    fields: {},
+    fields: connector.provider === "meta" ? { ...existingFields } : {},
     secretFieldKeys: [],
   };
   const secrets: Record<string, unknown> = {};
@@ -72,7 +81,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     }
   }
   config.secretFieldKeys =
-    connector.provider === "meta" ? Array.from(new Set([...existingSecretFieldKeys, ...secretFieldKeys])) : secretFieldKeys;
+    connector.provider === "meta" ? Array.from(new Set([...preservedSecretFieldKeys, ...secretFieldKeys])) : secretFieldKeys;
 
   const integrationSecrets =
     connector.provider === "printavo" &&
@@ -95,16 +104,20 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
         ? { selfServeForm: secrets }
         : undefined;
 
+  const externalAccountId =
+    connector.provider === "meta"
+      ? parsed.data.fields.businessId?.trim() || existingIntegration?.externalAccountId || null
+      : parsed.data.fields.email?.trim() ||
+        parsed.data.fields.sheetUrl?.trim() ||
+        parsed.data.fields.businessId?.trim() ||
+        parsed.data.fields.appId?.trim() ||
+        null;
+
   const installation = await registerIntegration({
     organizationId: workspace.organization.id,
     provider: connector.provider,
     displayName: connector.label,
-    externalAccountId:
-      parsed.data.fields.email?.trim() ||
-      parsed.data.fields.sheetUrl?.trim() ||
-      parsed.data.fields.businessId?.trim() ||
-      parsed.data.fields.appId?.trim() ||
-      null,
+    externalAccountId,
     config,
     secrets: integrationSecrets,
   });

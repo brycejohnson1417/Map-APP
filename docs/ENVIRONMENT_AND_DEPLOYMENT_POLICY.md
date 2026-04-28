@@ -25,7 +25,7 @@ When environment variables are missing:
 - skip live checks with a clear skip message
 - record what was not verified in the run report
 - do not invent credentials
-- do not fall back to global provider keys for tenant runtime behavior
+- do not fall back to global provider keys for tenant runtime behavior, except for the explicitly documented platform-owned Meta OAuth app credentials that identify this product's Meta app and never replace tenant access tokens
 
 ## Deployment Policy
 
@@ -68,6 +68,7 @@ The safe MVP boundary for Screenprinting is:
 - email draft-only
 - social publishing disabled
 - comments/messages permission-gated
+- Meta app credentials are platform-owned backend env values; tenant Meta access tokens remain encrypted integration secrets
 - manual social import allowed
 - identity merges non-destructive
 - dirty provider data marked for review

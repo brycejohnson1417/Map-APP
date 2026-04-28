@@ -33,7 +33,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md).
 | Autonomous work registry | live | `docs/WORK_REGISTRY.json` defines executable work items, dependencies, safe defaults, stop conditions, docs to update, and verification commands. |
 | Canonical Screenprinting admin config | live MVP | Status/tag/field mapping, dirty-data trust, social account rules, alert rules, dashboards. |
 | Screenprinting Sales module | live MVP | Read-only orders, opportunities, reorders, draft email templates, goals, dashboards. |
-| Screenprinting Social module | live MVP | Owned/watched accounts, Meta-owned account scan when credentials permit, watched account import, posts, calendar, campaigns, alerts, comments/messages/manual threads, publish/comment/message routes gated by Meta scopes and tenant flags. |
+| Screenprinting Social module | live MVP | Owned/watched accounts, platform-owned Meta OAuth, Meta-owned account scan when tenant authorization permits, watched account import, posts, calendar, campaigns, alerts, comments/messages/manual threads, publish/comment/message routes gated by Meta scopes and tenant flags. |
 | Identity resolution | live MVP | Non-destructive merge/link suggestions across Printavo, accounts, contacts, and social identities. |
 | Dashboard builder | live MVP | Tenant-scoped saved views and widget-library custom dashboards persist through `dashboard_definition`; drag/drop layout remains future. |
 | Catalog/profitability adapters | future | Wait until order/customer foundation is stable. |
@@ -43,7 +43,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md).
 
 - RLS is enabled on tenant tables, but committed migrations do not yet define browser/client policies. Current runtime access uses trusted server/service-role paths.
 - Tenant role enforcement for admin-only Screenprinting config mutations is still tenant-session gated until role policy is finalized.
-- Screenprinting UI now renders the requested operational Sales/Social surfaces, including visible Instagram login and editable social account mapping fields, but deeper tenant-session E2E tests are still needed for authenticated mutations such as saved views, goals, draft social posts, manual social import, manual thread logging, campaign creation, alert updates, and identity approvals.
+- Screenprinting UI now renders the requested operational Sales/Social surfaces, including visible platform-owned Instagram login and editable social account mapping fields, but deeper tenant-session E2E tests are still needed for authenticated mutations such as saved views, goals, draft social posts, manual social import, manual thread logging, campaign creation, alert updates, and identity approvals.
 - Screenprinting additive migrations have been applied to live Supabase, including the Screenprinting foundation tables and Meta provider enum.
 - Screenprinting acceptance coverage is fixture-backed, static/runtime-build verified, and browser-checked against FraterniTees live Printavo data; deeper service-level edge-case tests remain useful.
 - FraterniTees tenant-specific mapping decisions are not fully recorded; current pending decisions are tracked in [docs/tenants/fraternitees/DATA_DECISIONS.md](tenants/fraternitees/DATA_DECISIONS.md).

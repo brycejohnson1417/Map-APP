@@ -10,7 +10,7 @@ Tenants bring credentials for providers such as Printavo, Nabis, Notion, Google 
 Store tenant-scoped connector secrets encrypted at rest, keyed by organization and installation, with an explicit rotation path and a clear distinction between browser-safe config and server-only secrets.
 
 ## Rationale
-Connector credentials are tenant-specific operational secrets. They must not live in shared public environment variables or leak across organizations.
+Connector credentials are tenant-specific operational secrets. They must not live in shared public environment variables or leak across organizations. A platform-owned OAuth client ID/secret may identify the Map App product itself, but any access tokens or provider data granted by a tenant remain tenant-scoped encrypted secrets.
 
 ## Consequences
 - browser-safe values such as a tenant's Maps JavaScript key are configured separately from server-only secrets
@@ -19,7 +19,7 @@ Connector credentials are tenant-specific operational secrets. They must not liv
 - setup docs must define which secrets are human-provided environment variables during early development
 
 ## Alternatives considered
-- Shared global provider env vars for tenant runtime: rejected because usage, quota, and data access would be coupled.
+- Shared global provider env vars for tenant runtime: rejected because usage, quota, and data access would be coupled. Platform-owned OAuth app credentials are allowed only when they identify the app client and do not replace tenant-scoped access tokens.
 - Store secrets directly in tenant workspace JSON: rejected because committed files are not a secret store.
 - Ask users to paste credentials for every sync run only: rejected because automation and scheduled sync need saved credentials.
 

@@ -57,12 +57,7 @@
       "supportsFirstSync": true,
       "fields": [
         { "key": "authMode", "label": "Auth mode", "type": "text", "required": false, "placeholder": "instagram_business_login or facebook_login_business" },
-        { "key": "graphApiVersion", "label": "Graph API version", "type": "text", "required": false, "placeholder": "v24.0" },
-        { "key": "appId", "label": "Meta app ID", "type": "text", "required": false, "placeholder": "Meta app ID" },
-        { "key": "businessId", "label": "Business portfolio ID", "type": "text", "required": false, "placeholder": "Meta Business ID" },
-        { "key": "authorizationUrl", "label": "Authorization URL", "type": "url", "required": false, "placeholder": "https://business.facebook.com/..." },
-        { "key": "grantedScopes", "label": "Granted scopes", "type": "textarea", "required": false, "placeholder": "instagram_business_basic, instagram_business_manage_insights, instagram_business_manage_comments, instagram_business_manage_messages, instagram_business_content_publish" },
-        { "key": "accessToken", "label": "Meta access token", "type": "secret", "required": false, "placeholder": "Paste long-lived Instagram/Page access token" }
+        { "key": "businessId", "label": "Business portfolio ID", "type": "text", "required": false, "placeholder": "Optional Meta Business ID" }
       ]
     }
   ],

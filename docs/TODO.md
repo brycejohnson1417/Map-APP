@@ -54,7 +54,7 @@ When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the regist
 - [ ] FraterniTees must choose which Printavo statuses count as quoted, in production, completed, cancelled/lost, paid, unpaid, ignored, or dirty.
 - [ ] FraterniTees must choose tag/category mappings and field trust settings before new reports are authoritative.
 - [ ] FraterniTees must choose reorder cycles, high-value windows, follow-up owners, and email templates.
-- [ ] FraterniTees must choose final owned and watched Instagram/social accounts, alert thresholds, social follow-up owners, and production Meta app credentials/scopes for OAuth.
+- [ ] FraterniTees must choose final owned and watched Instagram/social accounts, alert thresholds, and social follow-up owners. Platform operators must configure production Meta app credentials/scopes for OAuth.
 - [ ] Tenant role enforcement for admin-only config changes needs a final auth policy decision before broad customer rollout.
 - [ ] Direct browser Supabase access needs explicit RLS policies before any tenant table is exposed to the client.
 
