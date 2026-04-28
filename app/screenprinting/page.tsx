@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppFrame } from "@/components/layout/app-frame";
 import { ScreenprintingWorkspace } from "@/components/screenprinting/screenprinting-workspace";
+import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import {
   ScreenprintingServiceError,
   getScreenprintingWorkspaceSummary,
@@ -16,6 +17,11 @@ interface ScreenprintingPageProps {
 export default async function ScreenprintingPage({ searchParams }: ScreenprintingPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const orgSlug = orgSlugFromSearchParams(resolvedSearchParams);
+  const sessionEmail = await getTenantSessionEmailForSlug(orgSlug);
+
+  if (!sessionEmail) {
+    redirect(`/login?org=${encodeURIComponent(orgSlug)}`);
+  }
 
   try {
     const summary = await getScreenprintingWorkspaceSummary(orgSlug);
