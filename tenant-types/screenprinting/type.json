@@ -1,0 +1,56 @@
+{
+  "id": "screenprinting",
+  "version": 1,
+  "kind": "tenant_type",
+  "displayName": "Screenprinting",
+  "summary": "Screenprinting businesses that use Printavo-style order systems and social channels to manage customers, repeat orders, sales follow-up, and social demand.",
+  "tenantDocScope": "Applies to every tenant with tenantType.id=screenprinting unless that tenant explicitly overrides the rule in its tenant-specific docs or workspace config.",
+  "tenantSpecificDocScope": "Tenant docs under docs/tenants/<tenant>/ may document tenant-only decisions, credentials, pilots, dirty-data exceptions, and rollout notes. They must not redefine the universal screenprinting type contract.",
+  "stablePrimitives": [
+    "organization",
+    "account",
+    "account_identity",
+    "contact",
+    "order_record",
+    "activity",
+    "opportunity",
+    "campaign",
+    "social_account",
+    "social_post",
+    "social_thread",
+    "alert",
+    "dashboard",
+    "mapping_rule",
+    "custom_field"
+  ],
+  "configurationSurfaces": [
+    "Printavo status mapping",
+    "Printavo tag and field mapping",
+    "customer and organization categories",
+    "owned and watched social accounts",
+    "sales and social follow-up ownership",
+    "reorder cycles and high-value repeat windows",
+    "email draft templates",
+    "social alert thresholds",
+    "identity resolution rules",
+    "dashboard widgets and saved views",
+    "feature flags and plugin capabilities"
+  ],
+  "defaultAdapters": [
+    "printavo_read_only",
+    "instagram_meta_monitoring",
+    "manual_social_account_import",
+    "email_draft_export",
+    "future_catalog_api_adapter"
+  ],
+  "securityBoundaries": [
+    "Every runtime row must be scoped by organization_id.",
+    "Provider credentials must be tenant-scoped credentials stored through encrypted integration installs or tenant-scoped environment keys.",
+    "Screenprinting defaults must never expose one tenant's Printavo, Instagram, dashboard, or customer data to another tenant."
+  ],
+  "documentation": [
+    "docs/tenant-types/screenprinting/README.md",
+    "docs/tenant-types/screenprinting/PRODUCT_SPEC.md",
+    "docs/tenant-types/screenprinting/FULL_IMPLEMENTATION_HANDOFF.md"
+  ]
+}

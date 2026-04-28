@@ -1,5 +1,7 @@
 # Platform Spec
 
+For vocabulary, read [GLOSSARY.md](GLOSSARY.md). For database and API contracts, read [DATA_MODEL.md](DATA_MODEL.md) and [API_CONTRACTS.md](API_CONTRACTS.md).
+
 ## Product definition
 
 Map App Harness is a multi-tenant business-operations platform that gives each tenant a tailored operational workspace without requiring a separate codebase.
@@ -10,6 +12,7 @@ The platform is built around:
 - a map/list/detail operating shell
 - adapters for tenant systems
 - reusable primitives and packages
+- tenant types for industry-level defaults
 - portable tenant workspace definitions
 - a future change system for safe adaptation
 
@@ -29,7 +32,7 @@ The compiler-like architecture exists to make those workspaces reusable and adap
 The target self-serve journey is:
 
 1. tenant signs in
-2. tenant picks a workspace template
+2. tenant picks or is matched to a tenant type
 3. tenant connects one or more providers
 4. tenant syncs canonical accounts/orders/contacts
 5. tenant receives a usable workspace immediately
@@ -44,11 +47,12 @@ That is the standard we are working toward.
 The repo is partially there already:
 
 - shared tenant-aware runtime exists
-- template-driven onboarding v1 exists
+- tenant-type-aware onboarding v1 exists
 - current tenants already use differentiated workspaces
 - adapters for Notion, Nabis, Printavo, CSV-style mapping patterns, and Google Maps/geocoding are in flight or landed
 - account, territory, and document flows are live
 - workspace manifests and package manifests are live
+- tenant type manifests and docs now separate Screenprinting from Cannabis Wholesale
 - change-request persistence, attachments, and screenshot-first screen comments are live
 
 The missing pieces are mainly:
@@ -84,9 +88,16 @@ The missing pieces are mainly:
 ### Extensibility units
 - primitive
 - package
+- tenant type
 - workspace definition
 - adapter
 - change request
+
+### Tenant types
+- Screenprinting
+- Cannabis Wholesale
+
+Tenant types define industry-level defaults. Tenant workspaces define one customer's selected configuration and overrides.
 
 ## Product surfaces
 
@@ -103,6 +114,14 @@ The missing pieces are mainly:
 - FraterniTees lead scoring and Printavo onboarding
 
 These should increasingly become package/module outputs, not isolated branches.
+
+### Tenant type surfaces
+- Screenprinting Sales module
+- Screenprinting Social module
+- Cannabis Wholesale Territory module
+- Cannabis Wholesale Account/Document modules
+
+Tenant type surfaces must remain configurable per tenant and must not leak data across tenants.
 
 ## AI and automation role
 
@@ -122,4 +141,5 @@ The platform is succeeding when:
 
 1. each new tenant requires less custom branching than the previous one
 2. reusable primitives/packages grow from real tenant work
-3. tenant #10 can onboard and adapt meaningfully without direct founder involvement
+3. tenant type docs make industry defaults explicit enough for a new tenant or agent to continue without chat history
+4. tenant #10 can onboard and adapt meaningfully without direct founder involvement

@@ -1,84 +1,73 @@
 # Running To-Do List
 
-This is the live execution backlog. It should reflect what the repo actually needs next, not a stale foundation checklist.
+This backlog follows the shape required by [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md): current focus, next slices, blocked, and debt to retire.
 
-## Current focus
+For vocabulary, read [GLOSSARY.md](GLOSSARY.md). The machine-readable execution queue is [WORK_REGISTRY.json](WORK_REGISTRY.json), explained by [WORK_REGISTRY.md](WORK_REGISTRY.md). For the immediate pre-Screenprinting foundation, read [ARCHITECTURE_RUNWAY.md](ARCHITECTURE_RUNWAY.md). For long-running implementation behavior, read [AUTONOMOUS_PRODUCT_BUILD.md](AUTONOMOUS_PRODUCT_BUILD.md).
 
-- [x] Finish the repo documentation rewrite so a fresh human or AI can understand the platform direction without chat history
-- [x] Define the first stable primitive catalog from real PICC + FraterniTees behavior
-- [x] Define the first workspace/package manifest shape
-- [x] Extract current tenant scoring/filter/module behavior away from shared branching
-- [ ] Add broader compiled FraterniTees score/trend summaries that can be reused across accounts and territory surfaces beyond the current account-detail and account-directory row badges
-- [ ] Keep current tenant workflows shipping while tightening platform contracts
-- [ ] continue deleting remaining shared-code tenant branching that is not justified by a primitive or workspace contract
+When this file and [WORK_REGISTRY.json](WORK_REGISTRY.json) disagree, the registry wins.
 
-## Current tenant delivery
+## Current Focus
 
-### PICC
-- [ ] move PPP savings and mock proposal behavior toward clearer package/module boundaries
-- [ ] reduce PICC-specific assumptions in shared runtime/presentation code
+- [x] Add the autonomous execution control plane: work registry, authority order, definition of done, fixture policy, environment/deployment policy, migration safety policy, and registry validation.
+- [ ] Implement the architecture runway before Screenprinting: config schema foundation, adapter ports, feature flags, audit/activity hooks, static boundary checks, and run-report discipline.
+- [ ] During implementation, promote any documented future foundation item that becomes the best prerequisite for the current feature, then continue the feature after documenting the promotion.
+- [ ] Implement the Screenprinting additive database foundation from [DATA_MODEL.md](DATA_MODEL.md): `mapping_rule`, `opportunity`, `reorder_signal`, `email_template`, `social_account`, `social_post`, `social_thread`, `campaign`, `alert_rule`, `alert_instance`, `identity_resolution`, and `dashboard_definition`.
+- [ ] Implement the Screenprinting API routes from [API_CONTRACTS.md](API_CONTRACTS.md) with tenant-session protection and `organization_id` scoping.
+- [ ] Build the Screenprinting admin configuration UX for statuses, payment states, tags, fields, dirty-data trust, categories, owners, reorder rules, social account rules, alerts, dashboards, and feature flags.
+- [ ] Build the Screenprinting Sales module from [tenant-types/screenprinting/SALES_MODULE.md](tenant-types/screenprinting/SALES_MODULE.md).
+- [ ] Build the Screenprinting Social module from [tenant-types/screenprinting/SOCIAL_MODULE.md](tenant-types/screenprinting/SOCIAL_MODULE.md).
+- [ ] Preserve existing FraterniTees Printavo sync, lead scoring, score trends, DNC behavior, top-customer leaderboard, account directory, account detail, map, and change-request capabilities while improving the UI/UX.
 
-### FraterniTees
-- [x] update grading to weight order volume, close rate, and revenue more explicitly
-- [x] add sort controls for close rate and order count
-- [x] add 2-year trend view on account detail
-- [x] show current 2-year score-trend direction directly in the account directory rows
-- [x] add a top-100 trailing 12-month spend leaderboard for customer-protection workflows
-- [x] add tenant-scoped daily Printavo auto-sync controls and cron wiring
-- [x] split the accounts workspace into tabs so the scoring engine and top-customer leaderboard do not stack
-- [x] exercise the production Printavo daily cron route instead of leaving it as unproven wiring
-- [x] show the latest Printavo sync timestamp directly on the FraterniTees accounts header
-- [x] fix the mobile territory console/filter/pin-detail flow so large maps default to list mode and focused accounts still open from rows or pins
-- [x] capture the scoring/trend logic as a reusable primitive candidate
-- [x] move score config, sort options, and account-detail sections into workspace config
-- [ ] push more map filter/facet behavior into explicit registry config
+## Architecture Runway Tasks
 
-## Platform extraction
+- [ ] Keep [WORK_REGISTRY.json](WORK_REGISTRY.json) current as items move from `planned` to `ready`, `in_progress`, `blocked`, or `done`.
+- [ ] Add typed config definition and tenant override resolution.
+- [ ] Add config validation, impact preview interface, change history, and undo path.
+- [ ] Add initial config definitions for Screenprinting status mapping, payment mapping, tag mapping, field trust, reorder rules, email templates, social account categories, alert rules, dashboard defaults, and feature flags.
+- [ ] Add `OrderingPlatformAdapter` port and contract tests.
+- [ ] Move Printavo read-only fetch/preview/sync behavior behind the ordering adapter boundary.
+- [ ] Add `SocialPlatformAdapter` port and manual social adapter stub.
+- [ ] Add future `CatalogAdapter` stub without implementing profitability.
+- [ ] Add Screenprinting tenant-scoped feature flags.
+- [ ] Add audit/activity helpers for config changes, identity decisions, opportunities, reorders, draft emails, social links, alert state, and manual social threads.
+- [ ] Extend static boundary checks for tenant type leaks, missing `organization_id`, missing RLS, and provider credential leakage.
+- [ ] Add run report for the foundation build under `docs/runs/`.
 
-- [x] define package manifest schema
-- [x] define workspace definition schema
-- [x] define module registry contract for account detail sections
-- [ ] define filter/sort registry contract for account and territory surfaces
-- [x] define score-summary and trend-summary runtime contracts
-- [ ] reduce direct interpretation of tenant-specific `custom_fields` in shared components
-- [ ] move more tenant-specific geocoding/address heuristics into explicit workspace policy schemas
+## Next Slices
 
-## Control plane and onboarding
+- [ ] Add acceptance tests that use [fixtures/screenprinting/sample-screenprinting-data.json](../fixtures/screenprinting/sample-screenprinting-data.json).
+- [ ] Add targeted tests for mapping-rule evaluation, dirty-data exclusions, reorder signal generation, alert-rule evaluation, and identity-resolution decisions.
+- [ ] Add browser/runtime verification for Screenprinting Sales and Social flows once UI routes exist.
+- [ ] Convert more FraterniTees score/trend/read-model behavior into reusable primitives and package contracts.
+- [ ] Move remaining tenant-specific map filter/facet behavior into explicit registry config.
+- [ ] Generalize recurring connector sync beyond the first FraterniTees Printavo automation slice.
+- [ ] Add tenant type version/upgrade previews to onboarding/admin UX.
+- [ ] Expand self-serve connector save/sync behavior for more providers.
+- [ ] Add preview/policy automation to the change-request queue.
 
-- [x] make tenant login/setup flow clearly template-driven
-- [x] expose connector install state cleanly for each tenant
-- [x] document the adapter credential and setup contract for fresh tenant onboarding
-- [x] make the root product flow clearer for non-PICC tenants
-- [ ] expand self-serve connector save/sync behavior for more providers
-- [x] remove tenant-facing paid-provider runtime fallbacks to generic global env keys
-- [x] require tenant-session auth on tenant-mutating runtime routes instead of leaving isolated write holes
-- [ ] generalize tenant-scoped recurring connector sync beyond the first FraterniTees Printavo automation slice
-- [ ] move remaining provider bootstrap and operator tooling onto installation-first, tenant-scoped credential resolution everywhere
+## Blocked Or Pending Tenant Decisions
 
-## Change system
+- [ ] FraterniTees must choose which Printavo statuses count as quoted, in production, completed, cancelled/lost, paid, unpaid, ignored, or dirty.
+- [ ] FraterniTees must choose tag/category mappings and field trust settings before new reports are authoritative.
+- [ ] FraterniTees must choose reorder cycles, high-value windows, follow-up owners, and email templates.
+- [ ] FraterniTees must choose owned and watched Instagram/social accounts, alert thresholds, and social follow-up owners.
+- [ ] Tenant role enforcement for admin-only config changes needs a final auth policy decision before broad customer rollout.
+- [ ] Direct browser Supabase access needs explicit RLS policies before any tenant table is exposed to the client.
 
-- [x] define `change_requests` data model
-- [x] define request classification model: config vs package vs primitive proposal vs core
-- [x] replace the technical tenant form with screenshot-first screen comments
-- [ ] define preview/policy requirements for safe changes
-- [x] define maintainer queue flow for escalated work
-- [ ] add follow-up conversation threads without exposing harness jargon to tenants
-- [ ] add stronger live replay of saved comment anchors when screenshots are missing or the layout changes later
-- [ ] harden screenshot capture beyond the current fallback path so modern CSS color syntax does not routinely skip preview images
+## Future Stack Proposal
 
-## Verification and quality
+- [ ] Revisit [proposals/FUTURE_STACK_PROPOSAL.md](proposals/FUTURE_STACK_PROPOSAL.md) after the Screenprinting foundation has real implementation pressure.
+- [ ] Promote only the smallest useful future-stack slice when it prevents hardcoded tenant logic, duplicated provider behavior, unsafe data handling, or brittle config work.
+- [ ] Do not start pnpm/Turborepo/package/schema-topology migration without a separate approved migration plan.
+- [ ] Do not pause Screenprinting product delivery for spinout drills, generated package scaffolds, or schema-per-vertical work.
 
-- [ ] add targeted tests around FraterniTees scoring and trend logic
-- [ ] add browser/runtime verification for tenant-specific account list flows
-- [x] add browser verification for mobile territory row focus plus canvas-pin focus
-- [x] add browser verification for authenticated screen-comment capture flows
-- [x] add a static tenant-isolation verification step so generic paid-provider env usage in runtime code fails fast
-- [ ] keep the docs and backlog aligned after every major slice
-- [ ] record what each tenant slice made more reusable
+## Debt To Retire
 
-## Anti-patterns to avoid
-
-- [ ] do not keep solving tenant requests by adding more shared-code branching
-- [ ] do not treat current tenant velocity and platform extraction as separate concerns
-- [ ] do not let AI-generated tenant code become the default customization path
-- [ ] do not let docs drift behind the actual platform direction again
+- [ ] Keep [WORK_REGISTRY.json](WORK_REGISTRY.json) and [ROADMAP.md](ROADMAP.md) aligned.
+- [ ] Remove or migrate duplicate integration secret table paths after confirming deployed database state.
+- [ ] Reduce direct interpretation of tenant-specific `custom_fields` in shared components.
+- [ ] Keep [DATA_MODEL.md](DATA_MODEL.md), [API_CONTRACTS.md](API_CONTRACTS.md), and [tenant-types/SCHEMA.md](tenant-types/SCHEMA.md) current after schema/API/config changes.
+- [ ] Keep [ARCHITECTURE_RUNWAY.md](ARCHITECTURE_RUNWAY.md) current until the pre-Screenprinting foundation is complete.
+- [ ] Keep [STATUS.md](STATUS.md) as a one-page state summary rather than a commit log.
+- [ ] Keep tenant-specific docs populated with real tenant decisions once admin config is chosen.
+- [ ] Avoid adding shared-code branches when a mapping rule, tenant type default, workspace override, adapter, or package config can express the behavior.

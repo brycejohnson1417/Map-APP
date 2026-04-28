@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "tenant_type": "screenprinting",
+  "tenants": [
+    {
+      "slug": "fraternitees",
+      "name": "FraterniTees Fixture",
+      "config": {
+        "printavo_status_mapping": {
+          "quoted": ["Quote Sent", "Awaiting Approval"],
+          "production_completed": ["Job Complete", "Picked Up"],
+          "cancelled": ["Cancelled", "Lost"],
+          "dirty": ["Unknown Legacy Status"]
+        },
+        "payment_mapping": {
+          "paid": ["Paid"],
+          "unpaid": ["Unpaid", "Deposit Due"]
+        },
+        "field_trust": {
+          "production_due_date": "trusted",
+          "customer_due_date": "needs_review",
+          "tags": "needs_review"
+        },
+        "reorder_rules": [
+          {
+            "category": "greek",
+            "cycle_days": 365,
+            "priority": "high"
+          }
+        ],
+        "features": {
+          "sales": true,
+          "social": true,
+          "social_publishing": false,
+          "comments_replies": true,
+          "messages": true,
+          "catalog_costs": false,
+          "profitability": false
+        }
+      }
+    },
+    {
+      "slug": "second-screenprinter",
+      "name": "Second Screenprinter Fixture",
+      "config": {
+        "printavo_status_mapping": {
+          "quoted": ["Estimate Sent"],
+          "production_completed": ["Completed"],
+          "cancelled": ["Cancelled"],
+          "dirty": ["Needs Cleanup"]
+        },
+        "payment_mapping": {
+          "paid": ["Paid"],
+          "unpaid": ["Unpaid"]
+        },
+        "field_trust": {
+          "production_due_date": "needs_review",
+          "customer_due_date": "trusted",
+          "tags": "trusted"
+        },
+        "features": {
+          "sales": true,
+          "social": true,
+          "social_publishing": false,
+          "comments_replies": false,
+          "messages": false,
+          "catalog_costs": false,
+          "profitability": false
+        }
+      }
+    }
+  ],
+  "printavo_like_orders": [
+    {
+      "source_id": "po_1001",
+      "tenant_slug": "fraternitees",
+      "customer_email": "president@example.edu",
+      "organization_name": "Alpha Phi",
+      "job_name": "Alpha Phi Parents Weekend Shirts",
+      "status": "Quote Sent",
+      "payment_status": "Unpaid",
+      "tags": ["Greek", "Repeat"],
+      "total_cents": 184500,
+      "created_at": "2026-04-01T14:00:00Z",
+      "production_due_date": "2026-04-20",
+      "customer_due_date": null
+    },
+    {
+      "source_id": "po_1002",
+      "tenant_slug": "fraternitees",
+      "customer_email": "service@example.com",
+      "organization_name": "Local Business Corp",
+      "job_name": "Staff Polos",
+      "status": "Unknown Legacy Status",
+      "payment_status": "Deposit Due",
+      "tags": ["Corp/Com", "Needs Cleanup"],
+      "total_cents": 61200,
+      "created_at": "2026-04-03T16:30:00Z",
+      "production_due_date": null,
+      "customer_due_date": "2026-04-28"
+    }
+  ],
+  "social_accounts": [
+    {
+      "source_id": "ig_owned_1",
+      "tenant_slug": "fraternitees",
+      "platform": "instagram",
+      "handle": "fraternitees",
+      "ownership": "owned",
+      "category": "brand",
+      "priority": "high",
+      "status": "active",
+      "followers": 7900
+    },
+    {
+      "source_id": "ig_watched_1",
+      "tenant_slug": "fraternitees",
+      "platform": "instagram",
+      "handle": "alpha_phi_chapter",
+      "ownership": "watched",
+      "category": "customer",
+      "priority": "medium",
+      "status": "active",
+      "followers": 3200
+    }
+  ],
+  "social_posts": [
+    {
+      "source_id": "post_2001",
+      "account_source_id": "ig_watched_1",
+      "kind": "post",
+      "caption": "Parents weekend shirts are live.",
+      "posted_at": "2026-04-10T18:00:00Z",
+      "likes": 152,
+      "comments": 12,
+      "shares": 3,
+      "views": 2400,
+      "engagement_rate": 6.95,
+      "alert_candidates": ["engagement_spike"]
+    }
+  ],
+  "social_threads": [
+    {
+      "source_id": "thread_3001",
+      "tenant_slug": "fraternitees",
+      "platform": "instagram",
+      "handle": "alpha_phi_chapter",
+      "kind": "message",
+      "body": "Can we reorder last year's parents weekend design?",
+      "received_at": "2026-04-11T13:15:00Z",
+      "suggested_links": [
+        {
+          "target_type": "organization",
+          "target_name": "Alpha Phi",
+          "confidence": 0.82,
+          "evidence": ["handle similarity", "recent order history"]
+        }
+      ]
+    }
+  ]
+}

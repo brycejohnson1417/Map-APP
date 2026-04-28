@@ -3,6 +3,8 @@
 ## Purpose
 This file defines the environment contract for local development, verification, and tenant migration work.
 
+Runtime versions and framework/tooling expectations are defined in [OPERATING_ENVIRONMENT.md](OPERATING_ENVIRONMENT.md).
+
 ## Bootstrap steps
 1. Copy `.env.example` to `.env.local`
 2. Fill in the required environment variables

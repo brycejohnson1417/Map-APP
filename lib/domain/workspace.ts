@@ -53,6 +53,29 @@ export interface WorkspaceNavigationItem {
   icon: string;
 }
 
+export interface TenantTypeReference {
+  id: string;
+  scope: "tenant_type";
+  displayName: string;
+  manifestPath: string;
+  docsPath: string;
+}
+
+export interface TenantTypeDefinition {
+  id: string;
+  version: number;
+  kind: "tenant_type";
+  displayName: string;
+  summary: string;
+  tenantDocScope: string;
+  tenantSpecificDocScope: string;
+  stablePrimitives: string[];
+  configurationSurfaces: string[];
+  defaultAdapters: string[];
+  securityBoundaries: string[];
+  documentation: string[];
+}
+
 export interface FraterniteesScoreModelConfig {
   weights: {
     closeRate: number;
@@ -123,6 +146,7 @@ export interface WorkspaceDefinition {
   version: number;
   kind: string;
   displayName: string;
+  tenantType?: TenantTypeReference;
   templateLabel: string;
   description: string;
   selfServe: boolean;
@@ -206,6 +230,7 @@ export interface WorkspaceTemplateSummary {
   selfServe: boolean;
   defaultOrgSlug: string;
   emailDomains: string[];
+  tenantType?: TenantTypeReference;
   branding: WorkspaceDefinition["branding"];
   connectors: WorkspaceConnectorDefinition[];
 }

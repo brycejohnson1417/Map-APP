@@ -1,68 +1,162 @@
 # Roadmap
 
-This file is the concise execution view. The detailed reasoning lives in [docs/IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md). The live backlog lives in [docs/TODO.md](TODO.md).
+This file is the phase view. The autonomous execution queue is [WORK_REGISTRY.json](WORK_REGISTRY.json). The human backlog view is [TODO.md](TODO.md). Current live/planned surface status is [STATUS.md](STATUS.md).
 
-## Current status
+For vocabulary, read [GLOSSARY.md](GLOSSARY.md). For the immediate foundation sequence, read [ARCHITECTURE_RUNWAY.md](ARCHITECTURE_RUNWAY.md).
 
-### Landed
-- shared tenant-aware runtime foundation
-- territory and account runtime surfaces
-- tenant login routing
-- template-driven onboarding v1
-- workspace/package manifests wired into the runtime
-- in-app screen-comment change capture with annotated screenshots
-- PICC runtime workflows for PPP savings and mock proposals
-- FraterniTees runtime onboarding, Printavo sync, and lead-scoring surfaces
-- geocoding flow with open-source default and Google upgrade path
-- sync status, runtime APIs, and base verification loops
+For long-running implementation behavior, read [AUTONOMOUS_PRODUCT_BUILD.md](AUTONOMOUS_PRODUCT_BUILD.md), [WORK_REGISTRY.md](WORK_REGISTRY.md), and [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md). If a planned or future foundation item becomes the best prerequisite for a requested feature, promote the smallest useful version first, then continue the feature.
 
-### In progress
-- keeping the repo docs aligned with the new control-plane surfaces
-- extraction of tenant behavior into clearer reusable contracts
-- broadening self-serve onboarding and connector depth beyond the first template
-- adding policy/preview layers on top of the new screenshot-first change-request queue
+## Phase 1: Stabilize Product Contracts
 
-### Next critical outcomes
-- broader primitive extraction
-- more compiled score/trend/read-model outputs
-- onboarding improvements for additional templates
-- change-request preview/policy model on top of screen-comment capture
-- more tenant behavior extraction from shared code
+Priority: highest
 
-## Sequence
+Status: in progress
 
-### 1. Clarify the platform in the repo
-- status
-- strategy
-- architecture
-- workspace model
-- primitive catalog
+Definition of done:
 
-### 2. Extract current tenant behavior
-- FraterniTees lead scoring/filtering/trends
-- PICC tenant-specific modules
-- registry-style filters and modules
+- [x] tenant type manifests exist for Screenprinting and Cannabis Wholesale
+- [x] self-contained product requirements rule exists
+- [x] canonical data model doc exists
+- [x] canonical API contract doc exists
+- [x] tenant type/workspace schema doc exists
+- [x] architecture runway exists for the pre-Screenprinting foundation
+- [x] autonomous product build policy exists for foundation-first promotion during long Codex CLI runs
+- [x] work registry exists as the machine-readable execution queue
+- [x] definition of done exists
+- [x] fixture, environment, deployment, and migration safety policies exist
+- [x] work registry validation is wired into verification
+- [ ] docs remain current after the first Screenprinting implementation slice
 
-### 3. Harden platform contracts
-- canonical runtime contracts
-- package/workspace manifests
-- adapter boundaries
-- read-model outputs
+Primary risk: implementation drifting back into code-first behavior without updating docs.
 
-### 4. Build self-serve tenant setup
-- templates
-- provider installs
-- initial sync
-- workspace bootstrap
+## Phase 2: Architecture Runway Before Screenprinting
 
-### 5. Build governed tenant adaptation
-- request capture
-- screenshot/annotation intake
-- classifier/policy
-- previewable config/package changes
-- maintainer queue for new primitives/core work
+Priority: highest
 
-### 6. Turn solved tenant shapes into reusable templates/packages
-- template export/import
-- package registry
-- upgrade/versioning path
+Status: planned
+
+Definition of done:
+
+- minimal typed config schema foundation exists
+- tenant override resolution, validation, impact preview interface, change history, and undo path exist
+- ordering adapter port exists
+- Printavo read-only behavior goes through an ordering adapter boundary
+- social adapter port/manual adapter stub exists
+- Screenprinting feature flags exist and are tenant-scoped
+- audit/activity hooks exist for config changes, identity decisions, opportunities, reorders, draft emails, alert state, and manual social logs
+- static boundary checks guard tenant type leaks, missing `organization_id`, missing RLS, and generic provider credentials
+- run-report and agent-concurrency docs are in use
+- existing FraterniTees and PICC behavior still passes verification
+
+Primary risk: turning a focused runway into a broad platform rewrite.
+
+## Phase 3: Screenprinting Data Foundation
+
+Priority: highest
+
+Status: planned
+
+Definition of done:
+
+- additive migrations exist for Screenprinting primitives listed in [DATA_MODEL.md](DATA_MODEL.md)
+- every new tenant business table has `organization_id`
+- RLS is enabled for every new tenant business table
+- repository/service contracts exist for mappings, opportunities, reorders, social accounts, posts, threads, campaigns, alerts, dashboards, and identity resolution
+- existing FraterniTees Printavo sync, scoring, account directory, account detail, map, top-customer leaderboard, and change requests still pass verification
+
+Primary risk: building UI before the mapping and identity foundation is stable.
+
+## Phase 4: Screenprinting Admin Configuration
+
+Priority: high
+
+Status: planned
+
+Definition of done:
+
+- tenant admins can configure Printavo statuses, payment states, tags, field trust, dirty-data exclusions, customer categories, follow-up ownership, reorder rules, email templates, social accounts, alerts, dashboards, and feature flags
+- risky mapping changes show impact previews when feasible
+- config changes affect Sales/Social behavior without code edits
+- tenant-specific config does not affect other tenants
+
+Primary risk: too much flexibility without stable primitives underneath.
+
+## Phase 5: Screenprinting Sales MVP
+
+Priority: high
+
+Status: planned
+
+Definition of done:
+
+- Sales dashboard, Orders, Order Detail, Accounts Cleanup, Opportunities, Reorders, Email Templates, Goals, and Sales Admin screens exist
+- Printavo remains read-only
+- email remains draft-only
+- tenant mappings drive reporting buckets
+- existing FraterniTees scoring and customer-protection views remain available
+- targeted tests cover mapping, reorder generation, and draft template rendering
+
+Primary risk: treating dirty Printavo statuses/tags as authoritative before tenant review.
+
+## Phase 6: Screenprinting Social MVP
+
+Priority: high
+
+Status: planned
+
+Definition of done:
+
+- Social dashboard, Accounts Registry, Account Detail, Posts, Post Detail, Alerts, Alert Rules, Calendar, Campaigns, Conversations, Compose Gate, and Social Admin screens exist
+- owned and watched accounts support API-backed and manual import paths
+- comments/replies are permission-gated
+- messages/comments/manual threads can link to customers, organizations, contacts, opportunities, and campaigns
+- publishing is disabled by default and remains feature-gated
+- targeted tests cover alert rules and identity links
+
+Primary risk: platform API limitations creating false UI promises.
+
+## Phase 7: Multi-Tenant Scale
+
+Priority: medium
+
+Status: planned
+
+Definition of done:
+
+- a second Screenprinting tenant can onboard from the Screenprinting tenant type without a code fork
+- tenant type versioning and upgrade previews are implemented
+- tenant dashboards and saved views are configurable by role
+- tenant-specific docs record actual tenant decisions after configuration
+- direct browser Supabase access either remains avoided or has explicit RLS policies
+
+Primary risk: custom one-off tenant branches returning through urgent customer requests.
+
+## Phase 8: Future Stack Extraction
+
+Priority: future
+
+Status: proposal
+
+Definition of done:
+
+- future package/monorepo migration has an approved plan
+- physical package boundaries are introduced only after current tenant behavior is verified
+- schema topology changes have a migration and rollback plan
+- any spinout/readiness tooling proves value before becoming mandatory
+
+Primary risk: pausing product learning for speculative platform migration.
+
+## Phase 9: Later Expansion
+
+Priority: future
+
+Status: future
+
+Definition of done:
+
+- catalog adapter boundary supports tenant-selected vendor cost APIs
+- profitability uses reliable line item and cost data
+- Art module has proof/assets/licensing workflow contracts
+- Warehouse module has inventory/SKU/fulfillment workflow contracts
+
+Primary risk: expanding into profitability, art, or warehouse before the sales/customer/social foundation is dependable.

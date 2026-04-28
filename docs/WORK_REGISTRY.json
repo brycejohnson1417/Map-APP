@@ -1,0 +1,761 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable execution queue for autonomous Codex CLI work. Roadmap and TODO files are human-readable views; this file is the queue.",
+  "status_values": ["planned", "ready", "in_progress", "blocked", "done"],
+  "priority_values": ["P0", "P1", "P2", "P3", "future"],
+  "authority_order": [
+    "AGENTS.md",
+    "docs/AUTONOMOUS_PRODUCT_BUILD.md",
+    "docs/WORK_REGISTRY.json",
+    "docs/DEFINITION_OF_DONE.md",
+    "docs/DATA_MODEL.md",
+    "docs/API_CONTRACTS.md",
+    "docs/tenant-types/SCHEMA.md",
+    "docs/tenant-types/<type>/*.md",
+    "docs/tenants/<tenant>/*.md",
+    "docs/ROADMAP.md",
+    "docs/TODO.md",
+    "older docs and proposals"
+  ],
+  "execution_rules": [
+    "Execute ready items in priority order after checking dependencies.",
+    "When a planned item's dependencies become done and no stop condition applies, promote it to ready and continue.",
+    "If a feature would otherwise require tenant-specific branching, duplicated provider logic, unsafe tenant data handling, or brittle UI state, promote the smallest useful documented foundation item first.",
+    "Do not execute future proposal items unless they are marked ready or are the smallest necessary foundation for a current ready item.",
+    "Update this registry status, docs, verification evidence, and run report as each meaningful slice is completed."
+  ],
+  "items": [
+    {
+      "id": "OPS-001",
+      "title": "Autonomous execution control plane",
+      "status": "done",
+      "phase": "operating-system",
+      "priority": "P0",
+      "type": "docs-ops",
+      "dependencies": [],
+      "blocking_foundation": [],
+      "description": "Create the repo-level rules that let a fresh Codex CLI session choose work, resolve doc conflicts, build prerequisites first, verify completion, and continue without relying on hidden context.",
+      "acceptance_criteria": [
+        "Work registry exists and defines status, priority, dependency, stop-condition, safe-default, docs, and verification fields.",
+        "Authority order is documented.",
+        "Definition of done is documented.",
+        "Work registry validation is wired into repo verification."
+      ],
+      "verification_commands": [
+        "npm run check:work-registry",
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "AGENTS.md",
+        "README.md",
+        "docs/HANDOFF.md",
+        "docs/AUTONOMOUS_PRODUCT_BUILD.md",
+        "docs/WORK_REGISTRY.md",
+        "docs/DEFINITION_OF_DONE.md",
+        "docs/TODO.md",
+        "docs/ROADMAP.md",
+        "docs/STATUS.md"
+      ],
+      "stop_conditions": [
+        "Registry cannot be parsed as JSON.",
+        "Existing verification cannot run because dependencies are unavailable."
+      ],
+      "safe_defaults": [
+        "Prefer documentation and static validation before runtime changes.",
+        "Keep future proposals non-executable until marked ready."
+      ]
+    },
+    {
+      "id": "RUNWAY-001",
+      "title": "Configuration schema foundation",
+      "status": "ready",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["OPS-001"],
+      "blocking_foundation": [],
+      "description": "Add typed config definitions, tenant overrides, validation, impact preview interface, change history, and undo path for tenant type and tenant configuration.",
+      "acceptance_criteria": [
+        "Config definitions can provide defaults and validation.",
+        "Tenant overrides replace defaults without code edits.",
+        "Invalid tenant overrides are rejected with plain-language errors.",
+        "Config changes are tenant-scoped and auditable.",
+        "Impact preview and undo interfaces exist even when a first implementation returns warning metadata."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/ARCHITECTURE_RUNWAY.md",
+        "docs/DATA_MODEL.md",
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/SCHEMA.md",
+        "docs/tenant-types/screenprinting/CONFIGURATION.md"
+      ],
+      "stop_conditions": [
+        "A destructive migration is required.",
+        "Existing FraterniTees or PICC behavior would be removed."
+      ],
+      "safe_defaults": [
+        "Use tenant type defaults when tenant overrides are missing.",
+        "Mark unknown provider values as needs_review.",
+        "Show warning states instead of authoritative reports when mappings are incomplete."
+      ]
+    },
+    {
+      "id": "RUNWAY-002",
+      "title": "Adapter port contracts",
+      "status": "ready",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["OPS-001"],
+      "blocking_foundation": [],
+      "description": "Define ordering, social, and future catalog adapter ports so tenant type features can depend on stable provider boundaries.",
+      "acceptance_criteria": [
+        "OrderingPlatformAdapter contract exists for statuses, orders, customers, contacts, deep links, and sync cursors.",
+        "SocialPlatformAdapter contract exists for owned accounts, watched/manual accounts, posts, comments, messages, permission state, and manual fallback.",
+        "CatalogAdapter stub exists without profitability behavior.",
+        "Contracts use typed input and output validation."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/ARCHITECTURE_RUNWAY.md",
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/screenprinting/INTEGRATIONS.md"
+      ],
+      "stop_conditions": [
+        "A provider write-back would be required.",
+        "Provider credentials would have to be shared globally."
+      ],
+      "safe_defaults": [
+        "Keep provider calls read-only.",
+        "Expose missing permissions as explicit adapter state.",
+        "Provide manual import fallback for social data."
+      ]
+    },
+    {
+      "id": "RUNWAY-003",
+      "title": "Printavo read-only ordering adapter boundary",
+      "status": "planned",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["RUNWAY-002"],
+      "blocking_foundation": ["RUNWAY-002"],
+      "description": "Move current Printavo fetch, preview, sync, status, customer, contact, and order behavior behind the ordering adapter contract without changing visible FraterniTees behavior.",
+      "acceptance_criteria": [
+        "Runtime UI and services call the ordering adapter boundary instead of scattering Printavo-specific logic.",
+        "Printavo remains read-only.",
+        "Existing FraterniTees Printavo sync and lead scoring still work.",
+        "Source IDs and source payload references are preserved for debugging."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/screenprinting/INTEGRATIONS.md",
+        "docs/tenants/fraternitees/DATA_DECISIONS.md"
+      ],
+      "stop_conditions": [
+        "Live Printavo write-back becomes necessary.",
+        "A required credential is missing and no fixture/manual fallback can prove behavior."
+      ],
+      "safe_defaults": [
+        "Use fixtures when live credentials are unavailable.",
+        "Preserve current direct code path until adapter parity is verified.",
+        "Treat dirty statuses and tags as needs_review."
+      ]
+    },
+    {
+      "id": "RUNWAY-004",
+      "title": "Social adapter and manual import foundation",
+      "status": "planned",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["RUNWAY-002"],
+      "blocking_foundation": ["RUNWAY-002"],
+      "description": "Create the social adapter boundary and manual adapter implementation so Social monitoring can work before Meta/Instagram permissions are complete.",
+      "acceptance_criteria": [
+        "Owned and watched social accounts can be represented without API credentials.",
+        "Manual imports can create posts, comments, messages, and threads with source metadata.",
+        "Permission-gated API behavior has explicit unavailable states.",
+        "Publishing remains disabled unless feature flagged later."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/screenprinting/SOCIAL_MODULE.md",
+        "docs/tenant-types/screenprinting/INTEGRATIONS.md"
+      ],
+      "stop_conditions": [
+        "A live social provider write-back is required.",
+        "Required social credentials are missing and no manual fallback can prove behavior."
+      ],
+      "safe_defaults": [
+        "Manual import is allowed.",
+        "Publishing is disabled.",
+        "Comments and messages show permission-required states until credentials permit access."
+      ]
+    },
+    {
+      "id": "RUNWAY-005",
+      "title": "Tenant-scoped Screenprinting feature flags",
+      "status": "planned",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["RUNWAY-001"],
+      "blocking_foundation": ["RUNWAY-001"],
+      "description": "Add tenant-scoped feature flags for Screenprinting Sales, Social, publishing, comments, messages, catalog costs, and profitability.",
+      "acceptance_criteria": [
+        "FraterniTees can enable Sales and Social MVP without enabling publishing or catalog costs.",
+        "Disabled features do not render broken navigation or empty controls.",
+        "PICC is unaffected by Screenprinting feature flags."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/DATA_MODEL.md",
+        "docs/tenant-types/SCHEMA.md",
+        "docs/tenant-types/screenprinting/CONFIGURATION.md"
+      ],
+      "stop_conditions": [
+        "Feature flags would require tenant-specific shared-code branches."
+      ],
+      "safe_defaults": [
+        "Sales and Social can be enabled per tenant.",
+        "Publishing, comments, messages, catalog costs, and profitability default off until configured."
+      ]
+    },
+    {
+      "id": "RUNWAY-006",
+      "title": "Audit and activity hooks",
+      "status": "planned",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["RUNWAY-001"],
+      "blocking_foundation": ["RUNWAY-001"],
+      "description": "Add tenant-scoped audit/activity helpers for configuration changes, identity decisions, opportunities, reorders, draft emails, social links, alerts, and manual social logs.",
+      "acceptance_criteria": [
+        "Risky product-owned actions emit tenant-scoped audit or activity records.",
+        "Audit/activity records include organization_id and actor metadata when available.",
+        "Audit/activity records do not imply provider write-back."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/DATA_MODEL.md",
+        "docs/API_CONTRACTS.md",
+        "docs/CHANGE_SYSTEM.md"
+      ],
+      "stop_conditions": [
+        "The audit path would expose cross-tenant data."
+      ],
+      "safe_defaults": [
+        "Record internal activity even when provider actions are disabled.",
+        "Use system actor metadata when a human actor is unavailable."
+      ]
+    },
+    {
+      "id": "RUNWAY-007",
+      "title": "Static boundary and documentation checks",
+      "status": "ready",
+      "phase": "architecture-runway",
+      "priority": "P0",
+      "type": "foundation",
+      "dependencies": ["OPS-001"],
+      "blocking_foundation": [],
+      "description": "Extend verification to reject missing work registry fields, lazy requirements, tenant type leaks, unsafe provider credentials, missing organization_id, and missing RLS documentation.",
+      "acceptance_criteria": [
+        "npm run verify includes work registry validation.",
+        "Failures explain the broken rule in plain English.",
+        "Docs remain self-contained and do not rely on hidden context."
+      ],
+      "verification_commands": [
+        "npm run check:work-registry",
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/SELF_CONTAINED_REQUIREMENTS.md",
+        "docs/VERIFICATION_STRATEGY.md",
+        "docs/WORK_REGISTRY.md"
+      ],
+      "stop_conditions": [
+        "A check would block current valid repo state without a documented migration path."
+      ],
+      "safe_defaults": [
+        "Start with docs and registry validation before deeper static code analysis.",
+        "Treat stricter code checks as planned until the repo can pass them."
+      ]
+    },
+    {
+      "id": "DATA-001",
+      "title": "Screenprinting additive data foundation",
+      "status": "planned",
+      "phase": "screenprinting-foundation",
+      "priority": "P0",
+      "type": "database",
+      "dependencies": ["RUNWAY-001", "RUNWAY-005", "RUNWAY-006", "RUNWAY-007"],
+      "blocking_foundation": ["RUNWAY-001", "RUNWAY-005", "RUNWAY-006", "RUNWAY-007"],
+      "description": "Add additive Screenprinting tables for mappings, opportunities, reorders, email templates, social accounts, posts, threads, campaigns, alerts, dashboards, and identity resolution.",
+      "acceptance_criteria": [
+        "Every new tenant business table includes organization_id.",
+        "RLS is enabled for every new tenant business table.",
+        "Migrations are additive and idempotent where practical.",
+        "Existing FraterniTees and PICC behavior still passes verification."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/DATA_MODEL.md",
+        "docs/MIGRATION_SAFETY.md",
+        "docs/tenant-types/screenprinting/FULL_IMPLEMENTATION_HANDOFF.md"
+      ],
+      "stop_conditions": [
+        "A destructive migration is required.",
+        "Existing data would need irreversible transformation."
+      ],
+      "safe_defaults": [
+        "Use additive tables and nullable optional fields.",
+        "Preserve raw source payloads.",
+        "Mark unmapped provider data as needs_review."
+      ]
+    },
+    {
+      "id": "API-001",
+      "title": "Screenprinting API contracts",
+      "status": "planned",
+      "phase": "screenprinting-foundation",
+      "priority": "P0",
+      "type": "api",
+      "dependencies": ["DATA-001"],
+      "blocking_foundation": ["DATA-001"],
+      "description": "Implement tenant-session-protected Screenprinting API routes for config, mappings, opportunities, reorders, email drafts, social accounts, posts, threads, alerts, dashboards, and identity suggestions.",
+      "acceptance_criteria": [
+        "Routes match docs/API_CONTRACTS.md.",
+        "Tenant-mutating routes require tenant session and organization scope.",
+        "Validation rejects malformed payloads with clear errors.",
+        "No route writes back to Printavo or social providers in MVP."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/screenprinting/FULL_IMPLEMENTATION_HANDOFF.md"
+      ],
+      "stop_conditions": [
+        "A route would need provider write-back.",
+        "A route would need direct browser access to tenant tables without RLS policies."
+      ],
+      "safe_defaults": [
+        "Return warning metadata when mappings are incomplete.",
+        "Use manual social fallback when API credentials are unavailable."
+      ]
+    },
+    {
+      "id": "ADMIN-001",
+      "title": "Screenprinting admin configuration UI",
+      "status": "planned",
+      "phase": "screenprinting-product",
+      "priority": "P1",
+      "type": "ui-workflow",
+      "dependencies": ["API-001", "RUNWAY-005"],
+      "blocking_foundation": ["API-001", "RUNWAY-005"],
+      "description": "Build tenant admin configuration for status mapping, payment mapping, tag mapping, dirty field trust, categories, owners, reorder rules, social accounts, alerts, dashboards, and feature flags.",
+      "acceptance_criteria": [
+        "Tenant admins can edit decisions without code changes.",
+        "Changes show impact preview or explicit unavailable warning.",
+        "Changes affect Sales and Social behavior throughout the app.",
+        "Tenant-specific changes do not affect other tenants."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/CONFIGURATION.md",
+        "docs/tenants/fraternitees/DATA_DECISIONS.md",
+        "docs/tenant-types/screenprinting/FULL_IMPLEMENTATION_HANDOFF.md"
+      ],
+      "stop_conditions": [
+        "A required tenant business decision has no safe default.",
+        "Admin changes would bypass audit/activity logging."
+      ],
+      "safe_defaults": [
+        "Use tenant type defaults until a tenant override is saved.",
+        "Use needs_review buckets for dirty or unmapped data.",
+        "Expose expert JSON only after safe form controls exist."
+      ]
+    },
+    {
+      "id": "SALES-001",
+      "title": "Screenprinting Sales MVP",
+      "status": "planned",
+      "phase": "screenprinting-product",
+      "priority": "P1",
+      "type": "ui-workflow",
+      "dependencies": ["ADMIN-001", "RUNWAY-003"],
+      "blocking_foundation": ["ADMIN-001", "RUNWAY-003"],
+      "description": "Build the Screenprinting Sales workspace: dashboards, orders, accounts cleanup, opportunities, reorders, draft email templates, goals, and reporting while preserving FraterniTees lead scoring.",
+      "acceptance_criteria": [
+        "Existing FraterniTees lead scoring, score trends, account directory, account detail, map, and top-customer surfaces remain available.",
+        "Sales metrics use tenant-configured status, payment, tag, and dirty-data rules.",
+        "Email is draft-only with copy/open-client/mark-sent behavior.",
+        "Opportunities and reorders are tenant-scoped and auditable."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/SALES_MODULE.md",
+        "docs/tenant-types/screenprinting/FEATURE_COVERAGE.md",
+        "docs/tenants/fraternitees/PILOT_SCOPE.md"
+      ],
+      "stop_conditions": [
+        "Printavo write-back would be required.",
+        "Existing FraterniTees scoring would be removed or hidden without replacement."
+      ],
+      "safe_defaults": [
+        "Treat Printavo as read-only.",
+        "Show reports as preliminary when mappings are incomplete.",
+        "Keep email draft-only."
+      ]
+    },
+    {
+      "id": "SOCIAL-001",
+      "title": "Screenprinting Social MVP",
+      "status": "planned",
+      "phase": "screenprinting-product",
+      "priority": "P1",
+      "type": "ui-workflow",
+      "dependencies": ["ADMIN-001", "RUNWAY-004"],
+      "blocking_foundation": ["ADMIN-001", "RUNWAY-004"],
+      "description": "Build the Screenprinting Social workspace: owned/watched accounts, manual/API imports, posts, calendar, alerts, comments, messages, campaigns, conversations, and social-to-sales links.",
+      "acceptance_criteria": [
+        "Owned and watched accounts support multiple accounts per tenant.",
+        "Manual import works when provider API credentials or permissions are unavailable.",
+        "Alerts are configurable per tenant.",
+        "Comments, replies, and messages can be linked to customers, organizations, contacts, opportunities, and campaigns.",
+        "Publishing remains disabled unless separately feature flagged."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/SOCIAL_MODULE.md",
+        "docs/tenant-types/screenprinting/FEATURE_COVERAGE.md",
+        "docs/tenants/fraternitees/PILOT_SCOPE.md"
+      ],
+      "stop_conditions": [
+        "Live publishing would be required.",
+        "Social provider permissions are missing and no manual fallback can represent the workflow."
+      ],
+      "safe_defaults": [
+        "Use manual import.",
+        "Disable publishing.",
+        "Show permission-required states for comments and messages until configured."
+      ]
+    },
+    {
+      "id": "IDENTITY-001",
+      "title": "Identity resolution and merge suggestions",
+      "status": "planned",
+      "phase": "screenprinting-product",
+      "priority": "P1",
+      "type": "data-workflow",
+      "dependencies": ["API-001", "ADMIN-001"],
+      "blocking_foundation": ["API-001"],
+      "description": "Create non-destructive identity suggestions for linking Printavo customers, organizations, contacts, Instagram handles, messages, comments, and opportunities.",
+      "acceptance_criteria": [
+        "Suggestions include evidence and confidence.",
+        "Confirm, reject, ignore, and undo paths are available.",
+        "No destructive merge happens without explicit review.",
+        "Tenant admins can adjust matching rules and dirty-field trust."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/IDENTITY_RESOLUTION.md",
+        "docs/DATA_MODEL.md",
+        "docs/API_CONTRACTS.md"
+      ],
+      "stop_conditions": [
+        "A destructive merge is required.",
+        "Cross-tenant identity data would be exposed."
+      ],
+      "safe_defaults": [
+        "Create suggestions instead of merges.",
+        "Mark low-confidence suggestions for review.",
+        "Preserve all source identities."
+      ]
+    },
+    {
+      "id": "QA-001",
+      "title": "Screenprinting fixtures and acceptance coverage",
+      "status": "planned",
+      "phase": "quality",
+      "priority": "P1",
+      "type": "testing",
+      "dependencies": ["SALES-001", "SOCIAL-001", "IDENTITY-001"],
+      "blocking_foundation": ["SALES-001", "SOCIAL-001", "IDENTITY-001"],
+      "description": "Add realistic fixtures and acceptance scripts that prove mapping, dirty data, reorders, social alerts, identity links, and tenant isolation without requiring live provider credentials.",
+      "acceptance_criteria": [
+        "Fixtures cover good, bad, great, and dirty tenant data.",
+        "Acceptance scripts prove tenant config changes affect reports and workflows.",
+        "Tests prove FraterniTees and PICC data remain isolated.",
+        "Live-provider tests are optional and skipped cleanly when credentials are absent."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/ACCEPTANCE_AND_FIXTURES.md",
+        "docs/VERIFICATION_STRATEGY.md",
+        "docs/tenant-types/screenprinting/FULL_IMPLEMENTATION_HANDOFF.md"
+      ],
+      "stop_conditions": [
+        "A live provider credential is required with no fixture fallback."
+      ],
+      "safe_defaults": [
+        "Use committed fixtures.",
+        "Skip live tests with explicit skip messages when credentials are missing."
+      ]
+    },
+    {
+      "id": "SCALE-001",
+      "title": "Second Screenprinting tenant onboarding proof",
+      "status": "planned",
+      "phase": "multi-tenant-scale",
+      "priority": "P2",
+      "type": "tenant-type-proof",
+      "dependencies": ["QA-001"],
+      "blocking_foundation": ["QA-001"],
+      "description": "Prove a second Screenprinting tenant can inherit the Screenprinting tenant type, override config, connect/import data, and use Sales/Social without a code fork.",
+      "acceptance_criteria": [
+        "Second tenant workspace manifest exists as fixture or seed.",
+        "Tenant override diff is visible.",
+        "Sales and Social dashboards reflect that tenant's own mappings and accounts.",
+        "No shared-code tenant branch is added."
+      ],
+      "verification_commands": [
+        "npm run check:tenant-types",
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/SCHEMA.md",
+        "docs/tenant-types/screenprinting/PRODUCT_SPEC.md",
+        "docs/ROADMAP.md"
+      ],
+      "stop_conditions": [
+        "The proof would require tenant-specific code."
+      ],
+      "safe_defaults": [
+        "Use fixture tenant data.",
+        "Use manual provider imports if credentials are unavailable."
+      ]
+    },
+    {
+      "id": "FUTURE-001",
+      "title": "Catalog adapter foundation",
+      "status": "planned",
+      "phase": "future-expansion",
+      "priority": "future",
+      "type": "future-foundation",
+      "dependencies": ["SCALE-001"],
+      "blocking_foundation": ["SCALE-001"],
+      "description": "Add a real catalog adapter boundary for tenant-selected vendor cost APIs after the order/customer foundation is stable.",
+      "acceptance_criteria": [
+        "Tenant can choose a catalog provider adapter.",
+        "Cost data remains optional and warning-gated.",
+        "Profitability features remain disabled until reliable data exists."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/ARCHITECTURE_RUNWAY.md",
+        "docs/tenant-types/screenprinting/INTEGRATIONS.md",
+        "docs/ROADMAP.md"
+      ],
+      "stop_conditions": [
+        "Profitability would be built on incomplete cost data."
+      ],
+      "safe_defaults": [
+        "Keep profitability disabled.",
+        "Show missing-cost warnings."
+      ]
+    },
+    {
+      "id": "FUTURE-002",
+      "title": "Profitability and cost reporting",
+      "status": "planned",
+      "phase": "future-expansion",
+      "priority": "future",
+      "type": "future-product",
+      "dependencies": ["FUTURE-001"],
+      "blocking_foundation": ["FUTURE-001"],
+      "description": "Add profitability only after orders, customers, line items, and catalog costs are reliable enough for tenant decision-making.",
+      "acceptance_criteria": [
+        "Profitability calculations document every input and exclusion.",
+        "Dirty or missing cost data prevents authoritative profitability claims.",
+        "Tenant can configure catalog source and trusted fields."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/DATA_MODEL.md",
+        "docs/API_CONTRACTS.md",
+        "docs/tenant-types/screenprinting/PRODUCT_SPEC.md"
+      ],
+      "stop_conditions": [
+        "Required cost data is missing or unreliable."
+      ],
+      "safe_defaults": [
+        "Disable profitability widgets.",
+        "Show cost coverage instead of margin when data is incomplete."
+      ]
+    },
+    {
+      "id": "FUTURE-003",
+      "title": "Screenprinting art workflow module",
+      "status": "planned",
+      "phase": "future-expansion",
+      "priority": "future",
+      "type": "future-product",
+      "dependencies": ["SCALE-001"],
+      "blocking_foundation": ["SCALE-001"],
+      "description": "Add art/proof/assets workflow after Sales and Social are stable.",
+      "acceptance_criteria": [
+        "Art workflow has its own self-contained product spec before implementation.",
+        "Assets, approvals, proofs, and licensing states are defined.",
+        "Module can be feature-flagged per tenant."
+      ],
+      "verification_commands": [
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/PRODUCT_SPEC.md",
+        "docs/ROADMAP.md",
+        "docs/TODO.md"
+      ],
+      "stop_conditions": [
+        "Sales/Social foundation is not stable."
+      ],
+      "safe_defaults": [
+        "Keep art module disabled until specified."
+      ]
+    },
+    {
+      "id": "FUTURE-004",
+      "title": "Screenprinting warehouse workflow module",
+      "status": "planned",
+      "phase": "future-expansion",
+      "priority": "future",
+      "type": "future-product",
+      "dependencies": ["SCALE-001"],
+      "blocking_foundation": ["SCALE-001"],
+      "description": "Add warehouse/inventory/fulfillment workflow after Sales and Social are stable.",
+      "acceptance_criteria": [
+        "Warehouse workflow has its own self-contained product spec before implementation.",
+        "Inventory, SKU, receiving, fulfillment, and exception states are defined.",
+        "Module can be feature-flagged per tenant."
+      ],
+      "verification_commands": [
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/tenant-types/screenprinting/PRODUCT_SPEC.md",
+        "docs/ROADMAP.md",
+        "docs/TODO.md"
+      ],
+      "stop_conditions": [
+        "Sales/Social foundation is not stable."
+      ],
+      "safe_defaults": [
+        "Keep warehouse module disabled until specified."
+      ]
+    },
+    {
+      "id": "FUTURE-005",
+      "title": "Future stack extraction proposal",
+      "status": "planned",
+      "phase": "future-platform",
+      "priority": "future",
+      "type": "future-foundation",
+      "dependencies": ["SCALE-001"],
+      "blocking_foundation": ["SCALE-001"],
+      "description": "Evaluate physical package boundaries, pnpm/Turborepo, schema-per-vertical, custom migration tooling, branch databases, generators, and spinout drills after product pressure proves the need.",
+      "acceptance_criteria": [
+        "A separate approved migration plan exists.",
+        "Current tenant behavior is verified before topology changes.",
+        "Migration has rollback notes and incremental checkpoints."
+      ],
+      "verification_commands": [
+        "npm run check:self-contained-requirements",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/proposals/FUTURE_STACK_PROPOSAL.md",
+        "docs/ROADMAP.md",
+        "docs/TODO.md"
+      ],
+      "stop_conditions": [
+        "The migration would pause current tenant delivery without approval.",
+        "The migration would require broad package manager or repository topology changes without a separate plan."
+      ],
+      "safe_defaults": [
+        "Do not start broad topology migration.",
+        "Promote only the smallest useful foundation slice when it blocks a current ready item."
+      ]
+    }
+  ]
+}

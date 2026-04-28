@@ -50,7 +50,7 @@ export function TenantLoginForm({ templates }: { templates: WorkspaceTemplateSum
             Sign in to the right workspace.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[#4b5565]">
-            Existing tenants can sign in by work email. New teams can choose a template and bootstrap their own workspace.
+            Existing tenants can sign in by work email. New teams can choose a tenant type and bootstrap their own workspace.
           </p>
           <form onSubmit={submit} className="mt-8 flex max-w-2xl flex-col gap-3 sm:flex-row">
             <label className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(23,31,45,0.1)] bg-[#eef3f8] px-4 py-3">
@@ -81,7 +81,9 @@ export function TenantLoginForm({ templates }: { templates: WorkspaceTemplateSum
                 href={`/onboarding?templateId=${encodeURIComponent(template.id)}`}
                 className="rounded-[1.5rem] border border-[rgba(23,31,45,0.08)] bg-[#f8fafc] p-5 transition hover:border-[rgba(23,31,45,0.16)] hover:bg-[#f1f5f9]"
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#2467dd]">{template.templateLabel}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#2467dd]">
+                  {template.tenantType?.displayName ?? template.templateLabel}
+                </p>
                 <h2 className="mt-2 text-lg font-semibold tracking-[-0.03em] text-[#151923]">{template.displayName}</h2>
                 <p className="mt-2 text-sm leading-6 text-[#4b5565]">{template.description}</p>
                 <p className="mt-4 text-sm font-semibold text-[#151923]">

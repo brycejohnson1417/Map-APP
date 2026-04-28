@@ -4,7 +4,7 @@ import { listWorkspaceTemplates } from "@/lib/platform/workspace/registry";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Workspace Onboarding",
-  description: "Bootstrap a new tenant workspace from a reusable Map App Harness template.",
+  description: "Bootstrap a new tenant workspace from a reusable Map App Harness tenant type.",
 };
 
 interface OnboardingPageProps {

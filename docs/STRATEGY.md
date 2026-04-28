@@ -25,7 +25,7 @@ It means:
 Externally, tenants buy a vertical workspace:
 
 - cannabis wholesale territory ops
-- fraternity sales and lead scoring
+- screenprinting sales/social operations
 - future vertical operational workspaces
 
 Internally, the platform is being designed as a harness that can compose those workspaces from:
@@ -33,6 +33,7 @@ Internally, the platform is being designed as a harness that can compose those w
 - canonical entities
 - reusable primitives
 - installable packages
+- tenant types
 - tenant workspace definitions
 - compiled read models
 - a governed change system
@@ -59,13 +60,16 @@ Do not confuse the internal architecture with the customer-facing story.
 1. The platform is the product. PICC and FraterniTees are tenants.
 2. A tenant request should become one of:
    - workspace config
+   - tenant type config
    - package behavior
    - a new primitive proposal
    - a core-platform change
 3. Tenant-specific logic should not accumulate indefinitely in shared components.
 4. AI should primarily translate intent into config/package changes and primitive proposals, not generate ad hoc tenant production code.
-5. Every tenant workspace should move toward a portable, text-native definition.
-6. The platform should ship dense, useful vertical value before chasing abstract generality.
+5. Every tenant workspace should declare a tenant type unless it is a temporary starter workspace.
+6. Every tenant type should have explicit docs that apply universally to tenants of that type.
+7. Every tenant workspace should move toward a portable, text-native definition.
+8. The platform should ship dense, useful vertical value before chasing abstract generality.
 
 ## What current tenants have already taught us
 
@@ -78,6 +82,12 @@ Do not confuse the internal architecture with the customer-facing story.
 - the same shell can support a different vertical if the data model is generic enough
 - scoring, filters, DNC rules, and trend logic should become reusable primitives
 - connector ingestion and account runtime can stay shared while tenant behavior diverges
+- screenprinting competitors tend to share Printavo/social/reorder workflows, so Screenprinting belongs as a tenant type rather than a FraterniTees-only branch
+
+### Tenant types
+- tenant type docs prevent universal industry logic from hiding inside tenant-specific docs
+- Screenprinting and Cannabis Wholesale should share primitives but not default workflows
+- tenant customization should feel custom while staying inside stable primitive/config boundaries
 
 These are not edge cases. They are the first proof that the product must extract behavior out of shared code.
 
@@ -86,6 +96,7 @@ These are not edge cases. They are the first proof that the product must extract
 The repo already has working multi-tenant product value. The main gap is not "do more features." The main gap is:
 
 - document the platform truth clearly
+- document tenant types clearly
 - define the primitive and workspace model explicitly
 - keep shipping tenant value while converting tenant-specific behavior into reusable platform structure
 
@@ -103,4 +114,4 @@ This repo is on the right path when:
 - tenant #3 adds less shared-code branching than tenant #2 did
 - tenant-specific changes increasingly land as config/package changes
 - new engineers or agents can explain the architecture from the docs alone
-- onboarding becomes more template/package driven and less founder-driven
+- onboarding becomes more tenant-type/package driven and less founder-driven

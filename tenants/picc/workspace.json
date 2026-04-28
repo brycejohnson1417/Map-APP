@@ -3,6 +3,13 @@
   "version": 1,
   "kind": "tenant_workspace",
   "displayName": "PICC New York",
+  "tenantType": {
+    "id": "cannabis_wholesale",
+    "scope": "tenant_type",
+    "displayName": "Cannabis Wholesale",
+    "manifestPath": "tenant-types/cannabis-wholesale/type.json",
+    "docsPath": "docs/tenant-types/cannabis-wholesale/README.md"
+  },
   "templateLabel": "Wholesale Territory Ops",
   "description": "Wholesale field operations workspace for distributor accounts, PPP savings analysis, and reorder proposal generation.",
   "selfServe": false,

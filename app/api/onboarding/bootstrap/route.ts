@@ -31,14 +31,14 @@ export async function POST(request: Request) {
 
   const template = findWorkspaceTemplateById(parsed.data.templateId);
   if (!template) {
-    return NextResponse.json({ ok: false, error: `Unknown template "${parsed.data.templateId}".` }, { status: 400 });
+    return NextResponse.json({ ok: false, error: `Unknown tenant type "${parsed.data.templateId}".` }, { status: 400 });
   }
 
   const email = parsed.data.email.trim().toLowerCase();
   const domain = email.split("@")[1] ?? "";
   if (!template.selfServe && !template.emailDomains.some((candidate) => candidate.toLowerCase() === domain)) {
     return NextResponse.json(
-      { ok: false, error: "This template currently requires a guided setup domain." },
+      { ok: false, error: "This tenant type currently requires a guided setup domain." },
       { status: 403 },
     );
   }

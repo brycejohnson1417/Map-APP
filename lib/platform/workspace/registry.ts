@@ -112,6 +112,7 @@ export function listWorkspaceTemplates(): WorkspaceTemplateSummary[] {
       selfServe: workspace.selfServe,
       defaultOrgSlug: workspace.defaultOrgSlug,
       emailDomains: workspace.emailDomains,
+      tenantType: workspace.tenantType,
       branding: workspace.branding,
       connectors: workspace.connectors,
     }))

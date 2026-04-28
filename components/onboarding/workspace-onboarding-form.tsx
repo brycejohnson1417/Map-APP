@@ -72,12 +72,12 @@ export function WorkspaceOnboardingForm({
           <p className="mt-8 text-xs font-semibold uppercase tracking-[0.28em] text-[#2467dd]">Workspace onboarding</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] md:text-5xl">Create a tenant workspace without touching code.</h1>
           <p className="mt-4 text-base leading-7 text-[#4b5565]">
-            Pick a template, claim a slug, and land directly in the connector setup for the new workspace.
+            Pick a tenant type, claim a slug, and land directly in the connector setup for the new workspace.
           </p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#727c8d]">Template</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#727c8d]">Tenant type</span>
               <select
                 value={templateId}
                 onChange={(event) => setTemplateId(event.target.value)}
@@ -85,7 +85,7 @@ export function WorkspaceOnboardingForm({
               >
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.templateLabel}
+                    {template.tenantType?.displayName ?? template.templateLabel}
                   </option>
                 ))}
               </select>
@@ -159,7 +159,9 @@ export function WorkspaceOnboardingForm({
                   : "border-[rgba(23,31,45,0.08)] bg-white/70 hover:border-[rgba(23,31,45,0.16)]"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#2467dd]">{template.templateLabel}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#2467dd]">
+                {template.tenantType?.displayName ?? template.templateLabel}
+              </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{template.displayName}</h2>
               <p className="mt-3 text-sm leading-7 text-[#4b5565]">{template.description}</p>
               <div className="mt-5 space-y-2 text-sm text-[#151923]">

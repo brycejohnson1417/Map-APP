@@ -1,5 +1,29 @@
 # Verification Strategy
 
+## Required Baseline
+
+The core verification command is:
+
+```bash
+npm run verify
+```
+
+It includes:
+
+- typecheck
+- lint
+- tenant provider isolation check
+- work registry validation
+- self-contained requirements check
+- tenant type docs check
+- production build
+
+Run registry validation directly when changing autonomous work items:
+
+```bash
+npm run check:work-registry
+```
+
 ## Goal
 The repo must support self-verification. An agent or developer should be able to prove the current slice is correct without relying on memory, hope, or manual guesswork.
 
@@ -17,8 +41,14 @@ Commands:
 - `npm run typecheck`
 - `npm run lint`
 - `npm run check:tenant-isolation`
+- `npm run check:self-contained-requirements`
+- `npm run check:tenant-types`
 
 `npm run check:tenant-isolation` is the tenant-boundary guardrail for runtime paths. It currently blocks generic shared credential reads for Google Maps, Nabis, Notion, Printavo, HubSpot, Salesforce, and HighLevel-style env names.
+
+`npm run check:self-contained-requirements` is the product-requirements guardrail. It requires the repo standard in `docs/SELF_CONTAINED_REQUIREMENTS.md` and blocks product requirement docs from depending on chat history, missing attachments, or unexplained outside context.
+
+`npm run check:tenant-types` is the tenant type documentation guardrail. It currently verifies that Screenprinting and Cannabis Wholesale manifests exist, that current tenant workspace manifests declare the correct tenant type, that universal tenant type docs exist, and that tenant-specific docs exist for current tenants.
 
 Current lint implementation:
 - `oxlint` for fast, reliable static checks on app code and scripts
@@ -96,6 +126,7 @@ For normal feature work:
 3. if the feature changes user flow, run browser/smoke verification
 4. if the feature changes sync or matching behavior, add or update tests
 5. document any intentional gaps before shipping
+6. add a run report from `docs/runs/RUN_REPORT_TEMPLATE.md` for meaningful implementation slices
 
 ## `npm run verify`
 This command is the repo-standard baseline loop.
@@ -104,6 +135,8 @@ It runs:
 - `npm run typecheck`
 - `npm run lint`
 - `npm run check:tenant-isolation`
+- `npm run check:self-contained-requirements`
+- `npm run check:tenant-types`
 - `npm run build`
 - `npm run smoke:runtime` only when `SMOKE_BASE_URL` is set
 - `npm run verify:browser` only when both `SMOKE_BASE_URL` and `PLAYWRIGHT_VERIFY=1` are set
@@ -128,6 +161,8 @@ For local production-browser verification, use this order instead:
 ### Docs-only changes
 - `npm run typecheck`
 - `npm run lint`
+- `npm run check:self-contained-requirements` when product requirements changed
+- `npm run check:tenant-types` when tenant type or tenant docs changed
 - `npm run build`
 
 ### Route or service changes
@@ -176,5 +211,6 @@ The canonical process for an agent is:
 2. implement one meaningful slice
 3. run `npm run verify`
 4. run smoke checks if a server is available
-5. request adversarial review from a fresh context
-6. loop until the reviewer no longer finds meaningful gaps
+5. write a run report under `docs/runs/`
+6. request adversarial review from a fresh context
+7. loop until the reviewer no longer finds meaningful gaps

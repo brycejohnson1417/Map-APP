@@ -4,7 +4,7 @@
   "kind": "tenant_workspace",
   "displayName": "Field Ops Starter",
   "templateLabel": "Field Ops Starter",
-  "description": "Self-serve starter template for teams that need accounts, map, change requests, and connector scaffolding without founder setup.",
+  "description": "Self-serve starter tenant type for teams that need accounts, map, change requests, and connector scaffolding without founder setup.",
   "selfServe": true,
   "emailDomains": [],
   "defaultOrgSlug": "starter",
@@ -12,7 +12,7 @@
   "branding": {
     "heroEyebrow": "Self-serve starter",
     "heroTitle": "Spin up an ops workspace without a dev team.",
-    "heroDescription": "Choose a template, connect data, and start with map, accounts, integrations, and a change-request queue."
+    "heroDescription": "Choose a tenant type, connect data, and start with map, accounts, integrations, and a change-request queue."
   },
   "navigation": [
     { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
@@ -87,6 +87,6 @@
   },
   "onboarding": {
     "enabled": true,
-    "summary": "Choose this template if you want a clean operations shell first and connector depth later."
+    "summary": "Choose this tenant type if you want a clean operations shell first and connector depth later."
   }
 }

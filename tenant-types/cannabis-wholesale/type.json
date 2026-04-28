@@ -1,0 +1,49 @@
+{
+  "id": "cannabis_wholesale",
+  "version": 1,
+  "kind": "tenant_type",
+  "displayName": "Cannabis Wholesale",
+  "summary": "Cannabis wholesale businesses that manage retailer accounts, territory coverage, distributor orders, CRM follow-up, and account-specific proposal or savings workflows.",
+  "tenantDocScope": "Applies to every tenant with tenantType.id=cannabis_wholesale unless that tenant explicitly overrides the rule in its tenant-specific docs or workspace config.",
+  "tenantSpecificDocScope": "Tenant docs under docs/tenants/<tenant>/ may document tenant-only integrations, credential names, field mappings, migration history, and acceptance criteria.",
+  "stablePrimitives": [
+    "organization",
+    "account",
+    "account_identity",
+    "contact",
+    "order_record",
+    "activity",
+    "territory_marker",
+    "territory_boundary",
+    "document",
+    "dashboard",
+    "mapping_rule",
+    "custom_field"
+  ],
+  "configurationSurfaces": [
+    "CRM and distributor field mapping",
+    "account segmentation",
+    "rep and territory rules",
+    "order and product rollups",
+    "proposal and savings document modules",
+    "dashboard widgets and saved views",
+    "feature flags and plugin capabilities"
+  ],
+  "defaultAdapters": [
+    "nabis_read_only",
+    "notion_crm_read_only",
+    "google_maps_tenant_key",
+    "document_generation"
+  ],
+  "securityBoundaries": [
+    "Every runtime row must be scoped by organization_id.",
+    "Provider credentials must be tenant-scoped credentials stored through encrypted integration installs or tenant-scoped environment keys.",
+    "Cannabis wholesale defaults must never expose one tenant's CRM, distributor, route, document, or order data to another tenant."
+  ],
+  "documentation": [
+    "docs/tenant-types/cannabis-wholesale/README.md",
+    "docs/tenant-types/cannabis-wholesale/CONFIGURATION.md",
+    "docs/tenant-types/cannabis-wholesale/INTEGRATIONS.md",
+    "docs/tenant-types/cannabis-wholesale/DATA_SECURITY.md"
+  ]
+}

@@ -6,6 +6,8 @@ This plan is not time-boxed by month count. It is outcome-driven.
 
 The target is to architect for scale and self-serve onboarding while still shipping meaningful value quickly for current tenants.
 
+Executable work is tracked in [WORK_REGISTRY.json](WORK_REGISTRY.json). This file explains implementation strategy; the registry controls autonomous execution order, dependencies, stop conditions, safe defaults, docs to update, and verification commands.
+
 Every slice should satisfy both:
 
 - it improves life for a current tenant now
@@ -42,6 +44,7 @@ Scope:
 
 Acceptance:
 - a fresh engineer or AI can explain what the platform is, what exists, and what comes next from the repo alone
+- autonomous execution docs, definition of done, and work registry exist
 
 ### Slice 2 — Freeze the core contracts
 Status: active
@@ -61,11 +64,13 @@ Status: active
 
 Scope:
 - move current tenant scoring/filter/module behavior toward config/package boundaries
+- move repeated industry behavior into tenant type defaults before it becomes tenant-specific branching
 - reduce shared component branching
 - standardize registry-style filter/sort/module definitions
 
 Acceptance:
 - FraterniTees and PICC behavior become more declarative and less bespoke
+- a second screenprinter can start from Screenprinting tenant type docs/config instead of a FraterniTees fork
 
 ### Slice 4 — Read-model compilation
 Status: planned
@@ -81,11 +86,12 @@ Acceptance:
 Status: landed v1, needs expansion
 
 Scope:
-- template selection
+- tenant type selection or matching
 - adapter install flow
 - connection tests
 - initial sync bootstrap
 - generated first workspace
+- tenant-specific override preview for statuses, tags, fields, dashboards, and feature flags
 
 Acceptance:
 - a new tenant can reach a useful workspace without code changes
@@ -103,17 +109,17 @@ Scope:
 Acceptance:
 - safe tenant requests can be handled without bespoke founder implementation
 
-### Slice 7 — Package and template distribution
+### Slice 7 — Package and tenant type distribution
 Status: planned
 
 Scope:
 - package registry
-- template export/import
+- tenant type export/import
 - versioning and upgrades
 - forkable workspace definitions
 
 Acceptance:
-- one tenant’s solved shape can become another tenant’s starting point
+- one tenant's solved shape can become a tenant type default or another tenant's starting point
 
 ## Verification standard
 
@@ -126,6 +132,7 @@ Every implementation slice should include:
 Baseline verification:
 
 ```bash
+npm run check:work-registry
 npm run lint
 npm run typecheck
 npm run build

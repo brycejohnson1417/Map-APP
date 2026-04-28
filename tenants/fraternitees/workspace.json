@@ -3,6 +3,13 @@
   "version": 1,
   "kind": "tenant_workspace",
   "displayName": "FraterniTees",
+  "tenantType": {
+    "id": "screenprinting",
+    "scope": "tenant_type",
+    "displayName": "Screenprinting",
+    "manifestPath": "tenant-types/screenprinting/type.json",
+    "docsPath": "docs/tenant-types/screenprinting/README.md"
+  },
   "templateLabel": "Fraternity Sales Ops",
   "description": "Lead-scored fraternity apparel workspace with Printavo sync, account prioritization, and field-map operations.",
   "selfServe": true,
