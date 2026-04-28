@@ -39,6 +39,10 @@ Implement the competitor-demo capabilities that FraterniTees lacked but can safe
 - `SMOKE_BASE_URL=http://127.0.0.1:3210 NEXT_PUBLIC_DEFAULT_ORG_SLUG=fraternitees npm run verify:browser` passed against a local production server.
 - Targeted Playwright walkthrough passed for authenticated `/screenprinting?org=fraternitees` Admin onboarding/config editors and Social Meta readiness.
 - `supabase db push --yes` applied `20260427120000_screenprinting_foundation.sql` and `20260428100000_meta_instagram_provider.sql` to the linked Supabase project.
+- Production deploy completed through Vercel CLI and aliased `https://map-app-supabase.vercel.app`.
+- `SMOKE_BASE_URL=https://map-app-supabase.vercel.app NEXT_PUBLIC_DEFAULT_ORG_SLUG=fraternitees npm run smoke:runtime` passed.
+- `SMOKE_BASE_URL=https://map-app-supabase.vercel.app NEXT_PUBLIC_DEFAULT_ORG_SLUG=fraternitees npm run verify:browser` passed.
+- Targeted live Playwright walkthrough passed for authenticated `/screenprinting?org=fraternitees` Admin onboarding/config editors and Social Meta readiness.
 
 ## Remaining Work
 
