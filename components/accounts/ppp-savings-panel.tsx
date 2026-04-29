@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Calculator, ChevronDown, ChevronUp, Copy, Download, Loader2, Mail } from "lucide-react";
 import type { PppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
+import DOMPurify from "isomorphic-dompurify";
 
 interface PppSavingsPanelProps {
   orgSlug: string;
@@ -230,7 +231,8 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: report.email.html }} />
+              {/* Security: Sanitize HTML content to prevent XSS attacks when displaying reports */}
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(report.email.html) }} />
             </div>
           </div>
         </div>
