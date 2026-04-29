@@ -101,19 +101,29 @@ export class ChangeRequestRepository {
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
+
+    // Bolt: Use batch API `createSignedUrls` instead of `createSignedUrl` in a loop
+    // to avoid N+1 network requests and significantly reduce latency when rendering attachments.
+    const paths = attachmentRows.map((row) => row.storage_path);
+    const signedUrlMap = new Map<string, string | null>();
+
+    if (paths.length > 0) {
+      try {
+        const { data } = await supabase.storage
+          .from(ATTACHMENT_BUCKET)
+          .createSignedUrls(paths, 60 * 60);
+
+        if (data) {
+          attachmentRows.forEach((row) => {
+            // Note: createSignedUrls returns array of { path, signedUrl, error }
+            const match = data.find((d: any) => d.path === row.storage_path);
+            signedUrlMap.set(row.id, match?.signedUrl ?? null);
+          });
         }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+      } catch {
+        // Fallback map leaves values as undefined (which becomes null below)
+      }
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
