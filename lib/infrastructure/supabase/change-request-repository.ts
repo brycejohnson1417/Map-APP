@@ -100,24 +100,37 @@ export class ChangeRequestRepository {
     requestIds?: string[],
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
+    if (attachmentRows.length === 0) {
+      return new Map();
+    }
+
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
-        }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+    const storagePaths = attachmentRows.map(row => row.storage_path);
+
+    // Performance optimization: Use createSignedUrls to batch request signed URLs
+    // instead of mapping over individual createSignedUrl calls to avoid N+1 network requests.
+    let signedUrlsData: { path: string; signedUrl: string }[] | null = null;
+    try {
+      const { data } = await supabase.storage
+        .from(ATTACHMENT_BUCKET)
+        .createSignedUrls(storagePaths, 60 * 60);
+      signedUrlsData = data;
+    } catch (error) {
+      // Gracefully degrade and allow attachments to return null signed URLs like before
+      console.error("Failed to batch retrieve signed URLs", error);
+    }
+
+    // Create a map from storage path to signed URL for O(1) lookups
+    const pathToSignedUrlMap = new Map<string, string | null>();
+    if (signedUrlsData) {
+      for (const item of signedUrlsData) {
+        pathToSignedUrlMap.set(item.path, item.signedUrl || null);
+      }
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
-      current.push(mapAttachment(row, signedUrlMap.get(row.id) ?? null));
+      current.push(mapAttachment(row, pathToSignedUrlMap.get(row.storage_path) ?? null));
       map.set(row.change_request_id, current);
       return map;
     }, new Map());
