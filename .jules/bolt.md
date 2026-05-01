@@ -1,0 +1,3 @@
+## 2024-05-01 - Batch Signed URLs for Storage Attachments
+**Learning:** Found an N+1 network request pattern when creating signed URLs for Supabase storage attachments, which mapped an array via `Promise.all` calling `createSignedUrl` on each individual attachment. The Supabase Storage API provides a `.createSignedUrls([paths])` method that replaces N HTTP calls with 1. Also learned to use path-based lookups because the batch method returns signed URLs associated with the `storage_path`, not the database row IDs.
+**Action:** Always prefer `.createSignedUrls()` batch methods over `Promise.all` with individual URL generation for storage operations, mapping results via O(1) path lookups for mapping back to domain entities.

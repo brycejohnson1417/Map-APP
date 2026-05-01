@@ -100,24 +100,32 @@ export class ChangeRequestRepository {
     requestIds?: string[],
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
+    if (!attachmentRows.length) {
+      return new Map();
+    }
+
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
+    // ⚡ Bolt Optimization: Use createSignedUrls batch API instead of Promise.all with individual calls
+    // Impact: Prevents N+1 network requests when loading attachments, replacing N HTTP calls with 1
+    const storagePaths = attachmentRows.map((row) => row.storage_path);
+
+    let signedUrlByPath = new Map<string, string | null>();
+    try {
+      const { data } = await supabase.storage.from(ATTACHMENT_BUCKET).createSignedUrls(storagePaths, 60 * 60);
+      if (data) {
+        for (const item of data) {
+          signedUrlByPath.set(item.path, item.signedUrl);
         }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+      }
+    } catch (error) {
+      // Graceful degradation: log warning and proceed without signed URLs
+      console.warn("Failed to generate batch signed URLs for attachments", error);
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
-      current.push(mapAttachment(row, signedUrlMap.get(row.id) ?? null));
+      const signedUrl = signedUrlByPath.get(row.storage_path) ?? null;
+      current.push(mapAttachment(row, signedUrl));
       map.set(row.change_request_id, current);
       return map;
     }, new Map());
