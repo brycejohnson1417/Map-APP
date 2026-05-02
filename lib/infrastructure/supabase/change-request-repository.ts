@@ -101,19 +101,26 @@ export class ChangeRequestRepository {
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
+
+    const signedUrlMap = new Map<string, string | null>();
+    if (attachmentRows.length > 0) {
+      try {
+        const paths = attachmentRows.map((a) => a.storage_path);
+        const { data } = await supabase.storage.from(ATTACHMENT_BUCKET).createSignedUrls(paths, 60 * 60);
+
+        const urlByPath = new Map<string, string | null>(
+          data?.map((item: any) => [item.path, item.signedUrl]) ?? []
+        );
+
+        for (const attachment of attachmentRows) {
+          signedUrlMap.set(attachment.id, urlByPath.get(attachment.storage_path) ?? null);
         }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+      } catch {
+        for (const attachment of attachmentRows) {
+          signedUrlMap.set(attachment.id, null);
+        }
+      }
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
