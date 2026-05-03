@@ -1,0 +1,3 @@
+## 2024-05-03 - Parallelize attachment uploads
+**Learning:** Sequential await loops for I/O bound operations (like uploading attachments one by one) create major performance bottlenecks. Parallelizing these uploads using Promise.all can yield significant performance improvements (~10x for multiple files) without increasing complexity.
+**Action:** Always scan `for...of` loops containing `await` on I/O operations (network, DB inserts without foreign key ordering requirements, S3/Supabase storage) and refactor to map to a promise array and resolve concurrently via `Promise.all` or `Promise.allSettled`.

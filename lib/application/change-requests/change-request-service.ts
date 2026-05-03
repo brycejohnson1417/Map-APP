@@ -116,19 +116,23 @@ export async function createChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: request.id,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
+    const validAttachments = (input.attachments ?? []).filter((a) => a && a.size > 0);
+    if (validAttachments.length > 0) {
+      // ⚡ Bolt Optimization: Use Promise.all to process I/O-bound attachment uploads concurrently
+      // Expected impact: Significant reduction in total latency for requests with multiple attachments.
+      await Promise.all(
+        validAttachments.map(async (attachment) => {
+          try {
+            await repository.uploadAttachment({
+              organizationId: input.organizationId,
+              changeRequestId: request.id,
+              file: attachment,
+            });
+          } catch (error) {
+            warnings.push(attachmentErrorMessage(error));
+          }
+        })
+      );
     }
   }
 
@@ -189,19 +193,23 @@ export async function updateChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: input.requestId,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
+    const validAttachments = (input.attachments ?? []).filter((a) => a && a.size > 0);
+    if (validAttachments.length > 0) {
+      // ⚡ Bolt Optimization: Use Promise.all to process I/O-bound attachment uploads concurrently
+      // Expected impact: Significant reduction in total latency for requests with multiple attachments.
+      await Promise.all(
+        validAttachments.map(async (attachment) => {
+          try {
+            await repository.uploadAttachment({
+              organizationId: input.organizationId,
+              changeRequestId: input.requestId,
+              file: attachment,
+            });
+          } catch (error) {
+            warnings.push(attachmentErrorMessage(error));
+          }
+        })
+      );
     }
   }
 
