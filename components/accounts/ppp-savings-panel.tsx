@@ -98,6 +98,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
           {report ? (
             <button
               type="button"
+              aria-expanded={!collapsed}
               onClick={() => setCollapsed((value) => !value)}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
