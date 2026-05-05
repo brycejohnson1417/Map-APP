@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import DOMPurify from "isomorphic-dompurify";
 import { Calculator, ChevronDown, ChevronUp, Copy, Download, Loader2, Mail } from "lucide-react";
 import type { PppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 
@@ -40,6 +41,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     }
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
+  const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -77,7 +79,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     if (typeof ClipboardItem !== "undefined" && report.email.html) {
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/html": new Blob([report.email.html], { type: "text/html" }),
+          "text/html": new Blob([sanitizedEmailHtml], { type: "text/html" }),
           "text/plain": new Blob([draft], { type: "text/plain" }),
         }),
       ]);
@@ -230,7 +232,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: report.email.html }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
             </div>
           </div>
         </div>
