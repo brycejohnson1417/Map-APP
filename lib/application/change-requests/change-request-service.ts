@@ -116,20 +116,20 @@ export async function createChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: request.id,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    const uploadPromises = (input.attachments ?? [])
+      .filter(attachment => attachment && attachment.size > 0)
+      .map(async attachment => {
+        try {
+          await repository.uploadAttachment({
+            organizationId: input.organizationId,
+            changeRequestId: request.id,
+            file: attachment,
+          });
+        } catch (error) {
+          warnings.push(attachmentErrorMessage(error));
+        }
+      });
+    await Promise.all(uploadPromises);
   }
 
   const [created] = await repository.listByOrganizationId(input.organizationId, 50);
@@ -189,20 +189,20 @@ export async function updateChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: input.requestId,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    const uploadPromises = (input.attachments ?? [])
+      .filter(attachment => attachment && attachment.size > 0)
+      .map(async attachment => {
+        try {
+          await repository.uploadAttachment({
+            organizationId: input.organizationId,
+            changeRequestId: input.requestId,
+            file: attachment,
+          });
+        } catch (error) {
+          warnings.push(attachmentErrorMessage(error));
+        }
+      });
+    await Promise.all(uploadPromises);
   }
 
   return {
