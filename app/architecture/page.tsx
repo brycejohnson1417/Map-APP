@@ -2,6 +2,8 @@ import { AppFrame } from "@/components/layout/app-frame";
 import { PrincipleList } from "@/components/marketing/principle-list";
 import { syncPipelines } from "@/lib/content/home";
 
+export const dynamic = "force-dynamic";
+
 export default function ArchitecturePage() {
   return (
     <AppFrame>
