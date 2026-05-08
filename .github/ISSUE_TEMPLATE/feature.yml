@@ -1,5 +1,5 @@
 name: Feature
-about: User-facing capability or product workflow
+description: User-facing capability or product workflow
 labels: ["type:feature", "status:ready"]
 body:
   - type: textarea

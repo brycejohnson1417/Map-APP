@@ -1,5 +1,5 @@
 name: Task
-about: Docs, CI, infra, or bounded operational work
+description: Docs, CI, infra, or bounded operational work
 labels: ["type:task", "status:ready"]
 body:
   - type: textarea

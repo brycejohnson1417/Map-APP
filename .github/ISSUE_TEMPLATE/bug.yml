@@ -1,5 +1,5 @@
 name: Bug
-about: Broken behavior or production defect
+description: Broken behavior or production defect
 labels: ["type:bug", "status:ready"]
 body:
   - type: textarea
