@@ -59,6 +59,6 @@ Preflight. Output of `/preflight` covering gh auth, git remote, branch protectio
 
 Failing test (RED). For behavior changes, add or identify the smallest relevant failing test before implementation. Use this repo's npm-based commands, not pnpm. If TDD is impractical for the slice, explain why and compensate with `npm run verify`, browser proof, or another concrete check.
 
-Architecture and plan check. One line confirming `docs/architecture.md` and `docs/development-plan.md` were skimmed for conflicts with this slice. If there is a conflict, call it out before editing and update the affected doc in the same PR.
+Architecture and plan check. One line confirming `docs/ARCHITECTURE.md` and `docs/IMPLEMENTATION_PLAN.md` were skimmed for conflicts with this slice. If there is a conflict, call it out before editing and update the affected doc in the same PR.
 
 If you cannot produce one of these, stop and ask. Skipping silently is the failure mode this list exists to prevent. See `## Recent Misses` when present in the target repo.
