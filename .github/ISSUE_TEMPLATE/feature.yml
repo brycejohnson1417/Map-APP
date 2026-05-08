@@ -1,0 +1,33 @@
+name: Feature
+description: User-facing capability or product workflow
+labels: ["type:feature", "status:ready"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What should the user be able to do from the running app?
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: User workflow
+      description: UI flow, controls, states, errors, and success behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data, tenancy, and integrations
+  - type: textarea
+    id: docs
+    attributes:
+      label: Product docs to update
+      description: HANDOFF, WORK_REGISTRY, DATA_MODEL, API_CONTRACTS, tenant docs, or run report.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
