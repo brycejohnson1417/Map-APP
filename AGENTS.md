@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 This repository is the canonical source of truth for the new scalable map product.
 
+## Shared Anti-Slop Protocol
+
+- Follow the cross-repo protocol in `/Users/brycejohnson/Code/AGENTS.md`.
+- Repo-accessible canonical mirror: `https://github.com/brycejohnson1417/.github/blob/main/AGENTS.md`.
+- This file adds Map-APP-specific product and validation constraints. If there is a conflict, follow the stricter rule.
+- Keep protocol changes in the canonical files first; do not fork a Map-APP-only process unless this product has a specific stronger requirement.
+
 ## Canonical Context
 
 - Local canonical path: `/Users/brycejohnson/Code/map-app`
@@ -39,3 +46,19 @@ This repository is the canonical source of truth for the new scalable map produc
 - If browser behavior changed, start the app and verify the relevant route.
 - If verification cannot run, explain the blocker and what remains unverified.
 - Final reports must list changed files, commands run, what passed, what failed, and remaining risk.
+
+## Non-Test Edit Proof Gate
+
+Before editing meaningful non-test product code, post each of these as a chat-visible artifact. Docs, templates, and CI-only protocol changes can use the normal issue/branch/PR/validation proof without a RED test.
+
+Linked issue. The GitHub issue URL for this slice. If none exists, run `/distill-issue` or open one manually before continuing.
+
+Branch. A git status excerpt confirming you are on a feature branch, not on main. Use `/start-slice --issue <n> --slug <kebab>` to refresh main, branch into a worktree, install, and run preflight in one step.
+
+Preflight. Output of `/preflight` covering gh auth, git remote, branch protection awareness, Vercel project link, lefthook install, Node/pnpm version match against package.json engines, and `.claude/settings.json` hook activation. `/start-slice` runs this for you at the end of bootstrap; otherwise invoke it directly with `node .agents/skills/preflight/scripts/preflight.ts`.
+
+Failing test (RED). For behavior changes, add or identify the smallest relevant failing test before implementation. Use this repo's npm-based commands, not pnpm. If TDD is impractical for the slice, explain why and compensate with `npm run verify`, browser proof, or another concrete check.
+
+Architecture and plan check. One line confirming `docs/architecture.md` and `docs/development-plan.md` were skimmed for conflicts with this slice. If there is a conflict, call it out before editing and update the affected doc in the same PR.
+
+If you cannot produce one of these, stop and ask. Skipping silently is the failure mode this list exists to prevent. See `## Recent Misses` when present in the target repo.

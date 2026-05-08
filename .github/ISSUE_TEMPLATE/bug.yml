@@ -1,0 +1,32 @@
+name: Bug
+about: Broken behavior or production defect
+labels: ["type:bug", "status:ready"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is broken, where, and who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Screenshots, URLs, logs, counts, timestamps, or reproduction steps.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true

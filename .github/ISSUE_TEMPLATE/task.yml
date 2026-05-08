@@ -1,0 +1,26 @@
+name: Task
+about: Docs, CI, infra, or bounded operational work
+labels: ["type:task", "status:ready"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+    validations:
+      required: true
