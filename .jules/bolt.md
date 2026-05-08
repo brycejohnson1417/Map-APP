@@ -1,0 +1,3 @@
+## 2024-05-08 - Parallelize I/O-Bound Attachment Uploads
+**Learning:** Sequential `await` inside loops for I/O-bound operations like file uploads creates a significant performance bottleneck. Since each file upload is independent, waiting for one to finish before starting the next leads to N network trips executed one after the other.
+**Action:** Use `Promise.all` alongside `.map` to execute multiple independent network requests (like uploading files to Supabase Storage) concurrently. Ensure error handling (`.catch`) is attached directly to the mapped promises to prevent one failure from aborting the entire parallel operation.

@@ -116,20 +116,26 @@ export async function createChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: request.id,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    const validAttachments = (input.attachments ?? []).filter(
+      (attachment) => attachment && attachment.size > 0
+    );
+
+    // Performance Optimization: Parallelize attachment uploads
+    // Uploads are I/O bound, running them concurrently via Promise.all
+    // reduces total upload time significantly compared to sequential await.
+    await Promise.all(
+      validAttachments.map((attachment) =>
+        repository
+          .uploadAttachment({
+            organizationId: input.organizationId,
+            changeRequestId: request.id,
+            file: attachment,
+          })
+          .catch((error) => {
+            warnings.push(attachmentErrorMessage(error));
+          })
+      )
+    );
   }
 
   const [created] = await repository.listByOrganizationId(input.organizationId, 50);
@@ -189,20 +195,26 @@ export async function updateChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: input.requestId,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    const validAttachments = (input.attachments ?? []).filter(
+      (attachment) => attachment && attachment.size > 0
+    );
+
+    // Performance Optimization: Parallelize attachment uploads
+    // Uploads are I/O bound, running them concurrently via Promise.all
+    // reduces total upload time significantly compared to sequential await.
+    await Promise.all(
+      validAttachments.map((attachment) =>
+        repository
+          .uploadAttachment({
+            organizationId: input.organizationId,
+            changeRequestId: input.requestId,
+            file: attachment,
+          })
+          .catch((error) => {
+            warnings.push(attachmentErrorMessage(error));
+          })
+      )
+    );
   }
 
   return {
