@@ -291,7 +291,7 @@ async function collectLegacyNeonCounts() {
   try {
     const counts = {};
     for (const table of tables) {
-      const result = await client.query(`select count(*)::int as count from public."${table}"`);
+      const result = await client.query(`select count(*)::int as count from public.${client.escapeIdentifier(table)}`);
       counts[table] = Number(result.rows[0]?.count ?? 0);
     }
 
