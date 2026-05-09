@@ -613,6 +613,7 @@ export function ChangeRequestCaptureLauncher({
             <button
               type="button"
               onClick={() => setDetailsOpen((current) => !current)}
+              aria-expanded={detailsOpen}
               className="hidden items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3.5 py-2.5 text-sm font-semibold text-[var(--text-primary)] md:inline-flex"
             >
               {detailsOpen ? "Hide details" : "Details"}
@@ -755,6 +756,7 @@ export function ChangeRequestCaptureLauncher({
                   <button
                     type="button"
                     onClick={() => setDetailsOpen((current) => !current)}
+                    aria-expanded={detailsOpen}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
                   >
                     {detailsOpen ? "Collapse" : "Expand"}
