@@ -38,7 +38,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { getScreenprintingWorkspaceSummary } from "@/lib/application/screenprinting/screenprinting-service";
 
 type ScreenprintingWorkspaceSummary = Awaited<ReturnType<typeof getScreenprintingWorkspaceSummary>>;
@@ -513,7 +513,7 @@ export function ScreenprintingWorkspace({
   const socialConnection = summary.socialConnection;
   const selectedSocialAccount = socialAccounts.find((account) => account.id === selectedSocialAccountId) ?? socialAccounts[0] ?? null;
   const socialPosts = summary.socialPosts.posts;
-  const selectedAccountPosts = selectedSocialAccount ? socialPosts.filter((post) => post.socialAccountId === selectedSocialAccount.id) : socialPosts;
+  const selectedAccountPosts = useMemo(() => selectedSocialAccount ? socialPosts.filter((post) => post.socialAccountId === selectedSocialAccount.id) : socialPosts, [selectedSocialAccount, socialPosts]);
   const socialThreads = summary.threads.threads;
   const campaigns = summary.campaigns.campaigns;
   const alerts = summary.socialDashboard.recentAlerts.length ? summary.socialDashboard.recentAlerts : summary.socialPosts.posts
@@ -543,6 +543,44 @@ export function ScreenprintingWorkspace({
   const activeOpportunities = allOpportunities.filter((opportunity) => opportunity.status !== "won").slice(0, 8);
   const reorderActions = topReorderSignals(summary);
   const unreadAlerts = alerts.filter((alert) => alert.status === "unread");
+
+  const filteredOrders = useMemo(() => orders.filter((order) => {
+    const query = orderFilters.q.trim().toLowerCase();
+    const matchesQuery = query
+      ? [order.customerName, order.jobName, order.orderNumber].filter(Boolean).join(" ").toLowerCase().includes(query)
+      : true;
+    const matchesStatus = orderFilters.statusBucket === "all" || order.statusBucket === orderFilters.statusBucket;
+    const matchesPayment = orderFilters.paymentBucket === "all" || order.paymentBucket === orderFilters.paymentBucket;
+    const matchesManager = orderFilters.managerName === "all" || (order.managerName ?? "Unassigned") === orderFilters.managerName;
+    const matchesTeam = orderFilters.teamName === "all" || (order.teamName ?? "Unassigned") === orderFilters.teamName;
+    const matchesSync =
+      orderFilters.syncState === "all" ||
+      (orderFilters.syncState === "synced" ? order.sourcePayloadAvailable : !order.sourcePayloadAvailable);
+    return matchesQuery && matchesStatus && matchesPayment && matchesManager && matchesTeam && matchesSync;
+  }), [orders, orderFilters]);
+
+  const filteredAccounts = useMemo(() => socialAccounts.filter((account) => {
+    const query = accountFilters.q.trim().toLowerCase();
+    const matchesQuery = query
+      ? [account.displayName, account.handle].filter(Boolean).join(" ").toLowerCase().includes(query)
+      : true;
+    const matchesPlatform = accountFilters.platform === "all" || account.platform === accountFilters.platform;
+    const matchesCategory = accountFilters.category === "all" || (account.category ?? "Unmapped") === accountFilters.category;
+    const matchesOwnership = accountFilters.ownership === "all" || account.ownership === accountFilters.ownership;
+    const matchesStatus = accountFilters.status === "all" || account.status === accountFilters.status;
+    return matchesQuery && matchesPlatform && matchesCategory && matchesOwnership && matchesStatus;
+  }), [socialAccounts, accountFilters]);
+
+  const filteredSocialPosts = useMemo(() => socialPosts.filter((post) => postTypeFilter === "all" || post.postType === postTypeFilter || post.status === postTypeFilter), [socialPosts, postTypeFilter]);
+  const filteredSelectedAccountPosts = useMemo(() => selectedAccountPosts.filter((post) => postTypeFilter === "all" || post.postType === postTypeFilter || post.status === postTypeFilter), [selectedAccountPosts, postTypeFilter]);
+
+  const filteredAlerts = useMemo(() => alerts.filter((alert) => {
+    if (alertStatusFilter === "all") return true;
+    if (alertStatusFilter === "unread" || alertStatusFilter === "read" || alertStatusFilter === "resolved") {
+      return alert.status === alertStatusFilter;
+    }
+    return alert.eventType === alertStatusFilter;
+  }), [alerts, alertStatusFilter]);
   const socialMetrics = {
     ...social,
     trackedAccounts: socialAccounts.length,
@@ -1475,20 +1513,6 @@ export function ScreenprintingWorkspace({
   function renderOrders() {
     const managerOptions = Array.from(new Set(orders.map((order) => order.managerName ?? "Unassigned"))).sort();
     const teamOptions = Array.from(new Set(orders.map((order) => order.teamName ?? "Unassigned"))).sort();
-    const filteredOrders = orders.filter((order) => {
-      const query = orderFilters.q.trim().toLowerCase();
-      const matchesQuery = query
-        ? [order.customerName, order.jobName, order.orderNumber].filter(Boolean).join(" ").toLowerCase().includes(query)
-        : true;
-      const matchesStatus = orderFilters.statusBucket === "all" || order.statusBucket === orderFilters.statusBucket;
-      const matchesPayment = orderFilters.paymentBucket === "all" || order.paymentBucket === orderFilters.paymentBucket;
-      const matchesManager = orderFilters.managerName === "all" || (order.managerName ?? "Unassigned") === orderFilters.managerName;
-      const matchesTeam = orderFilters.teamName === "all" || (order.teamName ?? "Unassigned") === orderFilters.teamName;
-      const matchesSync =
-        orderFilters.syncState === "all" ||
-        (orderFilters.syncState === "synced" ? order.sourcePayloadAvailable : !order.sourcePayloadAvailable);
-      return matchesQuery && matchesStatus && matchesPayment && matchesManager && matchesTeam && matchesSync;
-    });
     const orderCounts = {
       all: orders.length,
       processed: orders.filter((order) => order.statusBucket === "completed").length,
@@ -1671,17 +1695,6 @@ export function ScreenprintingWorkspace({
   function renderSocialAccounts() {
     const platformOptions = Array.from(new Set(socialAccounts.map((account) => account.platform))).sort();
     const categoryOptions = Array.from(new Set(socialAccounts.map((account) => account.category ?? "Unmapped"))).sort();
-    const filteredAccounts = socialAccounts.filter((account) => {
-      const query = accountFilters.q.trim().toLowerCase();
-      const matchesQuery = query
-        ? [account.displayName, account.handle].filter(Boolean).join(" ").toLowerCase().includes(query)
-        : true;
-      const matchesPlatform = accountFilters.platform === "all" || account.platform === accountFilters.platform;
-      const matchesCategory = accountFilters.category === "all" || (account.category ?? "Unmapped") === accountFilters.category;
-      const matchesOwnership = accountFilters.ownership === "all" || account.ownership === accountFilters.ownership;
-      const matchesStatus = accountFilters.status === "all" || account.status === accountFilters.status;
-      return matchesQuery && matchesPlatform && matchesCategory && matchesOwnership && matchesStatus;
-    });
     return (
       <Section
         title="Tracked Accounts"
@@ -1885,14 +1898,13 @@ export function ScreenprintingWorkspace({
             </div>
           </div>
         </Section>
-        {renderPosts(selectedAccountPosts)}
+        {renderPosts(filteredSelectedAccountPosts, selectedAccountPosts)}
       </div>
     );
   }
 
-  function renderPosts(inputPosts = socialPosts) {
-    const filteredPosts = inputPosts.filter((post) => postTypeFilter === "all" || post.postType === postTypeFilter || post.status === postTypeFilter);
-    const postTypes = Array.from(new Set(inputPosts.flatMap((post) => [post.postType, post.status]).filter(Boolean))).sort();
+  function renderPosts(postsToRender = filteredSocialPosts, unfilteredPosts = socialPosts) {
+    const postTypes = Array.from(new Set(unfilteredPosts.flatMap((post) => [post.postType, post.status]).filter(Boolean))).sort();
     return (
       <Section
         title="Posts"
@@ -1900,16 +1912,16 @@ export function ScreenprintingWorkspace({
         actions={<Button icon={Send} onClick={() => setComposerOpen(true)} disabled={!socialAccounts.length}>Compose draft</Button>}
       >
         <div className="mb-4 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setPostTypeFilter("all")} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", postTypeFilter === "all" ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>All {formatNumber(inputPosts.length)}</button>
+          <button type="button" onClick={() => setPostTypeFilter("all")} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", postTypeFilter === "all" ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>All {formatNumber(unfilteredPosts.length)}</button>
           {postTypes.map((type) => (
             <button key={type} type="button" onClick={() => setPostTypeFilter(type)} className={cx("rounded-md border px-3 py-1.5 text-xs font-semibold", postTypeFilter === type ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600")}>
-              {labelFromKey(type)} {formatNumber(inputPosts.filter((post) => post.postType === type || post.status === type).length)}
+              {labelFromKey(type)} {formatNumber(unfilteredPosts.filter((post) => post.postType === type || post.status === type).length)}
             </button>
           ))}
         </div>
-        {filteredPosts.length ? (
+        {postsToRender.length ? (
           <div className="space-y-3">
-            {filteredPosts.map((post) => (
+            {postsToRender.map((post) => (
               <div key={post.id} className="flex flex-col gap-4 rounded-lg border border-slate-200 p-4 md:flex-row md:items-center">
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
                   {post.mediaUrl ? <img src={post.mediaUrl} alt={post.caption ? `Post media: ${post.caption.slice(0, 80)}` : "Social post media"} className="h-full w-full rounded-md object-cover" /> : <FileText className="h-6 w-6" />}
@@ -1954,13 +1966,6 @@ export function ScreenprintingWorkspace({
 
   function renderAlerts() {
     const eventTypes = Array.from(new Set(alerts.map((alert) => alert.eventType))).sort();
-    const filteredAlerts = alerts.filter((alert) => {
-      if (alertStatusFilter === "all") return true;
-      if (alertStatusFilter === "unread" || alertStatusFilter === "read" || alertStatusFilter === "resolved") {
-        return alert.status === alertStatusFilter;
-      }
-      return alert.eventType === alertStatusFilter;
-    });
     return (
       <Section
         title="Alerts"
