@@ -432,6 +432,7 @@ export function ChangeRequestList({
                   <button
                     type="button"
                     onClick={() => toggleExpanded(request.id)}
+                    aria-expanded={expanded}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
                   >
                     {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
