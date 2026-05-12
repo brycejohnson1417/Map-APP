@@ -101,23 +101,30 @@ export class ChangeRequestRepository {
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
+
+    const signedUrlsMap = new Map<string, string | null>();
+    try {
+      const paths = attachmentRows.map(row => row.storage_path);
+      if (paths.length > 0) {
+        const { data, error } = await supabase.storage
+          .from(ATTACHMENT_BUCKET)
+          .createSignedUrls(paths, 60 * 60);
+
+        if (!error && data) {
+          data.forEach((item: any) => {
+            if (!item.error && item.signedUrl) {
+              signedUrlsMap.set(item.path, item.signedUrl);
+            }
+          });
         }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+      }
+    } catch {
+      // Gracefully degrade on network or batch failure
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
-      current.push(mapAttachment(row, signedUrlMap.get(row.id) ?? null));
+      current.push(mapAttachment(row, signedUrlsMap.get(row.storage_path) ?? null));
       map.set(row.change_request_id, current);
       return map;
     }, new Map());
