@@ -1786,7 +1786,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                           <button type="button" className="min-w-0 flex-1 truncate text-left font-semibold" onClick={() => focusPin(pin)}>
                             {pin.name}
                           </button>
-                          <button type="button" onClick={() => toggleRouteStop(pin.id)}>
+                          <button type="button" onClick={() => toggleRouteStop(pin.id)} aria-label={`Remove ${pin.name} from route`}>
                             <X className="h-4 w-4 text-[var(--text-tertiary)]" />
                           </button>
                         </div>
