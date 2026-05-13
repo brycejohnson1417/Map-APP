@@ -1,0 +1,3 @@
+## 2024-05-13 - Optimize territory map list lookups
+**Learning:** Found a common React performance bottleneck when matching items in one array against items in another: `Array.map` combined with `Array.find` inside a `useMemo` block creates an O(N*M) time complexity. This was occurring on every recalculation of `routeStops` and `selectedPin`, which can degrade frame rates and interface responsiveness significantly on large datasets.
+**Action:** Replace `Array.map` with `Array.find` with a single `useMemo` map dictionary creation (O(N)), which makes `Array.map(id => dictionary.get(id))` perform in linear O(M) time. The same O(1) dictionary look up approach can be used for other properties replacing nested searches.
