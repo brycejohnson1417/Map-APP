@@ -1,0 +1,3 @@
+## 2024-05-14 - Map route planning missing context for screen readers
+**Learning:** In map-heavy interfaces, interactive lists displaying routes or markers often use generic icon buttons (e.g. an 'X' icon for removal) without associating them with the specific item name, making it impossible for screen reader users to distinguish which item they are about to remove.
+**Action:** When mapping arrays to render list items with icon-only actions, always use template literals to inject the specific item's name or identifier into the `aria-label` (e.g. `aria-label={\`Remove ${pin.name} from route\`}`).
