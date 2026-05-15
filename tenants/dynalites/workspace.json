@@ -1,0 +1,105 @@
+{
+  "id": "dynalites-field-ops",
+  "version": 1,
+  "kind": "tenant_workspace",
+  "displayName": "DynaLites",
+  "templateLabel": "DynaLites Field Ops",
+  "description": "DynaLites tenant workspace for account operations, territory views, and owned Instagram connection setup.",
+  "selfServe": true,
+  "emailDomains": ["dynalites.com"],
+  "defaultOrgSlug": "dynalites",
+  "defaultRedirectPath": "/integrations",
+  "branding": {
+    "heroEyebrow": "DynaLites workspace",
+    "heroTitle": "Connect field operations and owned social accounts.",
+    "heroDescription": "Start with account operations, map coverage, connector setup, and Instagram authorization without coupling this tenant to another customer."
+  },
+  "navigation": [
+    { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
+    { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
+    { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
+    { "id": "change_requests", "label": "Change Requests", "href": "/change-requests", "icon": "MessagesSquare" }
+  ],
+  "packages": [
+    "core-runtime",
+    "territory-map-kit",
+    "account-directory-kit",
+    "change-request-kit",
+    "connector-onboarding-kit"
+  ],
+  "connectors": [
+    {
+      "provider": "meta",
+      "label": "Meta Business / Instagram",
+      "description": "Connect owned Instagram professional accounts through Business Login for Instagram, then sync posts, insights, comments, messages, and publishing permissions.",
+      "required": false,
+      "selfServe": true,
+      "supportsPreview": true,
+      "supportsFirstSync": true,
+      "fields": [
+        { "key": "authMode", "label": "Auth mode", "type": "text", "required": false, "placeholder": "instagram_business_login" },
+        { "key": "businessId", "label": "Business portfolio ID", "type": "text", "required": false, "placeholder": "Optional Meta Business ID" }
+      ]
+    },
+    {
+      "provider": "csv_import",
+      "label": "CSV Import",
+      "description": "Upload customer or account data as a first connector while richer integrations are configured.",
+      "required": false,
+      "selfServe": true,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "notes", "label": "CSV source notes", "type": "textarea", "required": false, "placeholder": "Where will the first CSV come from?" }
+      ]
+    },
+    {
+      "provider": "google_sheets",
+      "label": "Google Sheets",
+      "description": "Use Google Sheets as a lightweight CRM or enrichment source.",
+      "required": false,
+      "selfServe": true,
+      "supportsPreview": false,
+      "supportsFirstSync": false,
+      "fields": [
+        { "key": "sheetUrl", "label": "Sheet URL", "type": "url", "required": false, "placeholder": "https://docs.google.com/..." }
+      ]
+    }
+  ],
+  "modules": {
+    "accounts": {
+      "variant": "default_directory",
+      "pageSize": 100
+    },
+    "accountDetail": {
+      "variant": "starter_detail",
+      "sections": ["identity_location", "contacts", "orders", "activities"],
+      "heroDescription": "This page shows the same account, order, contact, and activity data used across the workspace.",
+      "recentOrdersHeading": "Recent orders",
+      "updatedLabel": "CRM updated"
+    },
+    "territory": {
+      "variant": "field_console",
+      "includeUnmappedAccounts": false,
+      "filtersAlwaysAvailable": true,
+      "enabledFlags": [],
+      "leadGradeFilter": false,
+      "defaultColorMode": "rep",
+      "colorModes": ["rep", "status", "orders"]
+    },
+    "integrations": {
+      "variant": "generic_onboarding",
+      "allowRoutePlanning": true
+    }
+  },
+  "changeRequests": {
+    "enabled": true,
+    "defaultClassification": "config",
+    "classifications": ["config", "package", "primitive", "core"],
+    "allowAttachments": true
+  },
+  "onboarding": {
+    "enabled": true,
+    "summary": "Connect Instagram first, then add account data through CSV, Sheets, or a future ordering/CRM adapter."
+  }
+}
