@@ -1,0 +1,4 @@
+## 2025-01-20 - Fix XSS Vulnerability via Sandboxed iframe for Dynamic HTML
+**Vulnerability:** Found `dangerouslySetInnerHTML` being used to render potentially untrusted dynamic HTML content for email previews (`components/accounts/ppp-savings-panel.tsx`). Even with DOMPurify, this creates a potential XSS vector.
+**Learning:** For rendering email previews or other untrusted HTML safely, relying only on DOMPurify is not the most robust security posture. A sandboxed `iframe` provides a much stronger isolation boundary.
+**Prevention:** Whenever rendering dynamic or untrusted HTML strings, avoid `dangerouslySetInnerHTML`. Instead, use `<iframe srcDoc={htmlString} sandbox="" />`. The empty `sandbox` attribute restricts scripts, form submission, and other active content execution, drastically reducing the XSS surface area.
