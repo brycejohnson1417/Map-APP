@@ -12,6 +12,7 @@ import {
 } from "@/lib/application/auth/tenant-routing";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
@@ -102,17 +103,39 @@ export async function resolveTenantAccess(
       ]),
     );
 
-    for (const membership of existingMemberships) {
-      const organization = organizationsById.get(membership.organizationId);
-      if (!organization) {
-        continue;
-      }
+    let resolvedOrganization = null;
 
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+    if (requestedSlug) {
+      for (const membership of existingMemberships) {
+        const organization = organizationsById.get(membership.organizationId);
+        if (organization?.slug === requestedSlug) {
+          resolvedOrganization = organization;
+          break;
+        }
+      }
+    }
+
+    if (!resolvedOrganization) {
+      for (const membership of existingMemberships) {
+        const organization = organizationsById.get(membership.organizationId);
+        if (organization) {
+          resolvedOrganization = organization;
+          break;
+        }
+      }
+    }
+
+    if (resolvedOrganization) {
+      // ⚡ Bolt Optimization: Avoid redundant findBySlug query by using compileWorkspaceExperience directly
+      const compiled = compileWorkspaceExperience({
+        slug: resolvedOrganization.slug,
+        organization: resolvedOrganization,
+      });
+
       return existingWorkspaceAccess({
-        slug: organization.slug,
-        name: organization.name,
-        workspace: workspace.workspace,
+        slug: resolvedOrganization.slug,
+        name: resolvedOrganization.name,
+        workspace: compiled.workspace,
         accessMethod: "membership",
       });
     }
@@ -122,11 +145,16 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      // ⚡ Bolt Optimization: Avoid redundant findBySlug query by using compileWorkspaceExperience directly
+      const compiled = compileWorkspaceExperience({
+        slug: workspaceOrganization.slug,
+        organization: workspaceOrganization,
+      });
+
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
-        workspace: workspace.workspace,
+        workspace: compiled.workspace,
         accessMethod: "domain_template",
       });
     }
@@ -137,11 +165,16 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        // ⚡ Bolt Optimization: Avoid redundant findBySlug query by using compileWorkspaceExperience directly
+        const compiled = compileWorkspaceExperience({
+          slug: existingOrganization.slug,
+          organization: existingOrganization,
+        });
+
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
-          workspace: workspace.workspace,
+          workspace: compiled.workspace,
           accessMethod: "domain_template",
         });
       }

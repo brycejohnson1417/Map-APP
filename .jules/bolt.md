@@ -1,0 +1,3 @@
+## 2024-05-15 - Avoid redundant DB queries when fetching workspaces
+**Learning:** Performance Optimization Pattern: Avoid redundant database queries by passing already-fetched 'Organization' objects directly to synchronous compilers (e.g. `compileWorkspaceExperience` from `@/lib/platform/workspace/compiler`) instead of calling async services like `getWorkspaceExperienceBySlug` that perform a redundant `findBySlug` lookup.
+**Action:** Always check if a domain or entity has already been fetched before calling a service layer method that might refetch it. If the lower level synchronous compile step is available, use it directly.
