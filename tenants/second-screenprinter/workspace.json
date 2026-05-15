@@ -15,13 +15,14 @@
   "selfServe": true,
   "emailDomains": ["secondscreenprinter.example"],
   "defaultOrgSlug": "second-screenprinter",
-  "defaultRedirectPath": "/screenprinting",
+  "defaultRedirectPath": "/today",
   "branding": {
     "heroEyebrow": "Screenprinting workspace",
     "heroTitle": "Run sales and social from tenant-owned rules.",
     "heroDescription": "Configure status mappings, reorder rules, draft templates, watched social accounts, and alerts without a custom code path."
   },
   "navigation": [
+    { "id": "today", "label": "Today", "href": "/today", "icon": "Home" },
     { "id": "screenprinting", "label": "Sales & Social", "href": "/screenprinting", "icon": "BarChart3" },
     { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
     { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },

@@ -703,6 +703,43 @@
       ]
     },
     {
+      "id": "BRY-75",
+      "title": "Rep Today MVP",
+      "status": "done",
+      "phase": "product-reset",
+      "priority": "P0",
+      "type": "frontend-runtime",
+      "dependencies": ["RUNWAY-001", "RUNWAY-002"],
+      "blocking_foundation": [],
+      "description": "Create a tenant-aware daily command center that routes login into the work reps should do now instead of dropping them into a generic account table.",
+      "acceptance_criteria": [
+        "Tenant login lands on Rep Today.",
+        "Data-backed tenants see concrete action cards for due work, opportunities, route mode, social signals, and cleanup.",
+        "Empty tenants see a setup-first state that links directly to Connection Hub.",
+        "The page uses real tenant runtime data, not mock data."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run check:work-registry",
+        "npm run verify",
+        "SMOKE_BASE_URL=http://localhost:3002 npx playwright test tests/browser/rep-today.spec.ts"
+      ],
+      "docs_to_update": [
+        "docs/WORK_REGISTRY.json",
+        "docs/runs/2026-05-15-rep-today-mvp.md"
+      ],
+      "stop_conditions": [
+        "A production data write or schema migration becomes required.",
+        "Login routing would break tenant session isolation."
+      ],
+      "safe_defaults": [
+        "Route empty tenants to setup before presenting rep workflow.",
+        "Keep action cards linked to existing tenant runtime pages.",
+        "Use tenant workspace config for default navigation."
+      ]
+    },
+    {
       "id": "FUTURE-003",
       "title": "Screenprinting art workflow module",
       "status": "planned",
