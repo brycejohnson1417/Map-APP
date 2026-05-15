@@ -37,8 +37,8 @@ export function normalizeRequestedOrgSlug(value: unknown) {
   return typeof value === "string" && /^[a-z0-9-]+$/.test(value.trim()) ? value.trim() : null;
 }
 
-export function workspaceRedirectPath(workspace: Pick<WorkspaceDefinition, "connectors" | "defaultRedirectPath">) {
-  return workspace.connectors.length ? "/integrations" : workspace.defaultRedirectPath;
+export function workspaceRedirectPath(_workspace: Pick<WorkspaceDefinition, "connectors" | "defaultRedirectPath">) {
+  return "/today";
 }
 
 export function requestedOwnerSlug(requestedSlug?: string | null) {

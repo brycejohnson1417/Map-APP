@@ -15,13 +15,14 @@
   "selfServe": true,
   "emailDomains": ["fraternitees.com"],
   "defaultOrgSlug": "fraternitees",
-  "defaultRedirectPath": "/accounts",
+  "defaultRedirectPath": "/today",
   "branding": {
     "heroEyebrow": "Fraternity sales workspace",
     "heroTitle": "Compete on repeatability, not noise.",
     "heroDescription": "Track close rate, repeat order quality, DNC risk, and territory coverage from one runtime."
   },
   "navigation": [
+    { "id": "today", "label": "Today", "href": "/today", "icon": "Home" },
     { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
     { "id": "screenprinting", "label": "Sales & Social", "href": "/screenprinting", "icon": "BarChart3" },
     { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },

@@ -15,13 +15,14 @@
   "selfServe": false,
   "emailDomains": ["piccplatform.com"],
   "defaultOrgSlug": "picc",
-  "defaultRedirectPath": "/territory",
+  "defaultRedirectPath": "/today",
   "branding": {
     "heroEyebrow": "Wholesale territory workspace",
     "heroTitle": "Operate the field from one account graph.",
     "heroDescription": "Run map, PPP savings, mock-order proposals, and runtime health from the same canonical account layer."
   },
   "navigation": [
+    { "id": "today", "label": "Today", "href": "/today", "icon": "Home" },
     { "id": "territory", "label": "Map", "href": "/territory", "icon": "MapPinned" },
     { "id": "accounts", "label": "Accounts", "href": "/accounts", "icon": "Users" },
     { "id": "integrations", "label": "Integrations & Plugins", "href": "/integrations", "icon": "Settings2" },
