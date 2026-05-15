@@ -1,4 +1,5 @@
 import { AppFrame } from "@/components/layout/app-frame";
+import { ConnectionHubEmptyState } from "@/components/onboarding/connection-hub-empty-state";
 import { TerritoryWorkspace } from "@/components/territory/territory-workspace";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
@@ -18,7 +19,15 @@ export default async function TerritoryPage({ searchParams }: TerritoryPageProps
 
   return (
     <AppFrame organizationName={dashboard?.organization.name} organizationSlug={orgSlug}>
-      {dashboard ? (
+      {dashboard?.counts.accounts === 0 ? (
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8 md:px-10 md:py-10">
+          <ConnectionHubEmptyState
+            orgSlug={orgSlug}
+            title="Import accounts before opening the map."
+            body="The map becomes useful after account data exists. Add the first customer list through Connection Hub, then return here for territory pins, routes, filters, and field execution."
+          />
+        </div>
+      ) : dashboard ? (
         <TerritoryWorkspace
           orgSlug={orgSlug}
           initialDashboard={dashboard}

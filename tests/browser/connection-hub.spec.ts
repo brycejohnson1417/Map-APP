@@ -71,3 +71,23 @@ DynaLites Albany,10 Market St,Albany,NY,12207,Avery,Prospect
   await expect(page.getByText("DynaLites Albany", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /import 1 account/i })).toBeVisible();
 });
+
+test("empty tenant account and territory views route users back to Connection Hub", async ({ page, context, baseURL }) => {
+  await seedTenantSession({
+    context,
+    baseURL,
+    orgSlug: "dynalites",
+    email: "qa@dynalites.com",
+    template: "dynalites-field-ops",
+  });
+
+  await page.goto("/accounts?org=dynalites");
+
+  await expect(page.getByRole("heading", { name: /import accounts before working this tenant/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /import first account data/i })).toHaveAttribute("href", "/integrations?org=dynalites");
+
+  await page.goto("/territory?org=dynalites");
+
+  await expect(page.getByRole("heading", { name: /import accounts before opening the map/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /import first account data/i })).toHaveAttribute("href", "/integrations?org=dynalites");
+});

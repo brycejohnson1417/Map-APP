@@ -8,6 +8,7 @@ import { getFraterniteesAccountDirectory } from "@/lib/application/fraternitees/
 import { readPrintavoSyncStatus } from "@/lib/application/fraternitees/printavo-sync-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { AppFrame } from "@/components/layout/app-frame";
+import { ConnectionHubEmptyState } from "@/components/onboarding/connection-hub-empty-state";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
 import { defaultOrgSlug, firstParamValue, orgScopedHref, orgSlugFromSearchParams } from "@/lib/presentation/org-slug";
 
@@ -84,72 +85,86 @@ export default async function AccountsPage({ searchParams }: AccountsPageProps) 
 
               return (
                 <>
-              <form className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 sm:flex-row">
-                {orgSlug !== defaultOrgSlug() ? <input type="hidden" name="org" value={orgSlug} /> : null}
-                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
-                  <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
-                  <input
-                    name="q"
-                    defaultValue={query}
-                    placeholder="Search account, city, state"
-                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
-                  style={{ color: "#fff" }}
-                >
-                  Search
-                </button>
-              </form>
+                  {runtimeDashboard.counts.accounts === 0 ? (
+                    <ConnectionHubEmptyState
+                      orgSlug={orgSlug}
+                      title="Import accounts before working this tenant."
+                      body="This workspace has no accounts yet. Bring in the first account list from a CRM, order platform export, spreadsheet, or CSV before using search and account detail workflows."
+                    />
+                  ) : (
+                    <>
+                      <form className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-3 sm:flex-row">
+                        {orgSlug !== defaultOrgSlug() ? <input type="hidden" name="org" value={orgSlug} /> : null}
+                        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
+                          <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
+                          <input
+                            name="q"
+                            defaultValue={query}
+                            placeholder="Search account, city, state"
+                            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-tertiary)]"
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
+                          style={{ color: "#fff" }}
+                        >
+                          Search
+                        </button>
+                      </form>
 
-              <section className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Accounts</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.accounts)}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Visible rows</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.pins.length)}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Orders</p>
-                  <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.orders)}</p>
-                </div>
-              </section>
+                      <section className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Accounts</p>
+                          <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.accounts)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Visible rows</p>
+                          <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.pins.length)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-tertiary)]">Orders</p>
+                          <p className="mt-2 text-3xl font-semibold">{formatNumber(runtimeDashboard.counts.orders)}</p>
+                        </div>
+                      </section>
 
-              <section className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
-                <div className="border-b border-[var(--border-subtle)] p-5">
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-[var(--accent-secondary-strong)]" />
-                    <h2 className="text-xl font-semibold tracking-[-0.03em]">Accounts</h2>
-                  </div>
-                </div>
-                <div className="divide-y divide-[var(--border-subtle)]">
-                  {runtimeDashboard.pins.map((pin) => (
-                    <Link
-                      key={pin.id}
-                      href={orgScopedHref(`/accounts/${pin.id}`, orgSlug)}
-                      className="grid gap-4 p-5 transition hover:bg-[var(--surface-elevated)] md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center"
-                    >
-                      <div>
-                        <p className="font-semibold">{pin.name}</p>
-                        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                          {[pin.city, pin.state].filter(Boolean).join(", ") || "No location"}
-                        </p>
-                      </div>
-                      <p className="text-sm font-semibold text-[var(--text-secondary)]">{pin.salesRepNames.join(", ") || "No rep"}</p>
-                      <p className="text-sm text-[var(--text-secondary)]">{pin.referralSource || "No referral source"}</p>
-                      <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary-strong)]">
-                        Open
-                        <ArrowRight className="h-4 w-4" />
-                      </span>
-                    </Link>
-                  ))}
-                  {!runtimeDashboard.pins.length ? <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div> : null}
-                </div>
-              </section>
+                      <section className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
+                        <div className="border-b border-[var(--border-subtle)] p-5">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-5 w-5 text-[var(--accent-secondary-strong)]" />
+                            <h2 className="text-xl font-semibold tracking-[-0.03em]">Accounts</h2>
+                          </div>
+                        </div>
+                        <div className="divide-y divide-[var(--border-subtle)]">
+                          {runtimeDashboard.pins.map((pin) => (
+                            <Link
+                              key={pin.id}
+                              href={orgScopedHref(`/accounts/${pin.id}`, orgSlug)}
+                              className="grid gap-4 p-5 transition hover:bg-[var(--surface-elevated)] md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center"
+                            >
+                              <div>
+                                <p className="font-semibold">{pin.name}</p>
+                                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                  {[pin.city, pin.state].filter(Boolean).join(", ") || "No location"}
+                                </p>
+                              </div>
+                              <p className="text-sm font-semibold text-[var(--text-secondary)]">
+                                {pin.salesRepNames.join(", ") || "No rep"}
+                              </p>
+                              <p className="text-sm text-[var(--text-secondary)]">{pin.referralSource || "No referral source"}</p>
+                              <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent-primary-strong)]">
+                                Open
+                                <ArrowRight className="h-4 w-4" />
+                              </span>
+                            </Link>
+                          ))}
+                          {!runtimeDashboard.pins.length ? (
+                            <div className="p-8 text-sm text-[var(--text-secondary)]">No accounts matched.</div>
+                          ) : null}
+                        </div>
+                      </section>
+                    </>
+                  )}
                 </>
               );
             })()
