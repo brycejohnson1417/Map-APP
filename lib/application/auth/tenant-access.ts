@@ -1,6 +1,15 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import {
+  existingWorkspaceAccess,
+  isPlatformOwnerEmail,
+  isValidLoginEmail,
+  normalizeLoginEmail,
+  normalizeRequestedOrgSlug,
+  onboardingRedirect,
+  requestedOwnerSlug,
+} from "@/lib/application/auth/tenant-routing";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
@@ -24,33 +33,16 @@ export interface TenantAccess {
   name: string;
   redirectTo: string;
   templateId: string;
-  accessMethod: "membership" | "domain_template" | "self_serve";
+  accessMethod: "membership" | "domain_template" | "self_serve" | "platform_owner";
   selfServe: boolean;
 }
 
 const members = new OrganizationMemberRepository();
 const organizations = new OrganizationRepository();
 
-function normalizeEmail(email: string) {
-  const normalized = email.trim().toLowerCase();
-  return normalized;
-}
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function onboardingRedirect(email: string, templateId = "field-ops-starter") {
-  const params = new URLSearchParams({
-    email,
-    templateId,
-  });
-  return `/onboarding?${params.toString()}`;
-}
-
 export function guessTenantAccess(email: string): TenantAccess | null {
-  const normalized = normalizeEmail(email);
-  if (!isValidEmail(normalized)) {
+  const normalized = normalizeLoginEmail(email);
+  if (!isValidLoginEmail(normalized)) {
     return null;
   }
 
@@ -78,10 +70,27 @@ export function guessTenantAccess(email: string): TenantAccess | null {
   };
 }
 
-export async function resolveTenantAccess(email: string): Promise<TenantAccess | null> {
-  const normalized = normalizeEmail(email);
-  if (!isValidEmail(normalized)) {
+export async function resolveTenantAccess(
+  email: string,
+  options: {
+    requestedSlug?: string | null;
+  } = {},
+): Promise<TenantAccess | null> {
+  const normalized = normalizeLoginEmail(email);
+  if (!isValidLoginEmail(normalized)) {
     return null;
+  }
+  const requestedSlug = normalizeRequestedOrgSlug(options.requestedSlug);
+
+  if (isPlatformOwnerEmail(normalized)) {
+    const ownerSlug = requestedOwnerSlug(requestedSlug);
+    const workspace = await getWorkspaceExperienceBySlug(ownerSlug);
+    return existingWorkspaceAccess({
+      slug: ownerSlug,
+      name: workspace.organization?.name ?? workspace.workspace.displayName,
+      workspace: workspace.workspace,
+      accessMethod: "platform_owner",
+    });
   }
 
   const existingMemberships = await members.listByEmail(normalized);
@@ -100,14 +109,12 @@ export async function resolveTenantAccess(email: string): Promise<TenantAccess |
       }
 
       const workspace = await getWorkspaceExperienceBySlug(organization.slug);
-      return {
+      return existingWorkspaceAccess({
         slug: organization.slug,
         name: organization.name,
-        redirectTo: orgScopedHref(workspace.defaultRedirectPath, organization.slug),
-        templateId: workspace.workspace.id,
+        workspace: workspace.workspace,
         accessMethod: "membership",
-        selfServe: workspace.workspace.selfServe,
-      };
+      });
     }
   }
 
@@ -116,19 +123,29 @@ export async function resolveTenantAccess(email: string): Promise<TenantAccess |
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization) {
       const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
-      return {
+      return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
-        redirectTo: orgScopedHref(workspace.defaultRedirectPath, workspaceOrganization.slug),
-        templateId: workspace.workspace.id,
+        workspace: workspace.workspace,
         accessMethod: "domain_template",
-        selfServe: workspace.workspace.selfServe,
-      };
+      });
     }
   }
 
   const guessed = guessTenantAccess(normalized);
   if (guessed) {
+    if (guessed.slug) {
+      const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
+      if (existingOrganization) {
+        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        return existingWorkspaceAccess({
+          slug: existingOrganization.slug,
+          name: existingOrganization.name,
+          workspace: workspace.workspace,
+          accessMethod: "domain_template",
+        });
+      }
+    }
     return guessed;
   }
 
@@ -136,9 +153,13 @@ export async function resolveTenantAccess(email: string): Promise<TenantAccess |
 }
 
 export async function emailHasTenantAccessToSlug(email: string, slug: string): Promise<boolean> {
-  const normalized = normalizeEmail(email);
-  if (!isValidEmail(normalized)) {
+  const normalized = normalizeLoginEmail(email);
+  if (!isValidLoginEmail(normalized)) {
     return false;
+  }
+
+  if (isPlatformOwnerEmail(normalized)) {
+    return true;
   }
 
   const existingMemberships = await members.listByEmail(normalized);

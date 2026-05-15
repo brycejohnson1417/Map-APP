@@ -6,7 +6,13 @@ import { useState } from "react";
 import { ArrowRight, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import type { WorkspaceTemplateSummary } from "@/lib/domain/workspace";
 
-export function TenantLoginForm({ templates }: { templates: WorkspaceTemplateSummary[] }) {
+export function TenantLoginForm({
+  templates,
+  requestedOrgSlug,
+}: {
+  templates: WorkspaceTemplateSummary[];
+  requestedOrgSlug?: string | null;
+}) {
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +26,7 @@ export function TenantLoginForm({ templates }: { templates: WorkspaceTemplateSum
       const response = await fetch("/api/tenant-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, requestedSlug: requestedOrgSlug }),
       });
       const payload = (await response.json()) as {
         ok: boolean;
@@ -50,7 +56,9 @@ export function TenantLoginForm({ templates }: { templates: WorkspaceTemplateSum
             Sign in to the right workspace.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[#4b5565]">
-            Existing tenants can sign in by work email. New teams can choose a tenant type and bootstrap their own workspace.
+            {requestedOrgSlug
+              ? `Sign in for the ${requestedOrgSlug} workspace with a tenant email or platform owner email.`
+              : "Existing tenants can sign in by work email. New teams can choose a tenant type and bootstrap their own workspace."}
           </p>
           <form onSubmit={submit} className="mt-8 flex max-w-2xl flex-col gap-3 sm:flex-row">
             <label className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(23,31,45,0.1)] bg-[#eef3f8] px-4 py-3">

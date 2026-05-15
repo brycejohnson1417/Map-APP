@@ -6,9 +6,11 @@ import {
 } from "@/lib/application/auth/tenant-access";
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { email?: string };
+  const body = (await request.json().catch(() => ({}))) as { email?: string; requestedSlug?: string };
   const email = body.email?.trim().toLowerCase() ?? "";
-  const access = await resolveTenantAccess(email);
+  const access = await resolveTenantAccess(email, {
+    requestedSlug: body.requestedSlug,
+  });
 
   if (!access) {
     return NextResponse.json(
