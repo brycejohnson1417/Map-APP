@@ -1,0 +1,3 @@
+## 2024-05-18 - Missing ARIA Labels on Dismiss/Close Buttons
+**Learning:** Found multiple instances where UI utility buttons (like removing a route stop or dismissing a notice) relied purely on `<X className="..." />` without an `aria-label`. This makes these actions invisible to screen readers, especially when they appear in dynamic lists or global notices.
+**Action:** Added context-specific labels (using template literals for items in lists, e.g., ``aria-label={`Remove ${pin.name} from route`}``) to ensure screen reader users understand what they are dismissing. Always explicitly check that utility icon buttons provide semantic text fallbacks.
