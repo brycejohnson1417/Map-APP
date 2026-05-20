@@ -1,0 +1,3 @@
+## 2024-05-20 - Ensure Accordions/Expandables Inform Screen Readers
+**Learning:** React components functioning as accordion toggles must explicitly link their trigger buttons to the expanded content area. Screen readers will ignore state changes if the toggles do not explicitly provide their boolean state.
+**Action:** When creating an expandable section toggled by a button, ensure the `<button>` explicitly contains `aria-expanded={isExpanded}` and `aria-controls="expanded-section-id"`. The expanded section `<div>` itself must have `id="expanded-section-id"` to complete the linkage. Also, provide a descriptive `aria-label` for icon-only toggles.

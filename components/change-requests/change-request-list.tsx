@@ -402,6 +402,8 @@ export function ChangeRequestList({
                   type="button"
                   onClick={() => toggleExpanded(request.id)}
                   className="min-w-0 flex-1 text-left"
+                  aria-expanded={expanded}
+                  aria-controls={`request-details-${request.id}`}
                 >
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <p className="truncate text-base font-semibold text-[var(--text-primary)]">
@@ -433,6 +435,9 @@ export function ChangeRequestList({
                     type="button"
                     onClick={() => toggleExpanded(request.id)}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
+                    aria-expanded={expanded}
+                    aria-controls={`request-details-${request.id}`}
+                    aria-label={expanded ? "Collapse details" : "Expand details"}
                   >
                     {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
@@ -440,7 +445,10 @@ export function ChangeRequestList({
               </div>
 
               {expanded ? (
-                <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
+                <div
+                  id={`request-details-${request.id}`}
+                  className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5"
+                >
                   {previewImage?.signedUrl ? (
                     <a
                       href={previewImage.signedUrl}
