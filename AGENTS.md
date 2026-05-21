@@ -19,9 +19,20 @@ This repository is the canonical source of truth for the new scalable map produc
 
 - Local canonical path: `/Users/brycejohnson/Code/map-app`
 - GitHub repo: `https://github.com/brycejohnson1417/Map-APP.git`
+- Linear project: `Map-APP`
 - Canonical branch: `main`
+- Production app: `https://map-app-supabase.vercel.app`
 - PICC is the first tenant/customer, not the only intended user.
 - The old PICC app can inform UI/features, but this repo owns the rebuilt architecture.
+
+## Project Boundary
+
+- This repo is the newer multi-tenant product/platform. It is not the live PICC production app.
+- Do not create or mirror map-app platform work into `brycejohnson1417/Picc-web-app` or the Linear `PICC-Web-app` project.
+- Do not use the `picc-push` Vercel project or `piccnewyork.org` as this repo's deployment target.
+- If a request, screenshot, issue, or branch could refer to either map-app or PICC-Web-App, verify the UI/repo identity first and ask for clarification if confidence is not high.
+- Treat screenshots as project evidence. If the screenshot matches the live PICC production UI instead of this platform UI, stop and clarify before editing this repo.
+- Keep public GitHub docs to the skeleton: product identity, setup, validation, public-safe architecture, and execution rules. Keep proprietary tenant workflows, private roadmap details, and customer/business intelligence in Linear or a future authenticated in-app tenant knowledge base.
 
 ## Operating Mode
 

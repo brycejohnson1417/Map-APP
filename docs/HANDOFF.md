@@ -34,6 +34,16 @@ This is the product repo for Map App Harness: a multi-tenant operational platfor
 
 PICC and FraterniTees are current tenants. They are not the product identity.
 
+Canonical routing:
+
+- Local repo path: `/Users/brycejohnson/Code/map-app`
+- GitHub repo: `https://github.com/brycejohnson1417/Map-APP.git`
+- Linear project: `Map-APP`
+- Production app: `https://map-app-supabase.vercel.app`
+- Do not use `/Users/brycejohnson/Code/PICC-Web-App`, `https://github.com/brycejohnson1417/Picc-web-app`, the Linear `PICC-Web-app` project, `picc-push`, or `https://piccnewyork.org` for this repo's work.
+- If a screenshot or request could belong to either project, verify the UI/repo identity first. Ask for clarification if confidence is not high.
+- Public GitHub docs are the skeleton. Private tenant workflows, proprietary roadmap detail, business intelligence, and sensitive decision history belong in Linear or a future authenticated in-app tenant knowledge base.
+
 Current tenant types:
 
 - FraterniTees: `Screenprinting`
