@@ -163,7 +163,7 @@ export default async function AccountPage({ params, searchParams }: AccountPageP
               <a
                 href={sourceCrmHref}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 style={{ color: "#fff" }}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
               >
