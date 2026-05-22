@@ -1,0 +1,3 @@
+## 2024-05-22 - Add accessible accordion attributes to conditionally rendered content
+**Learning:** When dealing with collapsible accordion sections where the expanded content is conditionally rendered based on multiple states (e.g., `collapsed` and data readiness), the `id` matching `aria-controls` must be applied to all possible branches of the conditional rendering.
+**Action:** When implementing an accessible accordion in this design system, ensure that the trigger button explicitly contains `aria-expanded` and `aria-controls`, and that the `id` corresponding to `aria-controls` is correctly placed on the root container of the expanded content, even if it varies based on state.
