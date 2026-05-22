@@ -1,0 +1,4 @@
+
+## 2024-05-22 - Prevent N+1 queries using synchronous compilers
+**Learning:** `getWorkspaceExperienceBySlug` internally looks up an `Organization` by slug via an async fetch before running it through the workspace compiler. When executing logic where the `Organization` object is already available (such as looping over memberships, finding organizations via domain, or performing administrative tasks like geocoding missing accounts), calling `getWorkspaceExperienceBySlug` results in redundant N+1 database queries.
+**Action:** When a resolved `Organization` object is already available in scope, optimize by bypassing `getWorkspaceExperienceBySlug` and directly invoking `compileWorkspaceExperience({ slug: organization.slug, organization })` (from `@/lib/platform/workspace/compiler`) to build the `WorkspaceRuntimeExperience` synchronously.
