@@ -14,6 +14,7 @@ import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/worksp
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
 
 export const TENANT_SESSION_EMAIL_COOKIE = "tenant_session_email";
@@ -108,11 +109,17 @@ export async function resolveTenantAccess(
         continue;
       }
 
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+      // Bolt: Use synchronous compileWorkspaceExperience instead of getWorkspaceExperienceBySlug
+      // to avoid a redundant N+1 query for the organization that was already fetched above.
+      const compiled = compileWorkspaceExperience({
+        slug: organization.slug,
+        organization,
+      });
+
       return existingWorkspaceAccess({
         slug: organization.slug,
         name: organization.name,
-        workspace: workspace.workspace,
+        workspace: compiled.workspace,
         accessMethod: "membership",
       });
     }
@@ -122,11 +129,16 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      // Bolt: Avoid redundant database query when organization is already loaded
+      const compiled = compileWorkspaceExperience({
+        slug: workspaceOrganization.slug,
+        organization: workspaceOrganization,
+      });
+
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
-        workspace: workspace.workspace,
+        workspace: compiled.workspace,
         accessMethod: "domain_template",
       });
     }
@@ -137,11 +149,16 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        // Bolt: Avoid redundant database query when organization is already loaded
+        const compiled = compileWorkspaceExperience({
+          slug: existingOrganization.slug,
+          organization: existingOrganization,
+        });
+
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
-          workspace: workspace.workspace,
+          workspace: compiled.workspace,
           accessMethod: "domain_template",
         });
       }
