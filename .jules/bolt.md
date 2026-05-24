@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid redundant database queries with compileWorkspaceExperience
+**Learning:** Found a performance bottleneck where an `Organization` is fetched from the database, but then `getWorkspaceExperienceBySlug(slug)` is called, which internally fetches the same `Organization` again before compiling the workspace experience.
+**Action:** Replace `getWorkspaceExperienceBySlug(slug)` with the synchronous `compileWorkspaceExperience({ slug, organization })` directly when the `Organization` object has already been fetched. Note that `CompiledWorkspaceExperience` does not include the `organization` property, so avoid accessing `workspace.organization` when returning the compiled output.
