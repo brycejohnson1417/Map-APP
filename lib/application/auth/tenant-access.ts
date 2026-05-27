@@ -11,6 +11,7 @@ import {
   requestedOwnerSlug,
 } from "@/lib/application/auth/tenant-routing";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
@@ -108,7 +109,9 @@ export async function resolveTenantAccess(
         continue;
       }
 
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+      // ⚡ Bolt: Use synchronous compileWorkspaceExperience directly with pre-fetched organization
+      // instead of getWorkspaceExperienceBySlug to eliminate a redundant database lookup.
+      const workspace = compileWorkspaceExperience({ slug: organization.slug, organization });
       return existingWorkspaceAccess({
         slug: organization.slug,
         name: organization.name,
@@ -122,7 +125,9 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      // ⚡ Bolt: Use synchronous compileWorkspaceExperience directly with pre-fetched organization
+      // instead of getWorkspaceExperienceBySlug to eliminate a redundant database lookup.
+      const workspace = compileWorkspaceExperience({ slug: workspaceOrganization.slug, organization: workspaceOrganization });
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
@@ -137,7 +142,9 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        // ⚡ Bolt: Use synchronous compileWorkspaceExperience directly with pre-fetched organization
+        // instead of getWorkspaceExperienceBySlug to eliminate a redundant database lookup.
+        const workspace = compileWorkspaceExperience({ slug: existingOrganization.slug, organization: existingOrganization });
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
