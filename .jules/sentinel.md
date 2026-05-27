@@ -1,0 +1,4 @@
+## 2024-03-20 - [XSS] Replacing dangerouslySetInnerHTML with sandboxed iframe
+**Vulnerability:** Used dangerouslySetInnerHTML for rendering dynamic HTML for an email preview.
+**Learning:** Even when used with DOMPurify, dangerouslySetInnerHTML exposes the UI to XSS risks when rendering untrusted HTML like email templates. Iframes provide a more secure context because they isolate execution entirely.
+**Prevention:** Always use an iframe with `srcDoc` and a `sandbox` attribute (e.g., `sandbox="allow-popups allow-popups-to-escape-sandbox"`) when rendering potentially untrusted user content, rather than `dangerouslySetInnerHTML`.
