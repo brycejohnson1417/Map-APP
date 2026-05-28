@@ -756,6 +756,8 @@ export function ChangeRequestCaptureLauncher({
                     type="button"
                     onClick={() => setDetailsOpen((current) => !current)}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-primary)]"
+                    aria-expanded={detailsOpen}
+                    aria-controls="capture-launcher-details"
                   >
                     {detailsOpen ? "Collapse" : "Expand"}
                   </button>
@@ -763,7 +765,7 @@ export function ChangeRequestCaptureLauncher({
               </div>
 
               {detailsOpen ? (
-                <div className="max-h-[min(54vh,380px)] space-y-4 overflow-auto border-t border-[var(--border-subtle)] px-4 py-4">
+                <div id="capture-launcher-details" className="max-h-[min(54vh,380px)] space-y-4 overflow-auto border-t border-[var(--border-subtle)] px-4 py-4">
                   <label className="block">
                     <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
                       Overall request (optional)
