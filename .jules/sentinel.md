@@ -1,0 +1,4 @@
+## 2026-05-28 - Prevent XSS in Email Previews Using Sandboxed Iframes
+**Vulnerability:** Use of `dangerouslySetInnerHTML` for rendering untrusted, sanitized email HTML in `ppp-savings-panel.tsx`.
+**Learning:** Even when used with `DOMPurify.sanitize()`, `dangerouslySetInnerHTML` carries risks of XSS if the sanitizer is bypassed, misconfigured, or if new vectors emerge. Furthermore, styles from the parent page could bleed into the email preview, or email preview styles could bleed out.
+**Prevention:** Always use a sandboxed `<iframe>` with the `srcDoc` attribute to render untrusted HTML snippets safely, as it provides an isolated browsing context. Use `sandbox="allow-popups allow-popups-to-escape-sandbox"` to safely allow external links to be clicked while blocking scripts and same-origin access.
