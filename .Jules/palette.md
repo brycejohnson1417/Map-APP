@@ -1,0 +1,3 @@
+## 2025-02-28 - Expandable accordion screen reader hooks
+**Learning:** Expand/collapse regions (accordions) must explicitly link their trigger buttons to the expanded content using `aria-controls="expanded-section-id"` and `aria-expanded={isExpanded}`, with the corresponding `id="expanded-section-id"` on the content wrapper.
+**Action:** Apply this required pattern for screen reader accessibility whenever introducing or fixing expandable sections toggled by a button.

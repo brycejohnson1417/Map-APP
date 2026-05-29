@@ -102,6 +102,8 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               type="button"
               onClick={() => setCollapsed((value) => !value)}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              aria-expanded={!collapsed}
+              aria-controls="ppp-savings-details"
             >
               {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
               {collapsed ? "Expand" : "Collapse"}
@@ -122,7 +124,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
       {error ? <div className="border-b border-[var(--border-subtle)] p-5 text-sm font-semibold text-[var(--accent-danger)]">{error}</div> : null}
 
       {report && collapsed ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
+        <div id="ppp-savings-details" className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
           <div className="flex flex-wrap gap-4 text-[var(--text-secondary)]">
             <span>
               <strong className="text-[var(--text-primary)]">{formatMoney(report.totalSavings)}</strong> savings
@@ -145,7 +147,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
           ) : null}
         </div>
       ) : report ? (
-        <div className="grid gap-0 xl:grid-cols-[0.75fr_1.25fr]">
+        <div id="ppp-savings-details" className="grid gap-0 xl:grid-cols-[0.75fr_1.25fr]">
           <div className="border-b border-[var(--border-subtle)] p-6 xl:border-b-0 xl:border-r">
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
