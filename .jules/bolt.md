@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid Redundant Database Queries in Workspace Compilation
+**Learning:** `getWorkspaceExperienceBySlug` performs an async database lookup to find an organization by slug before compiling the workspace experience. In flows like tenant resolution or background jobs where the `Organization` is already fetched, calling this function introduces a redundant N+1 or repeated query bottleneck.
+**Action:** Use the synchronous `compileWorkspaceExperience` directly and pass the already-fetched `Organization` object instead of using `getWorkspaceExperienceBySlug` when the organization is known. Be aware that `compileWorkspaceExperience` returns `CompiledWorkspaceExperience` which lacks the `organization` property.
