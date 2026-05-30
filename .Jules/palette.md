@@ -1,0 +1,3 @@
+## 2024-05-30 - Accordion Accessibility
+**Learning:** When creating an expandable accordion section where the content switches between a collapsed summary and an expanded full view using conditional rendering (e.g., `collapsed ? <Summary /> : <Full />`), the screen reader needs to know which content block the trigger button controls.
+**Action:** Ensure the trigger `<button>` explicitly contains `aria-expanded={!collapsed}` and `aria-controls="content-id"`. Crucially, you must assign `id="content-id"` to *both* the collapsed summary `<div>` and the expanded full view `<div>` so that the association remains intact regardless of which state is currently rendered.
