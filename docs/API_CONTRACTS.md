@@ -103,6 +103,61 @@ Errors:
 
 Cache: `private, max-age=10, stale-while-revalidate=45`.
 
+### `POST /api/runtime/organizations/[slug]/accounts/import`
+
+Purpose: tenant-facing Connection Hub account import for CSV/spreadsheet data before a richer CRM or ordering adapter is configured.
+
+Auth: tenant-session required.
+
+Request:
+
+```json
+{
+  "rows": [
+    {
+      "sourceRowId": "green-valley-albany",
+      "name": "Green Valley Albany",
+      "addressLine1": "10 Market St",
+      "city": "Albany",
+      "state": "NY",
+      "postalCode": "12207",
+      "country": "US",
+      "owner": "Avery",
+      "status": "Prospect"
+    }
+  ]
+}
+```
+
+Rules:
+
+- max 100 rows per request
+- every imported row must include a company/account name
+- every imported row must include a usable location: street address, city plus state, or postal code
+- imported accounts are written through server-side Supabase access only
+- imported account source identities use provider `csv_import`, external entity type `account`, and deterministic source row IDs
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "summary": {
+    "parsedRows": 2,
+    "importedRows": 1,
+    "skippedRows": 1,
+    "createdAccounts": 1,
+    "updatedAccounts": 0
+  }
+}
+```
+
+Errors:
+
+- `401` when tenant login is missing
+- `400` for malformed payloads or rows without company/location data
+- `404` for missing organization
+
 ### `POST /api/runtime/organizations/[slug]/accounts/[accountId]/check-ins`
 
 Purpose: create tenant account activity note.

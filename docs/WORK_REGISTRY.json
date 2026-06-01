@@ -637,6 +637,45 @@
       ]
     },
     {
+      "id": "BRY-12",
+      "title": "Connection Hub MVP: connect/import tenant business systems from UI",
+      "status": "in_progress",
+      "phase": "product-reset",
+      "priority": "P0",
+      "type": "ui-workflow",
+      "dependencies": ["SCALE-001"],
+      "blocking_foundation": [],
+      "description": "Start the product reset by making Connection Hub a tenant-facing setup surface. Empty or new tenants must be able to preview and import first account data from a CSV/spreadsheet without backend-only setup while richer CRM, ordering, and social adapters are configured.",
+      "acceptance_criteria": [
+        "Connection Hub is visible from the tenant integrations route.",
+        "A tenant can paste CSV rows and preview parsed accounts before saving.",
+        "Preview validation catches missing company name and missing usable location.",
+        "Valid rows can be posted to a tenant-session-protected server route that writes canonical account rows and csv_import identities.",
+        "The browser workflow has success, empty, validation, loading, and error states."
+      ],
+      "verification_commands": [
+        "npm run typecheck",
+        "npm run lint",
+        "SMOKE_BASE_URL=http://localhost:3001 npx playwright test tests/browser/connection-hub.spec.ts",
+        "npm run verify"
+      ],
+      "docs_to_update": [
+        "docs/API_CONTRACTS.md",
+        "docs/WORK_REGISTRY.json",
+        "docs/runs/2026-05-15-connection-hub-mvp.md"
+      ],
+      "stop_conditions": [
+        "A destructive migration is required.",
+        "Direct browser Supabase table access would be required.",
+        "Provider write-back would be required."
+      ],
+      "safe_defaults": [
+        "Keep import server-side and tenant-session gated.",
+        "Limit MVP import batches to 100 rows.",
+        "Use csv_import source identities so later identity resolution can connect imported rows to richer sources."
+      ]
+    },
+    {
       "id": "FUTURE-001",
       "title": "Catalog adapter foundation",
       "status": "planned",
