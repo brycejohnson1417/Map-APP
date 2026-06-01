@@ -33,9 +33,13 @@ Do not put raw secrets in this file.
 - `TERRITORY_ORG_ID`
 
 ## New platform credential contract
-A fresh migration thread should expect these through `.env.local` based on:
+A fresh Map-APP migration thread should expect tenant-scoped connector values through `.env.local` based on:
 - `.env.example`
 - `docs/SETUP.md`
+
+These are Map-APP tenant connector examples only. They are not PICC-Web-App production env names, and
+real values must not be copied from the separate `picc-push` deployment unless a human explicitly
+confirms the Map-APP tenant connector scope.
 
 Required:
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -45,10 +49,18 @@ Required:
 - `SUPABASE_ACCESS_TOKEN`
 - `APP_ENCRYPTION_KEY`
 - `NEON_SOURCE_DATABASE_URL`
-- `NOTION_TOKEN`
-- `NABIS_API_KEY`
-- `GOOGLE_MAPS_BROWSER_API_KEY`
-- `GOOGLE_MAPS_SERVER_API_KEY`
+- `PICC_NOTION_TOKEN`
+- `PICC_NOTION_WORKSPACE_ID`
+- `PICC_NOTION_COMPANIES_DATA_SOURCE_ID`
+- `PICC_NOTION_CONTACTS_DATA_SOURCE_ID`
+- `PICC_NABIS_API_BASE_URL`
+- `PICC_NABIS_ORDERS_PATH`
+- `PICC_NABIS_API_KEY`
+- `PICC_GOOGLE_MAPS_BROWSER_API_KEY`
+- `PICC_GOOGLE_MAPS_SERVER_API_KEY`
 
 ## Current operating rule
 The repo now documents the environment contract, but the real values still need to be supplied by the human operator before autonomous migration work can proceed.
+
+Map-APP tenant connector variables use the organization slug prefix, for example `PICC_...`. Unprefixed
+legacy names above describe the previous PICC-Web-App source system only.

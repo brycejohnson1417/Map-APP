@@ -86,6 +86,10 @@ Examples:
 - `PICC_GOOGLE_MAPS_SERVER_API_KEY`
 - `FRATERNITEES_GOOGLE_MAPS_BROWSER_API_KEY`
 
+PICC-prefixed examples are Map-APP tenant connector examples only. They are not PICC-Web-App
+production env names and should not be copied from the separate `picc-push` deployment. Detailed
+PICC tenant setup notes live in `docs/tenants/picc/`.
+
 `<ORG>_NOTION_DATA_SOURCE_IDS` remains supported as a bootstrap list. For live sync, prefer the explicit
 company/contact variables so PICC's Dispensary Master List CRM and Contacts Database cannot be
 accidentally swapped.
