@@ -530,8 +530,6 @@ Request:
 
 ```json
 {
-  "email": "ops@example.com",
-  "apiKey": "secret",
   "mode": "latest",
   "pageLimit": 3,
   "pageSize": 25,
@@ -545,7 +543,9 @@ Rules:
 - `latest` page limit is clamped from 1 to 5.
 - `backfill` page limit is clamped from 1 to 20.
 - `pageSize` is clamped from 1 to 25.
-- email/api key are optional when a saved tenant connector secret is available.
+- Sync uses only the tenant's saved encrypted Printavo connector credentials.
+- Request-body `email` and `apiKey` overrides are not accepted or used.
+- Credential changes must go through `POST /api/runtime/organizations/[slug]/connectors`, which requires tenant-session auth and records an integration audit event.
 
 Success response:
 
@@ -566,7 +566,7 @@ Errors:
 - `401` when tenant login is missing
 - `400` when Printavo is not enabled for the tenant workspace
 - `404` for missing organization
-- `502` for sync failure
+- `502` for sync failure, including missing saved Printavo credentials
 
 ### `POST /api/runtime/organizations/[slug]/printavo/preview`
 

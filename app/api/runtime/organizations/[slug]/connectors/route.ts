@@ -3,9 +3,11 @@ import { z } from "zod";
 import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
 import { registerIntegration } from "@/lib/application/runtime/bootstrap-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { AuditEventRepository } from "@/lib/infrastructure/supabase/audit-event-repository";
 import { IntegrationRepository } from "@/lib/infrastructure/supabase/integration-repository";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
+const auditEvents = new AuditEventRepository();
 const integrations = new IntegrationRepository();
 
 const requestSchema = z.object({
@@ -120,6 +122,20 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     externalAccountId,
     config,
     secrets: integrationSecrets,
+  });
+
+  await auditEvents.record({
+    organizationId: workspace.organization.id,
+    eventType: existingIntegration ? "integration_updated" : "integration_connected",
+    entityType: "integration_installation",
+    entityId: installation.id,
+    payload: {
+      provider: connector.provider,
+      displayName: connector.label,
+      savedByEmail: sessionEmail,
+      secretFieldKeys: config.secretFieldKeys,
+      configFieldKeys: Object.keys(config.fields as Record<string, string>),
+    },
   });
 
   const integration = await integrations.findByProvider(workspace.organization.id, installation.provider);
