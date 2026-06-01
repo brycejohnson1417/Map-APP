@@ -318,7 +318,7 @@ function dbOrders(rows: ScreenprintingOrderRow[], config: ScreenprintingConfig):
       managerName: row.sales_rep_name,
       teamName: firstString(payload.teamName),
       tags: Array.isArray(payload.tags) ? payload.tags.filter((tag): tag is string => typeof tag === "string") : [],
-      sourceUrl: sourceUrl(row.external_order_id),
+      sourceUrl: firstString(payload.printavoUrl) ?? sourceUrl(row.external_order_id),
       sourcePayloadAvailable: Boolean(row.source_payload),
       dataSource: "printavo" as const,
     };

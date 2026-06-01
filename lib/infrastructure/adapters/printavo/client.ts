@@ -49,11 +49,27 @@ interface PrintavoOrderNode {
   status: { id: string; name: string; type: string } | null;
   total: number | null;
   subtotal: number | null;
+  totalUntaxed: number | null;
+  salesTaxAmount: number | null;
   totalQuantity: number | null;
   createdAt: string | null;
   startAt: string | null;
   dueAt: string | null;
   invoiceAt: string | null;
+  customerDueAt: string | null;
+  paymentDueAt: string | null;
+  visualPoNumber: string | null;
+  publicUrl: string | null;
+  url: string | null;
+  workorderUrl: string | null;
+  merch: boolean | null;
+  customerNote: string | null;
+  productionNote: string | null;
+  owner: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
   timestamps: {
     createdAt: string | null;
     updatedAt: string | null;
@@ -281,11 +297,23 @@ export async function fetchPrintavoLeadOrdersBatch(
               status { id name type }
               total
               subtotal
+              totalUntaxed
+              salesTaxAmount
               totalQuantity
               createdAt
               startAt
               dueAt
               invoiceAt
+              customerDueAt
+              paymentDueAt
+              visualPoNumber
+              publicUrl
+              url
+              workorderUrl
+              merch
+              customerNote
+              productionNote
+              owner { id name email }
               timestamps { createdAt updatedAt }
               contact {
                 id
@@ -307,11 +335,23 @@ export async function fetchPrintavoLeadOrdersBatch(
               status { id name type }
               total
               subtotal
+              totalUntaxed
+              salesTaxAmount
               totalQuantity
               createdAt
               startAt
               dueAt
               invoiceAt
+              customerDueAt
+              paymentDueAt
+              visualPoNumber
+              publicUrl
+              url
+              workorderUrl
+              merch
+              customerNote
+              productionNote
+              owner { id name email }
               timestamps { createdAt updatedAt }
               contact {
                 id
@@ -378,11 +418,29 @@ function mapPrintavoOrder(order: PrintavoOrderNode): FraterniteesLeadOrder {
     customerName,
     status: order.status?.name ?? null,
     total: typeof order.total === "number" ? order.total : null,
+    subtotal: typeof order.subtotal === "number" ? order.subtotal : null,
+    totalUntaxed: typeof order.totalUntaxed === "number" ? order.totalUntaxed : null,
+    salesTaxAmount: typeof order.salesTaxAmount === "number" ? order.salesTaxAmount : null,
     orderDate: order.invoiceAt ?? order.startAt ?? order.dueAt ?? null,
     externalOrderId: order.id,
     externalCustomerId: order.contact?.customer?.id ?? order.contact?.id ?? null,
     orderNumber: order.visualId,
     eventName: order.nickname,
+    ownerId: order.owner?.id ?? null,
+    ownerName: order.owner?.name ?? null,
+    ownerEmail: order.owner?.email ?? null,
+    customerDueDate: order.customerDueAt ?? null,
+    dueAt: order.dueAt ?? null,
+    startAt: order.startAt ?? null,
+    invoiceAt: order.invoiceAt ?? null,
+    paymentDueAt: order.paymentDueAt ?? null,
+    visualPoNumber: order.visualPoNumber ?? null,
+    publicUrl: order.publicUrl ?? null,
+    printavoUrl: order.url ?? null,
+    workorderUrl: order.workorderUrl ?? null,
+    merch: order.merch ?? null,
+    customerNote: order.customerNote ?? null,
+    productionNote: order.productionNote ?? null,
     contactName: order.contact?.fullName ?? order.shippingAddress?.customerName ?? null,
     contactEmail: order.contact?.email ?? null,
     contactPhone: order.contact?.phone ?? null,

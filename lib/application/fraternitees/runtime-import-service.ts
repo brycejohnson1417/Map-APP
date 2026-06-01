@@ -107,6 +107,17 @@ function booleanOrNull(value: unknown) {
   return typeof value === "boolean" ? value : null;
 }
 
+function dateOnlyOrNull(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value.slice(0, 10);
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
 function sourcePayloadToLeadOrder(payload: Record<string, unknown> | null): FraterniteesLeadOrder | null {
   if (!payload) {
     return null;
@@ -139,6 +150,24 @@ function sourcePayloadToLeadOrder(payload: Record<string, unknown> | null): Frat
     paidInFull: booleanOrNull(payload.paidInFull),
     amountPaid: numberOrNull(payload.amountPaid),
     amountOutstanding: numberOrNull(payload.amountOutstanding),
+    subtotal: numberOrNull(payload.subtotal),
+    totalUntaxed: numberOrNull(payload.totalUntaxed),
+    salesTaxAmount: numberOrNull(payload.salesTaxAmount),
+    ownerId: stringOrNull(payload.ownerId),
+    ownerName: stringOrNull(payload.ownerName),
+    ownerEmail: stringOrNull(payload.ownerEmail),
+    customerDueDate: stringOrNull(payload.customerDueDate),
+    dueAt: stringOrNull(payload.dueAt),
+    startAt: stringOrNull(payload.startAt),
+    invoiceAt: stringOrNull(payload.invoiceAt),
+    paymentDueAt: stringOrNull(payload.paymentDueAt),
+    visualPoNumber: stringOrNull(payload.visualPoNumber),
+    publicUrl: stringOrNull(payload.publicUrl),
+    printavoUrl: stringOrNull(payload.printavoUrl),
+    workorderUrl: stringOrNull(payload.workorderUrl),
+    merch: booleanOrNull(payload.merch),
+    customerNote: stringOrNull(payload.customerNote),
+    productionNote: stringOrNull(payload.productionNote),
     createdAt: stringOrNull(payload.createdAt),
     updatedAt: stringOrNull(payload.updatedAt),
     source: "printavo",
@@ -701,8 +730,8 @@ export async function importFraterniteesOrdersToRuntime(input: {
       payment_status: order.paidInFull === true ? "PAID" : order.amountPaid && order.amountPaid > 0 ? "PARTIAL_PAYMENT" : "UNPAID",
       order_total: order.total ?? null,
       order_created_at: order.orderDate ? new Date(order.orderDate).toISOString() : null,
-      delivery_date: null,
-      sales_rep_name: null,
+      delivery_date: dateOnlyOrNull(firstNonEmpty([order.customerDueDate, order.dueAt, order.startAt])),
+      sales_rep_name: order.ownerName ?? null,
       is_internal_transfer: false,
       source_payload: {
         ...order,
