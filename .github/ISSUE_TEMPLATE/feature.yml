@@ -2,6 +2,17 @@ name: Feature
 description: User-facing capability or product workflow
 labels: ["type:feature", "status:ready"]
 body:
+  - type: dropdown
+    id: project_boundary
+    attributes:
+      label: Project boundary confirmation
+      description: Confirm this belongs in Map-APP, not the separate PICC-Web-App production repo.
+      options:
+        - Map-APP multi-tenant platform
+        - PICC tenant context inside Map-APP
+        - Cross-project context explicitly described below
+    validations:
+      required: true
   - type: textarea
     id: outcome
     attributes:
@@ -20,6 +31,7 @@ body:
     id: data
     attributes:
       label: Data, tenancy, and integrations
+      description: If PICC is mentioned, say whether it is Map-APP tenant context or live PICC-Web-App production work. Production/deploy target should be `map-app-supabase`, not `picc-push`, unless explicitly cross-project.
   - type: textarea
     id: docs
     attributes:

@@ -4,6 +4,13 @@
 ## Linked Issue
 Closes #
 
+## Project Boundary
+- Target repo confirmed: `brycejohnson1417/Map-APP`
+- Target product confirmed: map-app multi-tenant platform
+- Not PICC-Web-App production triage unless explicitly marked cross-project:
+- If PICC is mentioned, context is: map-app tenant / live PICC-Web-App / cross-project
+- Production/deploy target, if relevant: `map-app-supabase` / not applicable
+
 ## Scope
 - In scope:
 - Out of scope:
