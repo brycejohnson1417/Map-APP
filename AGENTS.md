@@ -47,6 +47,19 @@ This repository is the canonical source of truth for the new scalable map produc
 - If verification cannot run, explain the blocker and what remains unverified.
 - Final reports must list changed files, commands run, what passed, what failed, and remaining risk.
 
+## Generated PR Cleanup
+
+- Do not close generated PRs or delete generated branches as noise until the underlying content has been classified.
+- Classify each generated PR, bot PR pile item, dirty worktree, or WIP branch as one of: real defect, useful future idea, duplicate of an already-merged fix, stale process/docs artifact, or noise.
+- If it contains a real defect or useful future idea, create or link a GitHub issue before closing the PR or deleting the branch.
+- If it duplicates an already-merged fix, link the merged PR or run report before closing.
+- If it is a dirty worktree or local-only branch, inspect `git status`, `git log`, and `git diff` before moving or deleting anything.
+- If it is a remote WIP/archive branch, inspect the branch diff against current `origin/main`, record the keep/merge/delete decision, then delete only after confirming no unique work is needed.
+- Examples:
+  - Bot PR pile: close only after its real a11y/perf/security idea is merged or tracked in a first-party issue.
+  - Dirty worktree: preserve or branch off user work before cleanup; never reset it away.
+  - WIP branch: if only stale docs/process notes remain, record the reason in `docs/runs/` before deleting the remote branch.
+
 ## Non-Test Edit Proof Gate
 
 Before editing meaningful non-test product code, post each of these as a chat-visible artifact. Docs, templates, and CI-only protocol changes can use the normal issue/branch/PR/validation proof without a RED test.
