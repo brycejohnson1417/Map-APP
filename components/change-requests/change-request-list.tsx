@@ -387,7 +387,7 @@ export function ChangeRequestList({
                   <a
                     href={previewImage.signedUrl}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="hidden h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] md:block"
                   >
                     <img
@@ -448,7 +448,7 @@ export function ChangeRequestList({
                     <a
                       href={previewImage.signedUrl}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="mb-4 block overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)]"
                     >
                       <img
@@ -623,7 +623,7 @@ export function ChangeRequestList({
                                 key={attachment.id}
                                 href={attachment.signedUrl ?? "#"}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
                               >
                                 <Paperclip className="h-3.5 w-3.5" />
