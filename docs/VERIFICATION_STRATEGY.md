@@ -99,6 +99,7 @@ Current status:
 ### 5. Browser verification
 Purpose:
 - prove the user-facing flow actually works, not just the HTTP routes
+- for saved route work, intercept route write APIs during browser tests unless explicitly validating app-owned persistence; never send email or mutate Printavo, Nabis, Meta, Google, or other provider systems during route tests
 - especially important for map, territory, and shared-state flows
 
 Target tool:

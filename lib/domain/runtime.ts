@@ -36,6 +36,9 @@ export type AuditEventType =
   | "reorder_updated"
   | "email_draft_recorded"
   | "dashboard_updated"
+  | "route_plan_created"
+  | "route_plan_updated"
+  | "route_stop_completed"
   | "social_account_updated"
   | "social_post_updated"
   | "social_thread_logged"
@@ -425,4 +428,61 @@ export interface AccountRuntimeDetail {
     lastOrderDate: string | null;
     customerSinceDate: string | null;
   };
+}
+
+export type SavedRouteVisibility = "private" | "organization" | "shared";
+export type SavedRouteStatus = "draft" | "active" | "completed" | "archived";
+export type SavedRouteStopStatus = "planned" | "needs_review" | "completed" | "skipped";
+
+export interface SavedRouteStats {
+  totalStops: number;
+  plannedStops: number;
+  completedStops: number;
+  reviewStops: number;
+  estimatedDistanceMiles: number;
+  estimatedDurationMinutes: number;
+}
+
+export interface SavedRouteStop {
+  id: string;
+  organizationId: string;
+  routePlanId: string;
+  accountId: string | null;
+  stopIndex: number;
+  status: SavedRouteStopStatus;
+  accountName: string;
+  city: string | null;
+  state: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanceFromPreviousMiles: number | null;
+  estimatedDurationFromPreviousMinutes: number | null;
+  notes: string | null;
+  completedAt: string | null;
+  completionActivityId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedRoutePlan {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string | null;
+  status: SavedRouteStatus;
+  visibility: SavedRouteVisibility;
+  ownerEmail: string;
+  sharedWithEmails: string[];
+  startLabel: string | null;
+  startLatitude: number | null;
+  startLongitude: number | null;
+  endLabel: string | null;
+  endLatitude: number | null;
+  endLongitude: number | null;
+  optimizationMode: string;
+  sourceFilters: Record<string, unknown>;
+  stats: SavedRouteStats;
+  stops: SavedRouteStop[];
+  createdAt: string;
+  updatedAt: string;
 }
