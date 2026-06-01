@@ -22,6 +22,13 @@ Expected auth and membership model for any future browser-accessible tenant tabl
 - role-specific writes must check `public.organization_member.role` instead of relying on route-level UI hiding
 - cross-tenant administrative views must use a separate documented policy path and tests, not a broad service-role bypass in client code
 
+Migration `20260601042035_tenant_scope_rls_policies.sql` adds the first defense-in-depth tenant policies:
+- `app_private.is_tenant_member(uuid)` maps signed JWT `app_metadata.clerk_user_id`, falling back to signed `sub`, to `public.organization_member.clerk_user_id`
+- `public.organization` is tenant-scoped through `id`; other tenant tables use `organization_id`
+- `organization`, `organization_member`, `integration_installation`, `sync_cursor`, `sync_job`, and `audit_event` are tenant-readable only
+- `public.integration_secret` and `app_private.integration_secret` remain service-role-only with no tenant JWT policies
+- the migration does not grant Data API table privileges, enable `force row level security`, or convert server routes away from service-role clients
+
 ## Rationale
 Middleware alone is not sufficient for tenant isolation. The database must defend the boundary even when application code is wrong.
 
