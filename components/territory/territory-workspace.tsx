@@ -1394,6 +1394,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
             <button
               type="button"
               onClick={() => setFiltersOpen((current) => !current)}
+              aria-expanded={filtersOpen}
               className={classNames(
                 "inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold",
                 filtersOpen || activeFilterCount
@@ -1408,7 +1409,10 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         </div>
 
         {filtersOpen ? (
-          <div className="flex max-h-[calc(100dvh-18rem)] flex-col gap-2 overflow-auto rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_95%,transparent)] p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl">
+          <div
+            id="territory-filter-panel"
+            className="flex max-h-[calc(100dvh-18rem)] flex-col gap-2 overflow-auto rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_srgb,var(--surface-card)_95%,transparent)] p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl"
+          >
             <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2">
               <Search className="h-4 w-4 text-[var(--text-tertiary)]" />
               <input
@@ -1786,7 +1790,11 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                           <button type="button" className="min-w-0 flex-1 truncate text-left font-semibold" onClick={() => focusPin(pin)}>
                             {pin.name}
                           </button>
-                          <button type="button" onClick={() => toggleRouteStop(pin.id)}>
+                          <button
+                            type="button"
+                            onClick={() => toggleRouteStop(pin.id)}
+                            aria-label={`Remove ${pin.name} from route plan`}
+                          >
                             <X className="h-4 w-4 text-[var(--text-tertiary)]" />
                           </button>
                         </div>
@@ -1902,7 +1910,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 text-sm font-semibold shadow-[var(--shadow-soft)]">
           <div className="flex items-center justify-between gap-4">
             <span>{notice}</span>
-            <button type="button" onClick={() => setNotice(null)}>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss notification">
               <X className="h-4 w-4" />
             </button>
           </div>
