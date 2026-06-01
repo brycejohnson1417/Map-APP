@@ -4,6 +4,7 @@ const steps = [
   ["npm", ["run", "typecheck"]],
   ["npm", ["run", "lint"]],
   ["npm", ["run", "check:tenant-isolation"]],
+  ["npm", ["run", "check:rls-tenant-policies"]],
   ["npm", ["run", "check:work-registry"]],
   ["npm", ["run", "check:screenprinting-foundation"]],
   ["npm", ["run", "check:self-contained-requirements"]],

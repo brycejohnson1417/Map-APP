@@ -11,7 +11,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md). API payloads are documented in 
 - `organization_id` is the tenant boundary for business data.
 - Tenant-facing tables must enable RLS.
 - Current committed migrations enable RLS but do not define browser/client policies. Existing runtime code uses trusted server/service-role paths.
-- Add direct browser Supabase access only after adding explicit RLS policies and documenting the expected auth claim and membership lookup.
+- Direct browser Supabase access must stay behind explicit RLS policies. Current tenant policies use `app_private.current_tenant_organization_ids()` from migration `20260601022111_rls_tenant_scope_policies.sql`, resolving access from verified Supabase Auth JWT subject/email claims and `public.organization_member`.
 - Provider IDs must be preserved through identity rows, source fields, or `source_payload`.
 - Provider data that may be dirty must remain reviewable and remappable. Do not overwrite it destructively.
 - Additive migrations are preferred. Breaking schema changes require migration notes and rollback planning.
