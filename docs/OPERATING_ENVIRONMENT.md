@@ -51,6 +51,7 @@ npm run verify
 - Every tenant business table must include `organization_id uuid not null references public.organization(id) on delete cascade` unless the table is global immutable metadata.
 - Tenant-facing tables must enable RLS.
 - The current committed runtime uses server/service-role access paths for tenant data. Do not expose direct browser Supabase access to a tenant table until matching RLS policies are committed and documented.
+- `npm run check:browser-supabase-boundary` enforces the current no-browser-Supabase-access boundary during verification.
 - Provider secrets must be stored through tenant-scoped encrypted integration installs or tenant-scoped environment variables.
 - Platform-owned Meta OAuth app credentials are backend environment variables because they identify the product's Meta app; OAuth access tokens returned for tenants must still be stored as tenant-scoped encrypted integration secrets.
 
