@@ -372,6 +372,7 @@ export function ChangeRequestList({
           const editing = editingId === request.id;
           const draft = drafts[request.id] ?? buildDraft(request);
           const isBusy = busyRequestId === request.id;
+          const detailsId = `change-request-details-${request.id}`;
           const hasMoreDetails =
             Boolean(request.businessContext?.trim()) ||
             Boolean(request.acceptanceCriteria?.trim()) ||
@@ -401,6 +402,8 @@ export function ChangeRequestList({
                 <button
                   type="button"
                   onClick={() => toggleExpanded(request.id)}
+                  aria-expanded={expanded}
+                  aria-controls={detailsId}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -432,6 +435,9 @@ export function ChangeRequestList({
                   <button
                     type="button"
                     onClick={() => toggleExpanded(request.id)}
+                    aria-label={expanded ? "Collapse request details" : "Expand request details"}
+                    aria-expanded={expanded}
+                    aria-controls={detailsId}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
                   >
                     {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -439,8 +445,11 @@ export function ChangeRequestList({
                 </div>
               </div>
 
-              {expanded ? (
-                <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
+              <div
+                id={detailsId}
+                hidden={!expanded}
+                className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5"
+              >
                   {previewImage?.signedUrl ? (
                     <a
                       href={previewImage.signedUrl}
@@ -662,8 +671,7 @@ export function ChangeRequestList({
                       </div>
                     </div>
                   )}
-                </div>
-              ) : null}
+              </div>
             </article>
           );
         })}

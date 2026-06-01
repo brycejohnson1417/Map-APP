@@ -10,6 +10,7 @@ import {
   onboardingRedirect,
   requestedOwnerSlug,
 } from "@/lib/application/auth/tenant-routing";
+import { selectMembershipOrganization } from "@/lib/application/auth/membership-access";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
@@ -39,6 +40,14 @@ export interface TenantAccess {
 
 const members = new OrganizationMemberRepository();
 const organizations = new OrganizationRepository();
+
+function workspaceAllowsEmailDomain(workspace: { emailDomains?: string[] }, emailDomain: string) {
+  const normalizedDomain = emailDomain.trim().toLowerCase();
+  return Boolean(
+    normalizedDomain &&
+      workspace.emailDomains?.some((candidate) => candidate.trim().toLowerCase() === normalizedDomain),
+  );
+}
 
 export function guessTenantAccess(email: string): TenantAccess | null {
   const normalized = normalizeLoginEmail(email);
@@ -102,12 +111,8 @@ export async function resolveTenantAccess(
       ]),
     );
 
-    for (const membership of existingMemberships) {
-      const organization = organizationsById.get(membership.organizationId);
-      if (!organization) {
-        continue;
-      }
-
+    const organization = selectMembershipOrganization(existingMemberships, organizationsById, requestedSlug);
+    if (organization) {
       const workspace = await getWorkspaceExperienceBySlug(organization.slug);
       return existingWorkspaceAccess({
         slug: organization.slug,
@@ -119,6 +124,25 @@ export async function resolveTenantAccess(
   }
 
   const [, emailDomain = ""] = normalized.split("@");
+  if (requestedSlug) {
+    const requestedOrganization = await organizations.findBySlug(requestedSlug);
+    if (!requestedOrganization) {
+      return null;
+    }
+
+    const workspace = await getWorkspaceExperienceBySlug(requestedOrganization.slug);
+    if (workspaceAllowsEmailDomain(workspace.workspace, emailDomain)) {
+      return existingWorkspaceAccess({
+        slug: requestedOrganization.slug,
+        name: requestedOrganization.name,
+        workspace: workspace.workspace,
+        accessMethod: "domain_template",
+      });
+    }
+
+    return null;
+  }
+
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization) {
