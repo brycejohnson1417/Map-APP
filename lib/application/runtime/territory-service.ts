@@ -377,16 +377,31 @@ export async function getTerritoryRuntimeDashboard(
     ]);
 
   const dashboardRows = await fetchDashboardAccounts(organization.id, appliedFilters.flag, includeUnmappedAccounts);
-  const noAddressAvailable = dashboardRows.filter(isNoAddressAvailable).length;
-  const dncFlagged = dashboardRows.filter((row) => isDncFlagged(row, fraterniteesConfig)).length;
-  const visibleRows = dashboardRows
-    .filter((row) => rowMatchesFlag(row, appliedFilters.flag, fraterniteesConfig))
-    .filter((row) => rowMatchesSearch(row, appliedFilters.search))
-    .filter((row) => rowMatchesRep(row, appliedFilters.rep))
-    .filter((row) => rowMatchesFacet(row.account_status, appliedFilters.status))
-    .filter((row) => rowMatchesFacet(row.referral_source, appliedFilters.referralSource))
-    .filter((row) => rowMatchesFacet(row.vendor_day_status, appliedFilters.vendorDayStatus))
-    .filter((row) => rowMatchesLeadGrade(row, appliedFilters.leadGrade, fraterniteesConfig));
+
+  let noAddressAvailable = 0;
+  let dncFlagged = 0;
+  const visibleRows: AccountRow[] = [];
+
+  for (const row of dashboardRows) {
+    if (isNoAddressAvailable(row)) {
+      noAddressAvailable++;
+    }
+    if (isDncFlagged(row, fraterniteesConfig)) {
+      dncFlagged++;
+    }
+
+    if (
+      rowMatchesFlag(row, appliedFilters.flag, fraterniteesConfig) &&
+      rowMatchesSearch(row, appliedFilters.search) &&
+      rowMatchesRep(row, appliedFilters.rep) &&
+      rowMatchesFacet(row.account_status, appliedFilters.status) &&
+      rowMatchesFacet(row.referral_source, appliedFilters.referralSource) &&
+      rowMatchesFacet(row.vendor_day_status, appliedFilters.vendorDayStatus) &&
+      rowMatchesLeadGrade(row, appliedFilters.leadGrade, fraterniteesConfig)
+    ) {
+      visibleRows.push(row);
+    }
+  }
 
   return {
     organization,

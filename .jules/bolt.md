@@ -1,0 +1,3 @@
+## 2025-05-07 - Optimize visible row filtering in territory service
+**Learning:** Chaining `.filter()` methods in JavaScript creates intermediate array allocations. When processing large datasets (like 10,000 dashboard rows), chained filters (`O(N)` passes for each filter) can be fused into a single `for...of` loop with short-circuiting logical AND operators to improve execution time complexity to a single `O(N)` pass without array overhead.
+**Action:** Always prefer a single loop with fused conditions over multiple chained array methods like `.map()` and `.filter()` in performance-sensitive logic processing large volumes of rows or items.
