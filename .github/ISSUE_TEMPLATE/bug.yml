@@ -2,6 +2,17 @@ name: Bug
 description: Broken behavior or production defect
 labels: ["type:bug", "status:ready"]
 body:
+  - type: dropdown
+    id: project_boundary
+    attributes:
+      label: Project boundary confirmation
+      description: Confirm this belongs in Map-APP, not the separate PICC-Web-App production repo.
+      options:
+        - Map-APP multi-tenant platform
+        - PICC tenant context inside Map-APP
+        - Cross-project context explicitly described below
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
@@ -24,6 +35,7 @@ body:
     id: scope
     attributes:
       label: Scope and non-goals
+      description: If PICC is mentioned, say whether this is Map-APP tenant work or live PICC-Web-App production triage. Production/deploy target should be `map-app-supabase`, not `picc-push`, unless explicitly cross-project.
   - type: textarea
     id: acceptance
     attributes:
