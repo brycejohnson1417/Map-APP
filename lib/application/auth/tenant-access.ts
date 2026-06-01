@@ -10,6 +10,7 @@ import {
   onboardingRedirect,
   requestedOwnerSlug,
 } from "@/lib/application/auth/tenant-routing";
+import { selectMembershipOrganization } from "@/lib/application/auth/tenant-access-selection";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
@@ -102,12 +103,13 @@ export async function resolveTenantAccess(
       ]),
     );
 
-    for (const membership of existingMemberships) {
-      const organization = organizationsById.get(membership.organizationId);
-      if (!organization) {
-        continue;
-      }
+    const organization = selectMembershipOrganization({
+      memberships: existingMemberships,
+      organizationsById,
+      requestedSlug,
+    });
 
+    if (organization) {
       const workspace = await getWorkspaceExperienceBySlug(organization.slug);
       return existingWorkspaceAccess({
         slug: organization.slug,
@@ -121,7 +123,7 @@ export async function resolveTenantAccess(
   const [, emailDomain = ""] = normalized.split("@");
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
-    if (workspaceOrganization) {
+    if (workspaceOrganization && (!requestedSlug || workspaceOrganization.slug === requestedSlug)) {
       const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
@@ -134,6 +136,10 @@ export async function resolveTenantAccess(
 
   const guessed = guessTenantAccess(normalized);
   if (guessed) {
+    if (requestedSlug && guessed.slug !== requestedSlug) {
+      return null;
+    }
+
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
