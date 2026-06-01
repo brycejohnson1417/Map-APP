@@ -81,3 +81,5 @@ When adding a new env var or provider credential:
 2. Update [OPERATING_ENVIRONMENT.md](OPERATING_ENVIRONMENT.md).
 3. Update the relevant adapter or tenant type integration doc.
 4. Add a missing-env behavior to tests or acceptance checks.
+
+Tenant provider credentials must be organization-prefixed, for example `PICC_...` or `FRATERNITEES_...`, unless they are documented platform-owned credentials such as the Meta OAuth app keys. Unprefixed paid-provider credentials are blocked by `npm run check:tenant-isolation`.
