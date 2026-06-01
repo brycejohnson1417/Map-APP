@@ -39,6 +39,8 @@ Cache: `private, max-age=15, stale-while-revalidate=60`.
 
 Purpose: organization runtime snapshot.
 
+Auth: tenant-session required.
+
 Success response:
 
 ```json
@@ -46,7 +48,7 @@ Success response:
   "ok": true,
   "snapshot": {
     "organization": "Organization",
-    "integrations": ["IntegrationInstallation"],
+    "integrations": ["RuntimeIntegrationSummary"],
     "recentSyncJobs": ["SyncJob"],
     "syncCursors": ["SyncCursor"],
     "syncJobStatusCounts": [{ "status": "queued", "count": 1 }],
@@ -57,7 +59,10 @@ Success response:
 
 Errors:
 
+- `401 { "ok": false, "error": "Tenant login is required." }`
 - `404 { "ok": false, "error": "organization_not_found" }`
+
+Runtime integration summaries never include raw `integration.config`; they expose only connector display/status metadata needed by the authenticated UI.
 
 Cache: `private, max-age=10, stale-while-revalidate=60`.
 
@@ -247,6 +252,8 @@ Cache: `private, max-age=10, stale-while-revalidate=45`.
 
 Purpose: browser map provider config for a tenant.
 
+Auth: tenant-session required.
+
 Success response:
 
 ```json
@@ -263,6 +270,7 @@ Success response:
 
 Errors:
 
+- `401 { "ok": false, "error": "Tenant login is required." }`
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=300, stale-while-revalidate=900`.

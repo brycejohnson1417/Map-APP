@@ -85,6 +85,18 @@ export interface IntegrationInstallation {
   updatedAt: string;
 }
 
+export interface RuntimeIntegrationSummary {
+  id: string;
+  organizationId: string;
+  provider: ExternalProvider;
+  externalAccountId: string | null;
+  displayName: string;
+  status: string;
+  configured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SyncJob {
   id: string;
   organizationId: string;
@@ -135,7 +147,7 @@ export interface SyncJobStatusCount {
 
 export interface OrganizationRuntimeSnapshot {
   organization: Organization;
-  integrations: IntegrationInstallation[];
+  integrations: RuntimeIntegrationSummary[];
   recentSyncJobs: SyncJob[];
   syncCursors: SyncCursor[];
   syncJobStatusCounts: SyncJobStatusCount[];
