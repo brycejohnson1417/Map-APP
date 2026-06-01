@@ -7,11 +7,12 @@ if (!baseUrl) {
   throw new Error("SMOKE_BASE_URL is required");
 }
 
-async function assertOk(pathname, expectedStatus = 200) {
+async function assertOk(pathname, expectedStatus = 200, headers = {}) {
   const url = new URL(pathname, baseUrl);
   const response = await fetch(url, {
     headers: {
       "cache-control": "no-store",
+      ...headers,
     },
   });
 
@@ -39,8 +40,12 @@ async function main() {
 
   if (defaultOrgSlug) {
     await assertOk(`/runtime/${defaultOrgSlug}`);
-    const organizationResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`);
+    const tenantHeaders = { cookie: tenantCookieHeader(defaultOrgSlug) };
+    const organizationResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`, 200, tenantHeaders);
     const organizationBody = await organizationResponse.json();
+    if (organizationBody.snapshot?.integrations?.some((integration) => "config" in integration)) {
+      throw new Error("Runtime organization snapshot leaked integration config");
+    }
     if (!Array.isArray(organizationBody.snapshot?.recentAuditEvents)) {
       throw new Error("Runtime organization snapshot did not include recentAuditEvents");
     }
@@ -55,7 +60,7 @@ async function main() {
     }
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/overlays`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/map-config`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/map-config`, 200, tenantHeaders);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_referral_source`);
     await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_sample_delivery`);
 
