@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { ScreenprintingServiceError } from "@/lib/application/screenprinting/screenprinting-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
+class RuntimeTenantAuthorizationError extends Error {
+  constructor(readonly response: NextResponse) {
+    super("runtime_tenant_authorization_failed");
+  }
+}
+
 export async function resolveSlug(context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
+  const session = await requireTenantSession(slug);
+  if (session.error) {
+    throw new RuntimeTenantAuthorizationError(session.error);
+  }
   return slug;
 }
 
@@ -13,18 +23,22 @@ export async function readJson(request: Request) {
 }
 
 export async function requireTenantSession(slug: string) {
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
+  const access = await requireRuntimeTenantAccess(slug);
+  if (access.response) {
     return {
       sessionEmail: null,
-      error: NextResponse.json({ ok: false, error: "Tenant login is required." }, { status: 401 }),
+      error: access.response,
     };
   }
 
-  return { sessionEmail, error: null };
+  return { sessionEmail: access.sessionEmail, error: null };
 }
 
 export function screenprintingErrorResponse(error: unknown) {
+  if (error instanceof RuntimeTenantAuthorizationError) {
+    return error.response;
+  }
+
   if (error instanceof ScreenprintingServiceError) {
     return NextResponse.json({ ok: false, error: error.code, message: error.message }, { status: error.status });
   }

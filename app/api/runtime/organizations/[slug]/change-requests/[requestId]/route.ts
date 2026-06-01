@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import {
   deleteChangeRequest,
   updateChangeRequest,
@@ -18,9 +18,9 @@ export async function PATCH(
   context: { params: Promise<{ slug: string; requestId: string }> | { slug: string; requestId: string } },
 ) {
   const { slug, requestId } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to update change requests." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to update change requests.");
+  if (access.response) {
+    return access.response;
   }
 
   const workspace = await getWorkspaceExperienceBySlug(slug);
@@ -72,9 +72,9 @@ export async function DELETE(
   context: { params: Promise<{ slug: string; requestId: string }> | { slug: string; requestId: string } },
 ) {
   const { slug, requestId } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to delete change requests." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to delete change requests.");
+  if (access.response) {
+    return access.response;
   }
 
   const workspace = await getWorkspaceExperienceBySlug(slug);

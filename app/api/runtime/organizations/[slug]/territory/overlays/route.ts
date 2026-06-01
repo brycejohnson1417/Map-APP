@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { getTerritoryOverlays } from "@/lib/application/runtime/territory-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view territory overlays.");
+  if (access.response) {
+    return access.response;
+  }
+
   const overlays = await getTerritoryOverlays(slug);
 
   if (!overlays) {

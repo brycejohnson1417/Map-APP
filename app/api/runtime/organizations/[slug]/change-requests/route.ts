@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import {
   createChangeRequest,
   listChangeRequestsForOrganization,
@@ -28,9 +28,9 @@ function readCaptureContext(formData: FormData): ChangeRequestCaptureContext | n
 
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to view change requests." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view change requests.");
+  if (access.response) {
+    return access.response;
   }
 
   const workspace = await getWorkspaceExperienceBySlug(slug);
@@ -46,9 +46,9 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to create change requests." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to create change requests.");
+  if (access.response) {
+    return access.response;
   }
 
   const workspace = await getWorkspaceExperienceBySlug(slug);
@@ -75,7 +75,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   try {
     const created = await createChangeRequest({
       organizationId: workspace.organization.id,
-      requestedByEmail: sessionEmail,
+      requestedByEmail: access.sessionEmail,
       workspace: workspace.workspace,
       title,
       currentUrl: readText(formData, "currentUrl") || null,

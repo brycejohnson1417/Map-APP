@@ -12,8 +12,19 @@ For database contracts, read [DATA_MODEL.md](DATA_MODEL.md). For vocabulary, rea
 - Error responses include `ok: false` and `error`.
 - Tenant runtime routes use `[slug]` as the organization slug.
 - Tenant-mutating routes must require tenant-session access.
+- Tenant data routes under `/api/runtime/organizations/[slug]` must require tenant-session access before reading or writing tenant payloads.
 - Tenant data returned by API routes must be scoped by `organization_id` resolved from the slug.
 - Provider secrets must never be returned in API responses.
+
+## Tenant Runtime Auth
+
+Tenant runtime organization APIs are not public slug lookups. Routes under `/api/runtime/organizations/[slug]` that return account, order, contact, sync, integration, map, dashboard, plugin, or tenant configuration payloads use the shared `requireRuntimeTenantAccess` guard. The guard requires the `tenant_session_slug` cookie to match `[slug]` and rechecks that the session email has access to that organization before the route returns tenant data.
+
+Unauthorized requests return `401 { "ok": false, "error": "<message>" }` and must not include tenant payloads.
+
+Intentional exclusions:
+
+- `GET /api/runtime/organizations/[slug]/connectors/meta/oauth/callback` is the legacy OAuth callback compatibility route. It does not return tenant data and validates the signed OAuth state against the slug before delegating to the global callback completion path.
 
 ## Current Runtime Routes
 
@@ -39,6 +50,8 @@ Cache: `private, max-age=15, stale-while-revalidate=60`.
 
 Purpose: organization runtime snapshot.
 
+Auth: tenant-session required.
+
 Success response:
 
 ```json
@@ -57,6 +70,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=10, stale-while-revalidate=60`.
@@ -64,6 +78,8 @@ Cache: `private, max-age=10, stale-while-revalidate=60`.
 ### `GET /api/runtime/organizations/[slug]/accounts/[accountId]`
 
 Purpose: account detail runtime payload.
+
+Auth: tenant-session required.
 
 Success response:
 
@@ -99,6 +115,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "account_not_found" }`
 
 Cache: `private, max-age=10, stale-while-revalidate=45`.
@@ -143,6 +160,8 @@ Cache: `no-store`.
 
 Purpose: calculate PICC savings report.
 
+Auth: tenant-session required.
+
 Request:
 
 ```json
@@ -162,6 +181,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "account_not_found" }`
 
 Cache: `no-store`.
@@ -169,6 +189,8 @@ Cache: `no-store`.
 ### `GET /api/runtime/organizations/[slug]/territory/pins`
 
 Purpose: filtered territory dashboard and pins.
+
+Auth: tenant-session required.
 
 Query parameters:
 
@@ -219,6 +241,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=10, stale-while-revalidate=45`.
@@ -226,6 +249,8 @@ Cache: `private, max-age=10, stale-while-revalidate=45`.
 ### `GET /api/runtime/organizations/[slug]/territory/overlays`
 
 Purpose: tenant territory boundaries and markers.
+
+Auth: tenant-session required.
 
 Success response:
 
@@ -239,6 +264,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=10, stale-while-revalidate=45`.
@@ -246,6 +272,8 @@ Cache: `private, max-age=10, stale-while-revalidate=45`.
 ### `GET /api/runtime/organizations/[slug]/territory/map-config`
 
 Purpose: browser map provider config for a tenant.
+
+Auth: tenant-session required.
 
 Success response:
 
@@ -263,6 +291,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=300, stale-while-revalidate=900`.
@@ -270,6 +299,8 @@ Cache: `private, max-age=300, stale-while-revalidate=900`.
 ### `GET /api/runtime/organizations/[slug]/sync-jobs`
 
 Purpose: sync operations visibility.
+
+Auth: tenant-session required.
 
 Success response:
 
@@ -286,6 +317,7 @@ Success response:
 
 Errors:
 
+- `401` when tenant login is missing or does not match the slug
 - `404 { "ok": false, "error": "organization_not_found" }`
 
 Cache: `private, max-age=5, stale-while-revalidate=20`.
@@ -377,6 +409,8 @@ Behavior: verifies that signed OAuth state matches the slug, then uses the same 
 ### `GET /api/runtime/organizations/[slug]/plugins`
 
 Purpose: read tenant plugin capability settings.
+
+Auth: tenant-session required.
 
 Success response:
 

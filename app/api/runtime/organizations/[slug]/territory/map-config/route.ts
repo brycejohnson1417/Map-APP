@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { findRuntimeOrganization, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 import { resolveTenantGoogleMapsBrowserKey } from "@/lib/application/runtime/provider-credentials";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
@@ -34,6 +35,11 @@ function readOpenStreetMapConfig(settings: Record<string, unknown>) {
 
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view map configuration.");
+  if (access.response) {
+    return access.response;
+  }
+
   const organization = await findRuntimeOrganization(slug);
 
   if (!organization) {

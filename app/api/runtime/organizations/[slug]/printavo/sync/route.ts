@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { runPrintavoSync, readPrintavoSyncStatus } from "@/lib/application/fraternitees/printavo-sync-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
@@ -37,9 +37,9 @@ async function resolveWorkspaceOrError(slug: string) {
 
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to view Printavo sync status." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view Printavo sync status.");
+  if (access.response) {
+    return access.response;
   }
 
   const resolved = await resolveWorkspaceOrError(slug);
@@ -62,9 +62,9 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to run Printavo sync." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to run Printavo sync.");
+  if (access.response) {
+    return access.response;
   }
 
   const resolved = await resolveWorkspaceOrError(slug);

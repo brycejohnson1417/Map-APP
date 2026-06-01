@@ -14,6 +14,7 @@
     "mapapp": "node scripts/mapapp.mjs",
     "seed:runtime": "node scripts/seed-runtime.mjs",
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
+    "smoke:runtime-auth": "node scripts/smoke-runtime-auth.mjs",
     "check:tenant-isolation": "node scripts/check-tenant-provider-isolation.mjs",
     "check:tenant-isolation:self-test": "node scripts/test-tenant-provider-isolation.mjs",
     "check:tenant-access": "node scripts/test-tenant-access-selection.mjs",
