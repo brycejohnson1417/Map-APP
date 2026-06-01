@@ -6,6 +6,7 @@ const steps = [
   ["npm", ["run", "check:tenant-isolation:self-test"]],
   ["npm", ["run", "check:tenant-isolation"]],
   ["npm", ["run", "check:tenant-access"]],
+  ["npm", ["run", "check:change-request-attachments"]],
   ["npm", ["run", "check:work-registry"]],
   ["npm", ["run", "check:screenprinting-foundation"]],
   ["npm", ["run", "check:self-contained-requirements"]],

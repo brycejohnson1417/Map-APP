@@ -8,6 +8,7 @@ import type {
   ChangeRequestRecord,
   ChangeRequestStatus,
 } from "@/lib/domain/change-request";
+import { createAttachmentSignedUrlMap } from "@/lib/application/change-requests/change-request-attachment-helpers";
 
 const ATTACHMENT_BUCKET = "change-request-attachments";
 
@@ -101,19 +102,34 @@ export class ChangeRequestRepository {
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
     const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
+    const signedUrlMap = await (async () => {
+      if (!attachmentRows.length) {
+        return new Map<string, string | null>();
+      }
+
+      try {
+        const { data, error } = await supabase.storage
+          .from(ATTACHMENT_BUCKET)
+          .createSignedUrls(
+            attachmentRows.map((attachment) => attachment.storage_path),
+            60 * 60,
+          );
+
+        if (error) {
+          throw error;
         }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+
+        return createAttachmentSignedUrlMap(
+          attachmentRows.map((attachment) => ({
+            id: attachment.id,
+            storagePath: attachment.storage_path,
+          })),
+          data ?? [],
+        );
+      } catch {
+        return new Map(attachmentRows.map((attachment) => [attachment.id, null] as const));
+      }
+    })();
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
