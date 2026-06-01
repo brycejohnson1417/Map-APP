@@ -108,6 +108,8 @@ See the docs below for the detailed plan.
 - [docs/tenant-types/SCHEMA.md](docs/tenant-types/SCHEMA.md)
 - [docs/AGENT_CONCURRENCY.md](docs/AGENT_CONCURRENCY.md)
 - [docs/AGENT_PROMPT_TEMPLATE.md](docs/AGENT_PROMPT_TEMPLATE.md)
+- [docs/AI_NATIVE_OPS_STRATEGY.md](docs/AI_NATIVE_OPS_STRATEGY.md)
+- [docs/90_DAY_BUILD_PLAN.md](docs/90_DAY_BUILD_PLAN.md)
 - [docs/STRATEGY.md](docs/STRATEGY.md)
 - [docs/PLATFORM_SPEC.md](docs/PLATFORM_SPEC.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
