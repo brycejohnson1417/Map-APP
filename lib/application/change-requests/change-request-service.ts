@@ -7,9 +7,11 @@ import type {
   ChangeRequestStatus,
 } from "@/lib/domain/change-request";
 import type { WorkspaceDefinition } from "@/lib/domain/workspace";
+import { runBoundedAttachmentTasks } from "@/lib/application/change-requests/change-request-attachment-helpers";
 import { ChangeRequestRepository } from "@/lib/infrastructure/supabase/change-request-repository";
 
 const repository = new ChangeRequestRepository();
+const attachmentUploadConcurrency = 3;
 
 function attachmentErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : "";
@@ -18,6 +20,23 @@ function attachmentErrorMessage(error: unknown) {
 
 function normalizeText(value: string | null | undefined) {
   return value?.trim() || null;
+}
+
+async function uploadAttachments(input: {
+  organizationId: string;
+  changeRequestId: string;
+  attachments?: File[];
+}) {
+  const attachments = (input.attachments ?? []).filter((attachment) => attachment && attachment.size > 0);
+  const results = await runBoundedAttachmentTasks(attachments, attachmentUploadConcurrency, async (attachment) =>
+    repository.uploadAttachment({
+      organizationId: input.organizationId,
+      changeRequestId: input.changeRequestId,
+      file: attachment,
+    }),
+  );
+
+  return results.flatMap((result) => (result.status === "rejected" ? [attachmentErrorMessage(result.reason)] : []));
 }
 
 function classifyRequest(
@@ -116,20 +135,13 @@ export async function createChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: request.id,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    warnings.push(
+      ...(await uploadAttachments({
+        organizationId: input.organizationId,
+        changeRequestId: request.id,
+        attachments: input.attachments,
+      })),
+    );
   }
 
   const [created] = await repository.listByOrganizationId(input.organizationId, 50);
@@ -189,20 +201,13 @@ export async function updateChangeRequest(input: {
   });
 
   if (input.workspace.changeRequests.allowAttachments) {
-    for (const attachment of input.attachments ?? []) {
-      if (!attachment || attachment.size <= 0) {
-        continue;
-      }
-      try {
-        await repository.uploadAttachment({
-          organizationId: input.organizationId,
-          changeRequestId: input.requestId,
-          file: attachment,
-        });
-      } catch (error) {
-        warnings.push(attachmentErrorMessage(error));
-      }
-    }
+    warnings.push(
+      ...(await uploadAttachments({
+        organizationId: input.organizationId,
+        changeRequestId: input.requestId,
+        attachments: input.attachments,
+      })),
+    );
   }
 
   return {
