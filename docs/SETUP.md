@@ -56,6 +56,8 @@ Provider credentials must be tenant-scoped. Use the organization slug prefix:
 - `<ORG>_GOOGLE_MAPS_BROWSER_API_KEY`
 - `<ORG>_GOOGLE_MAPS_SERVER_API_KEY`
 
+Printavo sync credentials are saved through the tenant connector setup UI/API and stored as encrypted integration secrets. Runtime Printavo sync does not accept ad hoc `email` or `apiKey` values in the sync request body.
+
 ### Platform-owned Meta OAuth app
 Meta/Instagram OAuth uses one platform-owned Meta app so tenants can authorize owned Instagram accounts from the frontend without handling app secrets.
 

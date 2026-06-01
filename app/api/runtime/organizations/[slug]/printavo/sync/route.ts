@@ -11,10 +11,6 @@ function numberInRange(value: unknown, fallback: number, min: number, max: numbe
   return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
-function readString(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
 async function resolveWorkspaceOrError(slug: string) {
   const workspace = await getWorkspaceExperienceBySlug(slug);
   if (!workspace.organization) {
@@ -73,8 +69,6 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   }
 
   const body = (await request.json().catch(() => ({}))) as {
-    email?: string;
-    apiKey?: string;
     pageLimit?: number;
     pageSize?: number;
     mode?: string;
@@ -88,8 +82,6 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     const result = await runPrintavoSync({
       organizationId: resolved.workspace.organization!.id,
       organizationSlug: resolved.workspace.organization!.slug,
-      email: readString(body.email),
-      apiKey: readString(body.apiKey),
       mode,
       pageLimit,
       pageSize,

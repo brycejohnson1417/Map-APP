@@ -111,13 +111,7 @@ async function writeBackfillCursor(input: {
 
 export async function resolveStoredPrintavoCredentials(input: {
   organizationId: string;
-  email: string | null;
-  apiKey: string | null;
 }) {
-  if (input.email && input.apiKey) {
-    return { email: input.email, apiKey: input.apiKey };
-  }
-
   const integration = await integrations.findByProvider(input.organizationId, "printavo");
   if (!integration) {
     return null;
@@ -187,8 +181,6 @@ export async function readPrintavoSyncStatus(organizationId: string) {
 export async function runPrintavoSync(input: {
   organizationId: string;
   organizationSlug: string;
-  email: string | null;
-  apiKey: string | null;
   mode: "latest" | "backfill";
   pageLimit: number;
   pageSize: number;
@@ -196,11 +188,9 @@ export async function runPrintavoSync(input: {
 }) {
   const credentials = await resolveStoredPrintavoCredentials({
     organizationId: input.organizationId,
-    email: input.email,
-    apiKey: input.apiKey,
   });
   if (!credentials) {
-    throw new Error("Printavo credentials are required or must be saved first.");
+    throw new Error("Save Printavo credentials before running sync.");
   }
 
   const previousBackfill = input.mode === "backfill" && !input.reset ? await readBackfillCursor(input.organizationId) : {};

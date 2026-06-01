@@ -64,8 +64,6 @@ export async function GET(request: Request) {
       const result = await runPrintavoSync({
         organizationId: organization.id,
         organizationSlug: organization.slug,
-        email: null,
-        apiKey: null,
         mode: "latest",
         pageLimit: 3,
         pageSize: 25,
