@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { SyncCursorRepository } from "@/lib/infrastructure/supabase/sync-cursor-repository";
 import { SyncJobRepository } from "@/lib/infrastructure/supabase/sync-job-repository";
@@ -10,6 +11,11 @@ const syncJobs = new SyncJobRepository();
 
 export async function GET(_: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view sync jobs.");
+  if (access.response) {
+    return access.response;
+  }
+
   const organization = await organizations.findBySlug(slug);
 
   if (!organization) {

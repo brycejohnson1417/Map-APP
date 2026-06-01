@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { calculatePppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
@@ -7,6 +8,11 @@ export async function POST(
   context: { params: Promise<{ slug: string; accountId: string }> | { slug: string; accountId: string } },
 ) {
   const { slug, accountId } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to calculate PPP savings.");
+  if (access.response) {
+    return access.response;
+  }
+
   const body = (await request.json().catch(() => ({}))) as { year?: unknown };
   const requestedYear = typeof body.year === "number" ? body.year : Number(body.year);
   const year = Number.isInteger(requestedYear) && requestedYear >= 2020 && requestedYear <= 2100 ? requestedYear : undefined;

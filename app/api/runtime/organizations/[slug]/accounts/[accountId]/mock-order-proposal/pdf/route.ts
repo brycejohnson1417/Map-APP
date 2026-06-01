@@ -1,3 +1,4 @@
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { buildMockOrderProposalReport } from "@/lib/application/runtime/mock-order-proposal-service";
 import { renderMockOrderProposalPdf } from "@/lib/application/runtime/mock-order-proposal-pdf";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
@@ -17,6 +18,11 @@ export async function GET(
   context: { params: Promise<{ slug: string; accountId: string }> | { slug: string; accountId: string } },
 ) {
   const { slug, accountId } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to download account proposals.");
+  if (access.response) {
+    return access.response;
+  }
+
   const report = await buildMockOrderProposalReport(slug, accountId);
 
   if (!report) {

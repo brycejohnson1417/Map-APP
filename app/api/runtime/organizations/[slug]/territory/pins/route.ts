@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { getTerritoryRuntimeDashboard } from "@/lib/application/runtime/territory-service";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view territory pins.");
+  if (access.response) {
+    return access.response;
+  }
+
   const url = new URL(request.url);
   const dashboard = await getTerritoryRuntimeDashboard(slug, {
     q: url.searchParams.get("q") ?? undefined,

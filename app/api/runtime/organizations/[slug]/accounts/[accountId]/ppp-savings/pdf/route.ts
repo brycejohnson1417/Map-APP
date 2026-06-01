@@ -1,3 +1,4 @@
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { calculatePppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 import { renderPppSavingsPdf } from "@/lib/application/runtime/ppp-savings-pdf";
 import { resolveRouteParams } from "@/lib/presentation/route-params";
@@ -23,6 +24,11 @@ export async function GET(
   context: { params: Promise<{ slug: string; accountId: string }> | { slug: string; accountId: string } },
 ) {
   const { slug, accountId } = await resolveRouteParams(context.params);
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to download PPP savings reports.");
+  if (access.response) {
+    return access.response;
+  }
+
   const report = await calculatePppSavingsReport(slug, accountId, requestedYearFromUrl(request));
 
   if (!report) {

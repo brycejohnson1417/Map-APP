@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import {
   buildMetaOAuthAuthorizationUrl,
   scopesForMetaMode,
@@ -14,8 +14,8 @@ import {
 
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to start Meta OAuth.");
+  if (access.response) {
     return NextResponse.redirect(new URL(`/login?org=${encodeURIComponent(slug)}`, request.url));
   }
 

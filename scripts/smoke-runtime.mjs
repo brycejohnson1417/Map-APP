@@ -7,11 +7,13 @@ if (!baseUrl) {
   throw new Error("SMOKE_BASE_URL is required");
 }
 
-async function assertOk(pathname, expectedStatus = 200) {
+async function assertOk(pathname, expectedStatus = 200, options = {}) {
   const url = new URL(pathname, baseUrl);
   const response = await fetch(url, {
+    ...options,
     headers: {
       "cache-control": "no-store",
+      ...options.headers,
     },
   });
 
@@ -39,7 +41,8 @@ async function main() {
 
   if (defaultOrgSlug) {
     await assertOk(`/runtime/${defaultOrgSlug}`);
-    const organizationResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`);
+    const tenantHeaders = { cookie: tenantCookieHeader(defaultOrgSlug) };
+    const organizationResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}`, 200, { headers: tenantHeaders });
     const organizationBody = await organizationResponse.json();
     if (!Array.isArray(organizationBody.snapshot?.recentAuditEvents)) {
       throw new Error("Runtime organization snapshot did not include recentAuditEvents");
@@ -48,23 +51,29 @@ async function main() {
       throw new Error("Runtime organization snapshot did not include syncJobStatusCounts");
     }
 
-    const syncJobsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/sync-jobs`);
+    const syncJobsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/sync-jobs`, 200, { headers: tenantHeaders });
     const syncJobsBody = await syncJobsResponse.json();
     if (!Array.isArray(syncJobsBody.statusCounts)) {
       throw new Error("Sync jobs response did not include statusCounts");
     }
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/overlays`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/map-config`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_referral_source`);
-    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_sample_delivery`);
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`, 200, { headers: tenantHeaders });
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/overlays`, 200, { headers: tenantHeaders });
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/map-config`, 200, { headers: tenantHeaders });
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_referral_source`, 200, {
+      headers: tenantHeaders,
+    });
+    await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins?flag=missing_sample_delivery`, 200, {
+      headers: tenantHeaders,
+    });
 
-    const pinsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`);
+    const pinsResponse = await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/territory/pins`, 200, {
+      headers: tenantHeaders,
+    });
     const pinsBody = await pinsResponse.json();
     const firstAccountId = Array.isArray(pinsBody.pins) ? pinsBody.pins[0]?.id : null;
     if (firstAccountId) {
       await assertOk(`/accounts/${firstAccountId}?org=${defaultOrgSlug}`);
-      await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/accounts/${firstAccountId}`);
+      await assertOk(`/api/runtime/organizations/${defaultOrgSlug}/accounts/${firstAccountId}`, 200, { headers: tenantHeaders });
     }
 
     const changeRequestForm = new FormData();

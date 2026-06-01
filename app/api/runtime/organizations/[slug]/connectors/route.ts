@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import { registerIntegration } from "@/lib/application/runtime/bootstrap-service";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
 import { IntegrationRepository } from "@/lib/infrastructure/supabase/integration-repository";
@@ -15,9 +15,9 @@ const requestSchema = z.object({
 
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> | { slug: string } }) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json({ ok: false, error: "Tenant login is required to update connectors." }, { status: 401 });
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to update connectors.");
+  if (access.response) {
+    return access.response;
   }
 
   const workspace = await getWorkspaceExperienceBySlug(slug);
@@ -60,7 +60,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
   const config: Record<string, unknown> = {
     ...(connector.provider === "meta" ? existingIntegration?.config ?? {} : {}),
-    savedByEmail: sessionEmail,
+    savedByEmail: access.sessionEmail,
     selfServeConfiguredAt: new Date().toISOString(),
     fields: connector.provider === "meta" ? { ...existingFields } : {},
     secretFieldKeys: [],

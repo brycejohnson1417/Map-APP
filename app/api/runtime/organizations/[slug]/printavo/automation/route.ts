@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenantSessionEmailForSlug } from "@/lib/application/auth/tenant-session";
+import { requireRuntimeTenantAccess } from "@/lib/application/auth/runtime-authorization";
 import {
   mergePrintavoAutoSyncSettings,
   resolvePrintavoAutoSyncSettings,
@@ -14,12 +14,9 @@ export async function GET(
   context: { params: Promise<{ slug: string }> | { slug: string } },
 ) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json(
-      { ok: false, error: "Tenant login is required to view Printavo automation settings." },
-      { status: 401 },
-    );
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to view Printavo automation settings.");
+  if (access.response) {
+    return access.response;
   }
 
   const organization = await organizations.findBySlug(slug);
@@ -38,12 +35,9 @@ export async function PATCH(
   context: { params: Promise<{ slug: string }> | { slug: string } },
 ) {
   const { slug } = await resolveRouteParams(context.params);
-  const sessionEmail = await getTenantSessionEmailForSlug(slug);
-  if (!sessionEmail) {
-    return NextResponse.json(
-      { ok: false, error: "Tenant login is required to update Printavo automation settings." },
-      { status: 401 },
-    );
+  const access = await requireRuntimeTenantAccess(slug, "Tenant login is required to update Printavo automation settings.");
+  if (access.response) {
+    return access.response;
   }
 
   const organization = await organizations.findBySlug(slug);
