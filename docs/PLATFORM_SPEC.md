@@ -49,7 +49,7 @@ The repo is partially there already:
 - shared tenant-aware runtime exists
 - tenant-type-aware onboarding v1 exists
 - current tenants already use differentiated workspaces
-- adapters for Notion, Nabis, Printavo, CSV-style mapping patterns, and Google Maps/geocoding are in flight or landed
+- adapters for Notion, Nabis, Printavo, CSV-style mapping patterns, and OpenStreetMap/Open Geocoding are in flight or landed
 - account, territory, and document flows are live
 - workspace manifests and package manifests are live
 - tenant type manifests and docs now separate Screenprinting from Cannabis Wholesale

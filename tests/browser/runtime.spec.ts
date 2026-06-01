@@ -288,6 +288,32 @@ test.describe("mobile annotation mode", () => {
     await expect(page.getByText(/selected account/i)).toBeVisible();
   });
 
+  test("mobile territory hydrates without React console errors", async ({ page, context, baseURL }) => {
+    const orgSlug = testTenantOrgSlug();
+    await seedTenantSession({ context, baseURL, orgSlug });
+    const reactErrors: string[] = [];
+    const blockedPatterns = [/hydration failed/i, /same key/i];
+
+    page.on("console", (message) => {
+      const text = message.text();
+      if (blockedPatterns.some((pattern) => pattern.test(text))) {
+        reactErrors.push(text);
+      }
+    });
+    page.on("pageerror", (error) => {
+      const text = error.message;
+      if (blockedPatterns.some((pattern) => pattern.test(text))) {
+        reactErrors.push(text);
+      }
+    });
+
+    await page.goto(`/territory?org=${encodeURIComponent(orgSlug)}`);
+    await expect(page.getByRole("button", { name: /open workspace navigation/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    expect(reactErrors).toEqual([]);
+  });
+
   test("mobile comment submit still works when screenshot annotation fails", async ({ page, context, baseURL }) => {
     const orgSlug = testTenantOrgSlug();
     await seedTenantSession({ context, baseURL, orgSlug });

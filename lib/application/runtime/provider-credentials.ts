@@ -36,42 +36,6 @@ async function readSecret<T>(organizationId: string, installationId: string, key
   return integrations.readSecret<T>(organizationId, installationId, keyName);
 }
 
-export async function resolveTenantGoogleMapsBrowserKey(input: {
-  organizationId: string;
-  organizationSlug: string;
-}) {
-  const installation = await findIntegration(input.organizationId, "google_maps");
-  const browserKeyFromConfig = cleanString(installation?.config.browserApiKey);
-  if (browserKeyFromConfig) {
-    return browserKeyFromConfig;
-  }
-
-  return readTenantScopedEnvironmentValue(input.organizationSlug, "GOOGLE_MAPS_BROWSER_API_KEY");
-}
-
-export async function resolveTenantGoogleMapsServerKey(input: {
-  organizationId: string;
-  organizationSlug: string;
-}) {
-  const installation = await findIntegration(input.organizationId, "google_maps");
-  if (installation) {
-    const directKey = cleanString(
-      await readSecret<string | { serverApiKey?: string }>(input.organizationId, installation.id, "serverApiKey"),
-    );
-    if (directKey) {
-      return directKey;
-    }
-
-    const wrappedKey = await readSecret<{ serverApiKey?: string }>(input.organizationId, installation.id, "credentials");
-    const nestedKey = cleanString(wrappedKey?.serverApiKey);
-    if (nestedKey) {
-      return nestedKey;
-    }
-  }
-
-  return readTenantScopedEnvironmentValue(input.organizationSlug, "GOOGLE_MAPS_SERVER_API_KEY");
-}
-
 interface NabisCredentialSecret {
   apiKey?: string;
   apiBaseUrl?: string;

@@ -18,7 +18,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md).
 | Lint | `oxlint app components lib scripts --deny-warnings` |
 | Styling | Tailwind CSS `4.x` through PostCSS and `app/globals.css` |
 | Icons | `lucide-react` |
-| Maps | Leaflet is present in the app. Google Maps keys are tenant-scoped where Google services are used for browser/server map features. OpenStreetMap tile config is used as the browser fallback when no tenant Google Maps browser key is configured. |
+| Maps | Leaflet renders tenant maps with OpenStreetMap tile config. Google Maps keys are intentionally not active in map-app for now. |
 | Database | Supabase Postgres with additive SQL migrations under `supabase/migrations/` |
 | Supabase client | `@supabase/supabase-js` `^2.57.4` |
 | Auth state | Current tenant access uses tenant-session cookies and server-side checks. Clerk env vars are listed in setup, but the committed tenant runtime routes currently enforce tenant-session access rather than relying on a direct Clerk client policy. |
@@ -62,7 +62,6 @@ Use [SETUP.md](SETUP.md) for environment variables. Important groups:
 - tenant-session and auth settings
 - tenant-scoped connector credentials
 - platform-owned Meta OAuth app credentials
-- tenant-scoped Google Maps keys
 - optional Vercel verification variables
 
 ## Next.js Version Warning
