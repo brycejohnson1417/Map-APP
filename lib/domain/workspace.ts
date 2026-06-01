@@ -13,6 +13,7 @@ export type WorkspacePrimitiveId =
   | "sort_filter_set"
   | "trend_module"
   | "territory_pin_layer"
+  | "route_planning"
   | "filter_registry"
   | "geocoding_policy"
   | "change_request"

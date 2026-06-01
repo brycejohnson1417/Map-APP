@@ -148,6 +148,7 @@ These are already live in the current repo:
 - integrations-route behavior per workspace
 - navigation model per workspace
 - route-planning plugin default per workspace
+- saved route and call-list navigation when `territory-map-kit` is installed
 - territory default color modes and visible map color modes
 - geocoding placeholder/suppressed-address policy for FraterniTees
 - FraterniTees and PICC tenant type references in their workspace manifests

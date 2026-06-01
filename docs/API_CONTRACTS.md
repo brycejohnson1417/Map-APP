@@ -267,6 +267,182 @@ Errors:
 
 Cache: `private, max-age=300, stale-while-revalidate=900`.
 
+### `GET /api/runtime/organizations/[slug]/routes`
+
+Purpose: list tenant-scoped saved routes visible to the current tenant session. Managers can see all routes in the organization; reps can see their own routes, organization-visible routes, and routes shared with their email.
+
+Auth: tenant session required. This route reads only product-owned route data and does not call map, email, Printavo, Nabis, or other provider write APIs.
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "routes": ["SavedRoutePlan"]
+}
+```
+
+Errors:
+
+- `401 { "ok": false, "error": "Tenant login is required to view saved routes." }`
+- `404 { "ok": false, "error": "organization_not_found" }`
+
+Cache: `no-store`.
+
+### `POST /api/runtime/organizations/[slug]/routes`
+
+Purpose: create a saved optimized route from selected tenant account ids.
+
+Auth: tenant session required.
+
+Request JSON:
+
+```json
+{
+  "name": "Morning campus loop",
+  "description": "Optional notes",
+  "accountIds": ["account-uuid"],
+  "visibility": "private",
+  "sharedWithEmails": ["manager@example.com"],
+  "start": { "label": "Warehouse", "latitude": 40.7, "longitude": -74.0 },
+  "end": null,
+  "sourceFilters": { "leadGrade": "A" }
+}
+```
+
+Behavior:
+
+- Accounts are resolved by `organization_id`; ids from another tenant are ignored.
+- Mappable stops are ordered by local nearest-neighbor optimization.
+- Accounts without usable coordinates are persisted as `needs_review` stops instead of being silently dropped.
+- `sharedWithEmails` is accepted only for manager-level users when visibility is `shared`.
+- The route creation records a `route_plan_created` audit event.
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "route": "SavedRoutePlan"
+}
+```
+
+Errors:
+
+- `400` for missing name, empty selections, invalid sharing, or persistence errors.
+- `401 { "ok": false, "error": "Tenant login is required to save routes." }`
+- `404 { "ok": false, "error": "organization_not_found" }`
+
+Cache: `no-store`.
+
+### `GET /api/runtime/organizations/[slug]/routes/[routeId]`
+
+Purpose: return one saved route with ordered stops for call-list execution.
+
+Auth: tenant session required. Read access follows owner, manager, organization visibility, and shared-email rules.
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "route": "SavedRoutePlan"
+}
+```
+
+Errors:
+
+- `401 { "ok": false, "error": "Tenant login is required to view saved routes." }`
+- `404 { "ok": false, "error": "route_not_found" }`
+
+Cache: `no-store`.
+
+### `PATCH /api/runtime/organizations/[slug]/routes/[routeId]`
+
+Purpose: edit saved route metadata, archive status, visibility, and share targets.
+
+Auth: tenant session required. Managers and route owners can edit. Shared-route writes remain app-local and do not notify or email recipients.
+
+Request JSON:
+
+```json
+{
+  "name": "Renamed route",
+  "description": "Updated notes",
+  "visibility": "shared",
+  "sharedWithEmails": ["rep@example.com"],
+  "status": "archived"
+}
+```
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "route": "SavedRoutePlan"
+}
+```
+
+Side effects: records a `route_plan_updated` audit event.
+
+### `DELETE /api/runtime/organizations/[slug]/routes/[routeId]`
+
+Purpose: delete a saved route and its stops.
+
+Auth: tenant session required. Managers and route owners can delete. The UI must present a destructive confirmation before calling this route.
+
+Success response:
+
+```json
+{ "ok": true }
+```
+
+### `POST /api/runtime/organizations/[slug]/routes/[routeId]/duplicate`
+
+Purpose: duplicate a visible route into a private route owned by the current session email. Stop completion state is reset to `planned` while `needs_review` stops stay in review.
+
+Auth: tenant session required.
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "route": "SavedRoutePlan"
+}
+```
+
+### `POST /api/runtime/organizations/[slug]/routes/[routeId]/stops/[stopId]/complete`
+
+Purpose: complete one call-list stop from the saved route execution UI.
+
+Auth: tenant session required.
+
+Request JSON:
+
+```json
+{
+  "note": "Optional completion note"
+}
+```
+
+Behavior:
+
+- Writes one local `activity` row with `activity_type = "route_stop_completed"`.
+- Updates the local account `last_contacted_at` and route stop completion state.
+- Records a `route_stop_completed` audit event.
+- Does not send email and does not mutate Printavo, Nabis, Google, Meta, or any provider system.
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "route": "SavedRoutePlan"
+}
+```
+
 ### `GET /api/runtime/organizations/[slug]/sync-jobs`
 
 Purpose: sync operations visibility.

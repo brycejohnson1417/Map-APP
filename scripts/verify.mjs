@@ -7,6 +7,8 @@ const steps = [
   ["npm", ["run", "check:tenant-isolation"]],
   ["npm", ["run", "check:work-registry"]],
   ["npm", ["run", "check:screenprinting-foundation"]],
+  ["npm", ["run", "check:saved-route-planner"]],
+  ["npm", ["run", "check:saved-route-builder"]],
   ["npm", ["run", "check:self-contained-requirements"]],
   ["npm", ["run", "check:tenant-types"]],
   ["npm", ["run", "build"]],

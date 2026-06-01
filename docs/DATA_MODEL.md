@@ -296,6 +296,74 @@ Indexes and constraints:
 
 RLS: enabled. Current access path is trusted server-side code.
 
+### `public.route_plan`
+
+Tenant-scoped saved route or call-list header owned by Map App.
+
+| Column | Type | Required | Notes |
+|---|---:|---:|---|
+| `id` | `uuid` | yes | Primary key. |
+| `organization_id` | `uuid` | yes | FK to `organization(id)` with cascade delete. |
+| `name` | `text` | yes | User-visible route name. |
+| `description` | `text` | no | Optional route notes. |
+| `status` | `text` | yes | `draft`, `active`, `completed`, or `archived`. |
+| `visibility` | `text` | yes | `private`, `organization`, or `shared`. |
+| `owner_email` | `text` | yes | Tenant member email that owns the route. |
+| `shared_with_emails` | `text[]` | yes | Explicit share targets for `shared` visibility. |
+| `start_label` | `text` | no | Optional start label. |
+| `start_latitude` | `double precision` | no | Optional start latitude. |
+| `start_longitude` | `double precision` | no | Optional start longitude. |
+| `end_label` | `text` | no | Optional end label. |
+| `end_latitude` | `double precision` | no | Optional end latitude. |
+| `end_longitude` | `double precision` | no | Optional end longitude. |
+| `optimization_mode` | `text` | yes | Default `nearest_neighbor`. |
+| `source_filters` | `jsonb` | yes | Territory filters used when the route was saved. |
+| `stats` | `jsonb` | yes | Stop counts, review counts, estimated distance, and estimated duration. |
+| `created_at` | `timestamptz` | yes | Default `now()`. |
+| `updated_at` | `timestamptz` | yes | Default `now()`. |
+
+Indexes and constraints:
+
+- `(organization_id, updated_at desc)`
+- `(organization_id, owner_email, updated_at desc)`
+- check constraints for `status` and `visibility`
+
+RLS: enabled. Current access path is tenant-session-protected server routes using trusted server-side code.
+
+### `public.route_stop`
+
+Ordered route stop for saved routes and mobile call-list execution.
+
+| Column | Type | Required | Notes |
+|---|---:|---:|---|
+| `id` | `uuid` | yes | Primary key. |
+| `organization_id` | `uuid` | yes | FK to `organization(id)` with cascade delete. |
+| `route_plan_id` | `uuid` | yes | FK to `route_plan(id)` with cascade delete. |
+| `account_id` | `uuid` | no | FK to `account(id)` with set null. |
+| `stop_index` | `integer` | yes | One-based route/call-list order. |
+| `status` | `text` | yes | `planned`, `needs_review`, `completed`, or `skipped`. |
+| `account_name` | `text` | yes | Snapshot name used when the route was saved. |
+| `city` | `text` | no | Snapshot city. |
+| `state` | `text` | no | Snapshot state. |
+| `latitude` | `double precision` | no | Snapshot latitude. |
+| `longitude` | `double precision` | no | Snapshot longitude. |
+| `distance_from_previous_miles` | `numeric(10,2)` | no | Estimated local route leg distance. |
+| `estimated_duration_from_previous_minutes` | `integer` | no | Estimated local route leg duration. |
+| `notes` | `text` | no | Completion or execution notes. |
+| `completed_at` | `timestamptz` | no | Completion timestamp. |
+| `completion_activity_id` | `uuid` | no | FK to `activity(id)` with set null. |
+| `created_at` | `timestamptz` | yes | Default `now()`. |
+| `updated_at` | `timestamptz` | yes | Default `now()`. |
+
+Indexes and constraints:
+
+- unique `(route_plan_id, stop_index)`
+- `(route_plan_id, stop_index)`
+- `(organization_id, account_id)`
+- check constraint for `status`
+
+RLS: enabled. Current access path is tenant-session-protected server routes using trusted server-side code.
+
 ### `public.territory_boundary`
 
 Tenant map boundary.

@@ -2,8 +2,8 @@
   "id": "territory-map-kit",
   "version": 1,
   "name": "Territory Map Kit",
-  "description": "Map/list territory experience with pin filtering, map controls, and geocoding-aware rules.",
-  "primitives": ["territory_pin_layer", "filter_registry", "geocoding_policy"],
-  "surfaces": ["territory"],
+  "description": "Map/list territory experience with pin filtering, saved routes, call lists, map controls, and geocoding-aware rules.",
+  "primitives": ["territory_pin_layer", "route_planning", "filter_registry", "geocoding_policy"],
+  "surfaces": ["territory", "routes"],
   "status": "active"
 }

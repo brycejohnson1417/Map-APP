@@ -16,7 +16,9 @@ import {
   Navigation,
   RefreshCw,
   Route,
+  Save,
   Search,
+  Share2,
   X,
 } from "lucide-react";
 import type {
@@ -71,6 +73,12 @@ interface MapConfigResponse {
 interface AccountResponse {
   ok: boolean;
   detail: AccountRuntimeDetail;
+}
+
+interface SavedRouteResponse {
+  ok: boolean;
+  route?: { id: string; name: string };
+  error?: string;
 }
 
 interface TerritoryWorkspaceProps {
@@ -546,6 +554,10 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(initialDashboard.pins[0]?.id ?? null);
   const [routeStopIds, setRouteStopIds] = useState<string[]>([]);
+  const [routeName, setRouteName] = useState("Field route");
+  const [routeVisibility, setRouteVisibility] = useState<"private" | "organization" | "shared">("private");
+  const [routeShareEmails, setRouteShareEmails] = useState("");
+  const [savingRoute, setSavingRoute] = useState(false);
   const [detail, setDetail] = useState<AccountRuntimeDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [checkInNote, setCheckInNote] = useState("");
@@ -578,6 +590,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         : [],
     [pins, routePlanningEnabled, routeStopIds],
   );
+  const routeReviewStops = useMemo(() => routeStops.filter((pin) => !hasUsableCoordinates(pin)), [routeStops]);
+  const routeMappableStops = useMemo(() => routeStops.filter(hasUsableCoordinates), [routeStops]);
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const useLiteMarkers = isNarrowViewport || mappablePinCount > 1200;
@@ -1262,6 +1276,45 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     }
   }
 
+  async function saveRoutePlan() {
+    if (!routeStops.length) {
+      setNotice("Add at least one account before saving a route.");
+      return;
+    }
+
+    setSavingRoute(true);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/runtime/organizations/${orgSlug}/routes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: routeName.trim() || "Field route",
+          accountIds: routeStopIds,
+          visibility: routeVisibility,
+          sharedWithEmails: routeShareEmails.split(",").map((email) => email.trim()).filter(Boolean),
+          sourceFilters: filters,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as SavedRouteResponse;
+      if (!response.ok || !payload.ok || !payload.route) {
+        throw new Error(payload.error || `Route save failed: ${response.status}`);
+      }
+
+      setNotice(`Saved route "${payload.route.name}". Open Routes to execute it.`);
+      setRouteStopIds([]);
+      setRouteName("Field route");
+      setRouteShareEmails("");
+      setRouteVisibility("private");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Route save failed");
+    } finally {
+      setSavingRoute(false);
+    }
+  }
+
   const directionsHref = getDirectionsHref(selectedPin, mapConfig?.mapProvider ?? "openstreetmap");
   const notionHref = getNotionHref(detail);
   const organizationName = initialDashboard.organization.name;
@@ -1793,6 +1846,73 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                       ))}
                       {!routeStops.length ? <p className="text-sm text-[var(--text-secondary)]">Add accounts to preview a route on the map.</p> : null}
                     </div>
+                    {routeStops.length ? (
+                      <div className="mt-4 space-y-3 border-t border-[var(--border-subtle)] pt-4">
+                        <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+                          <span className="rounded-lg bg-[var(--surface-elevated)] px-3 py-2">{routeMappableStops.length} routable</span>
+                          <span className="rounded-lg bg-[var(--surface-elevated)] px-3 py-2">{routeReviewStops.length} review</span>
+                          <span className="rounded-lg bg-[var(--surface-elevated)] px-3 py-2">{activeFilterCount} filters</span>
+                        </div>
+                        {routeReviewStops.length ? (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
+                            Missing coordinates: {routeReviewStops.map((pin) => pin.name).join(", ")}
+                          </div>
+                        ) : null}
+                        <label className="block">
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Route name</span>
+                          <input
+                            value={routeName}
+                            onChange={(event) => setRouteName(event.target.value)}
+                            className="mt-2 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 text-sm font-semibold outline-none"
+                          />
+                        </label>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          {(["private", "organization", "shared"] as const).map((visibility) => (
+                            <button
+                              key={visibility}
+                              type="button"
+                              onClick={() => setRouteVisibility(visibility)}
+                              className={classNames(
+                                "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold capitalize",
+                                routeVisibility === visibility
+                                  ? "border-[var(--accent-primary)] bg-[rgba(215,67,20,0.1)] text-[var(--accent-primary-strong)]"
+                                  : "border-[var(--border-subtle)] bg-[var(--surface-elevated)]",
+                              )}
+                            >
+                              {visibility === "shared" ? <Share2 className="h-3.5 w-3.5" /> : null}
+                              {visibility}
+                            </button>
+                          ))}
+                        </div>
+                        {routeVisibility === "shared" ? (
+                          <input
+                            value={routeShareEmails}
+                            onChange={(event) => setRouteShareEmails(event.target.value)}
+                            placeholder="teammate@example.com, manager@example.com"
+                            className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 text-sm outline-none"
+                          />
+                        ) : null}
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => void saveRoutePlan()}
+                            disabled={savingRoute}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                            style={{ color: "#fff" }}
+                          >
+                            {savingRoute ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save route
+                          </button>
+                          <a
+                            href={orgScopedHref("/routes", orgSlug)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-semibold"
+                          >
+                            <Route className="h-4 w-4" />
+                            Open Routes
+                          </a>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

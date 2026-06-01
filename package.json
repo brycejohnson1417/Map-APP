@@ -20,6 +20,8 @@
     "check:self-contained-requirements": "node scripts/check-self-contained-requirements.mjs",
     "check:work-registry": "node scripts/check-work-registry.mjs",
     "check:screenprinting-foundation": "node scripts/check-screenprinting-foundation.mjs",
+    "check:saved-route-planner": "node scripts/test-saved-route-planner.mjs",
+    "check:saved-route-builder": "node scripts/check-saved-route-builder.mjs",
     "verify:browser": "playwright test",
     "verify": "node scripts/verify.mjs",
     "review:adversarial": "node scripts/adversarial-review.mjs",

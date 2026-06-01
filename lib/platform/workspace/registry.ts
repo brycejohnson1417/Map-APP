@@ -15,11 +15,19 @@ import type { PackageManifest, WorkspaceDefinition, WorkspaceTemplateSummary } f
 
 const CHANGE_REQUEST_PACKAGE_ID = "change-request-kit";
 const CHANGE_REQUEST_NAV_ID = "change_requests";
+const TERRITORY_MAP_PACKAGE_ID = "territory-map-kit";
+const ROUTES_NAV_ID = "routes";
 const CHANGE_REQUEST_NAV_ITEM: WorkspaceDefinition["navigation"][number] = {
   id: CHANGE_REQUEST_NAV_ID,
   label: "Change Requests",
   href: "/change-requests",
   icon: "MessagesSquare",
+};
+const ROUTES_NAV_ITEM: WorkspaceDefinition["navigation"][number] = {
+  id: ROUTES_NAV_ID,
+  label: "Routes",
+  href: "/routes",
+  icon: "Route",
 };
 
 const fraterniteesWorkspaceDefinition = fraterniteesWorkspace as WorkspaceDefinition;
@@ -108,6 +116,25 @@ function normalizeChangeRequestSupport(workspace: WorkspaceDefinition): Workspac
   return normalized;
 }
 
+function normalizeRoutePlanningSupport(workspace: WorkspaceDefinition): WorkspaceDefinition {
+  const normalized = structuredClone(workspace);
+
+  if (
+    normalized.packages.includes(TERRITORY_MAP_PACKAGE_ID) &&
+    !normalized.navigation.some((item) => item.id === ROUTES_NAV_ID || item.href === ROUTES_NAV_ITEM.href)
+  ) {
+    const territoryIndex = normalized.navigation.findIndex((item) => item.id === "territory" || item.href === "/territory");
+    const insertIndex = territoryIndex >= 0 ? territoryIndex + 1 : normalized.navigation.length;
+    normalized.navigation = [
+      ...normalized.navigation.slice(0, insertIndex),
+      ROUTES_NAV_ITEM,
+      ...normalized.navigation.slice(insertIndex),
+    ];
+  }
+
+  return normalized;
+}
+
 export function listWorkspaceTemplates(): WorkspaceTemplateSummary[] {
   return workspaceTemplates
     .map((workspace) => ({
@@ -168,7 +195,7 @@ export function compileWorkspaceDefinition(input: {
       ? ((input.organization.settings.workspace as Record<string, unknown>).overrides as Record<string, unknown> | undefined)
       : undefined;
 
-  const compiled = normalizeChangeRequestSupport(deepMerge<WorkspaceDefinition>(baseWorkspace, overrides));
+  const compiled = normalizeRoutePlanningSupport(normalizeChangeRequestSupport(deepMerge<WorkspaceDefinition>(baseWorkspace, overrides)));
 
   for (const packageId of compiled.packages) {
     if (!packageManifestById.has(packageId)) {
