@@ -1,6 +1,6 @@
 import "server-only";
 
-import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
+import PDFDocument from "pdfkit";
 import type { MockOrderProposalItem, MockOrderProposalReport } from "@/lib/application/runtime/mock-order-proposal-service";
 
 const PAGE_MARGIN = 36;

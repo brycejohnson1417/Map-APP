@@ -1,6 +1,6 @@
 import "server-only";
 
-import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
+import PDFDocument from "pdfkit";
 import type { PppDiscountBreakdownRow, PppSavingsOrder, PppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 
 const PAGE_MARGIN = 12;
