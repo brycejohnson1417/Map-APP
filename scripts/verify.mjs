@@ -9,6 +9,7 @@ const steps = [
   ["npm", ["run", "check:change-request-attachments"]],
   ["npm", ["run", "check:browser-supabase-boundary:self-test"]],
   ["npm", ["run", "check:browser-supabase-boundary"]],
+  ["npm", ["run", "check:rls-tenant-scope-policies"]],
   ["npm", ["run", "check:work-registry"]],
   ["npm", ["run", "check:screenprinting-foundation"]],
   ["npm", ["run", "check:self-contained-requirements"]],
