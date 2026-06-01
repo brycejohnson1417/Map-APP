@@ -115,4 +115,4 @@ The command reads Notion companies/contacts and Nabis orders, then writes normal
 Supabase `account`, `contact`, `account_identity`, `order_record`, `sync_cursor`, `sync_job`, and
 `audit_event`. It does not write back to Notion.
 
-For PICC NY, `NABIS_ORDERS_PATH` should point at the NY orders endpoint: `/ny/order`.
+For PICC NY, `PICC_NABIS_ORDERS_PATH` should point at the NY orders endpoint: `/ny/order`.
