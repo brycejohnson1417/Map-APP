@@ -5,6 +5,7 @@ const steps = [
   ["npm", ["run", "lint"]],
   ["npm", ["run", "check:tenant-isolation:self-test"]],
   ["npm", ["run", "check:tenant-isolation"]],
+  ["npm", ["run", "check:screenprinting-reference-validation"]],
   ["npm", ["run", "check:work-registry"]],
   ["npm", ["run", "check:screenprinting-foundation"]],
   ["npm", ["run", "check:self-contained-requirements"]],

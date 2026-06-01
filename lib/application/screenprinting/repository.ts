@@ -193,6 +193,39 @@ export interface ScreenprintingSyncCursorRow {
   last_error: string | null;
 }
 
+export type ScreenprintingReferenceType =
+  | "account"
+  | "contact"
+  | "order"
+  | "opportunity"
+  | "socialAccount"
+  | "socialPost"
+  | "campaign"
+  | "alert"
+  | "dashboard";
+
+export interface ScreenprintingReferenceCheck {
+  type: ScreenprintingReferenceType;
+  id: string | null | undefined;
+}
+
+export interface InvalidScreenprintingReference {
+  type: ScreenprintingReferenceType;
+  id: string;
+}
+
+const screenprintingReferenceTables: Record<ScreenprintingReferenceType, string> = {
+  account: "account",
+  contact: "contact",
+  order: "order_record",
+  opportunity: "opportunity",
+  socialAccount: "social_account",
+  socialPost: "social_post",
+  campaign: "campaign",
+  alert: "alert_instance",
+  dashboard: "dashboard_definition",
+};
+
 function isMissingTableError(error: unknown) {
   const message = error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "";
   return /does not exist|schema cache|Could not find the table|PGRST205/i.test(message);
@@ -230,6 +263,47 @@ async function maybeSingle<T>(query: PromiseLike<{ data: T | null; error: unknow
 }
 
 export class ScreenprintingRepository {
+  async findInvalidOrganizationReferences(
+    organizationId: string,
+    references: ScreenprintingReferenceCheck[],
+  ): Promise<InvalidScreenprintingReference[]> {
+    const supabase = getSupabaseAdminClient() as any;
+    const referencesByType = new Map<ScreenprintingReferenceType, Set<string>>();
+    for (const reference of references) {
+      const id = typeof reference.id === "string" && reference.id.trim() ? reference.id.trim() : null;
+      if (!id) {
+        continue;
+      }
+      const current = referencesByType.get(reference.type) ?? new Set<string>();
+      current.add(id);
+      referencesByType.set(reference.type, current);
+    }
+
+    const invalid: InvalidScreenprintingReference[] = [];
+    for (const [type, ids] of referencesByType) {
+      const table = screenprintingReferenceTables[type];
+      const expectedIds = [...ids];
+      const { data, error } = await supabase
+        .from(table)
+        .select("id")
+        .eq("organization_id", organizationId)
+        .in("id", expectedIds);
+
+      if (error) {
+        throw error;
+      }
+
+      const found = new Set((data ?? []).map((row: { id: string }) => row.id));
+      for (const id of expectedIds) {
+        if (!found.has(id)) {
+          invalid.push({ type, id });
+        }
+      }
+    }
+
+    return invalid;
+  }
+
   async countAccounts(organizationId: string) {
     const supabase = getSupabaseAdminClient() as any;
     const { count, error } = await supabase

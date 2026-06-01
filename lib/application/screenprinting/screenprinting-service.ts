@@ -22,6 +22,7 @@ import {
 } from "@/lib/application/screenprinting/audit-hooks";
 import {
   ScreenprintingRepository,
+  type ScreenprintingReferenceCheck,
   type ScreenprintingAlertRow,
   type ScreenprintingCampaignRow,
   type ScreenprintingDashboardDefinitionRow,
@@ -234,6 +235,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+async function assertScreenprintingReferences(organizationId: string, references: ScreenprintingReferenceCheck[]) {
+  const invalid = await repository.findInvalidOrganizationReferences(organizationId, references);
+  if (invalid.length) {
+    throw new ScreenprintingServiceError(
+      "invalid_screenprinting_reference",
+      400,
+      "One or more referenced screenprinting records do not belong to this organization.",
+    );
+  }
 }
 
 function toDateOnly(value: string | null | undefined) {
@@ -1099,6 +1111,11 @@ export async function listScreenprintingOpportunities(slug: string) {
 export async function createScreenprintingOpportunity(slug: string, input: Record<string, unknown>) {
   const context = await resolveContext(slug);
   const organization = requireOrganization(context);
+  await assertScreenprintingReferences(organization.id, [
+    { type: "account", id: firstString(input.accountId) },
+    { type: "contact", id: firstString(input.contactId) },
+    { type: "order", id: firstString(input.sourceOrderId) },
+  ]);
   const opportunity = opportunityFromRow(await repository.createOpportunity(organization.id, input));
   await recordScreenprintingAuditEvent({
     organizationId: organization.id,
@@ -1113,6 +1130,10 @@ export async function createScreenprintingOpportunity(slug: string, input: Recor
 export async function updateScreenprintingOpportunity(slug: string, opportunityId: string, input: Record<string, unknown>) {
   const context = await resolveContext(slug);
   const organization = requireOrganization(context);
+  await assertScreenprintingReferences(organization.id, [
+    { type: "account", id: firstString(input.accountId) },
+    { type: "contact", id: firstString(input.contactId) },
+  ]);
   const opportunity = opportunityFromRow(await repository.updateOpportunity(organization.id, opportunityId, input));
   await recordScreenprintingAuditEvent({
     organizationId: organization.id,
@@ -1536,6 +1557,10 @@ export async function createScreenprintingSocialAccount(slug: string, input: Rec
   if (!handle) {
     throw new ScreenprintingServiceError("social_handle_required", 400, "A social handle is required.");
   }
+  await assertScreenprintingReferences(organization.id, [
+    { type: "account", id: firstString(input.accountId) },
+    { type: "contact", id: firstString(input.contactId) },
+  ]);
   const metadata = {
     ...asRecord(input.metadata),
     providerWriteBack: false,
@@ -1821,6 +1846,10 @@ export async function getScreenprintingSocialAccount(slug: string, socialAccount
 export async function updateScreenprintingSocialAccount(slug: string, socialAccountId: string, input: Record<string, unknown>) {
   const context = await resolveContext(slug);
   const organization = requireOrganization(context);
+  await assertScreenprintingReferences(organization.id, [
+    { type: "account", id: firstString(input.accountId) },
+    { type: "contact", id: firstString(input.contactId) },
+  ]);
   const socialAccount = socialAccountFromRow(await repository.updateSocialAccount(organization.id, socialAccountId, input));
   await recordScreenprintingAuditEvent({
     organizationId: organization.id,
@@ -1845,6 +1874,11 @@ export async function createScreenprintingSocialPost(slug: string, input: Record
   if (!socialAccountId) {
     throw new ScreenprintingServiceError("social_account_required", 400, "A social account is required for a draft post.");
   }
+  await assertScreenprintingReferences(organization.id, [
+    { type: "socialAccount", id: socialAccountId },
+    { type: "campaign", id: firstString(input.campaignId) },
+    { type: "account", id: firstString(input.accountId) },
+  ]);
   const post = socialPostFromRow(
     await repository.createSocialPost(organization.id, {
       socialAccountId,
@@ -1948,6 +1982,8 @@ export async function publishScreenprintingSocialPost(slug: string, postId: stri
 
 export async function createScreenprintingSocialComment(slug: string, postId: string, input: Record<string, unknown> = {}) {
   const context = await resolveContext(slug);
+  const organization = requireOrganization(context);
+  await assertScreenprintingReferences(organization.id, [{ type: "socialPost", id: postId }]);
   const action = await resolveMetaActionContext(context, "replyToComments");
   const message = firstString(input.message);
   const commentId = firstString(input.commentId) ?? firstString(input.externalCommentId);
@@ -2093,6 +2129,13 @@ export async function listScreenprintingSocialThreads(slug: string) {
 export async function createScreenprintingSocialThread(slug: string, input: Record<string, unknown>) {
   const context = await resolveContext(slug);
   const organization = requireOrganization(context);
+  await assertScreenprintingReferences(organization.id, [
+    { type: "socialAccount", id: firstString(input.socialAccountId) },
+    { type: "socialPost", id: firstString(input.socialPostId) },
+    { type: "account", id: firstString(input.accountId) },
+    { type: "contact", id: firstString(input.contactId) },
+    { type: "opportunity", id: firstString(input.opportunityId) },
+  ]);
   const thread = socialThreadFromRow(await repository.createSocialThread(organization.id, input));
   await recordScreenprintingAuditEvent({
     organizationId: organization.id,

@@ -16,6 +16,7 @@
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
     "check:tenant-isolation": "node scripts/check-tenant-provider-isolation.mjs",
     "check:tenant-isolation:self-test": "node scripts/test-tenant-provider-isolation.mjs",
+    "check:screenprinting-reference-validation": "node scripts/check-screenprinting-reference-validation.mjs",
     "check:tenant-types": "node scripts/check-tenant-type-docs.mjs",
     "check:self-contained-requirements": "node scripts/check-self-contained-requirements.mjs",
     "check:work-registry": "node scripts/check-work-registry.mjs",
