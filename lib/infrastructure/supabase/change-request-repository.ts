@@ -100,20 +100,33 @@ export class ChangeRequestRepository {
     requestIds?: string[],
   ): Promise<Map<string, ChangeRequestAttachment[]>> {
     const attachmentRows = await this.listAttachmentRowsForOrganization(organizationId, requestIds);
-    const supabase = getSupabaseAdminClient() as any;
-    const signedUrls = await Promise.all(
-      attachmentRows.map(async (attachment) => {
-        try {
-          const { data } = await supabase.storage
-            .from(ATTACHMENT_BUCKET)
-            .createSignedUrl(attachment.storage_path, 60 * 60);
-          return [attachment.id, data?.signedUrl ?? null] as const;
-        } catch {
-          return [attachment.id, null] as const;
-        }
-      }),
-    );
-    const signedUrlMap = new Map(signedUrls);
+    if (attachmentRows.length === 0) {
+      return new Map();
+    }
+
+    const supabase = getSupabaseAdminClient();
+    const paths = attachmentRows.map((row) => row.storage_path);
+    let signedUrlMap = new Map<string, string | null>();
+
+    try {
+      const { data, error } = await supabase.storage
+        .from(ATTACHMENT_BUCKET)
+        .createSignedUrls(paths, 60 * 60);
+
+      if (error) {
+        throw error;
+      }
+
+      const urlByPath = new Map<string, string | null>(
+        (data || []).map((item: any) => [item.path, item.error ? null : item.signedUrl])
+      );
+
+      signedUrlMap = new Map(
+        attachmentRows.map((row) => [row.id, urlByPath.get(row.storage_path) ?? null])
+      );
+    } catch {
+      signedUrlMap = new Map(attachmentRows.map((row) => [row.id, null]));
+    }
 
     return attachmentRows.reduce<Map<string, ChangeRequestAttachment[]>>((map, row) => {
       const current = map.get(row.change_request_id) ?? [];
