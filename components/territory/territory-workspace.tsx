@@ -30,16 +30,11 @@ import type { WorkspaceDefinition, WorkspaceTerritoryColorMode } from "@/lib/dom
 import { resolveTenantPluginSettings } from "@/lib/application/runtime/plugin-settings";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
 
-type GoogleNamespace = any;
-type GoogleMap = any;
-type GoogleDirectionsRenderer = any;
-type MapProvider = "google_maps" | "openstreetmap";
+type MapProvider = "openstreetmap";
 type LeafletNamespace = typeof Leaflet;
 type LeafletMap = Leaflet.Map;
 type LayerCleanup = () => void;
-type MapHandle =
-  | { provider: "google_maps"; map: GoogleMap }
-  | { provider: "openstreetmap"; map: LeafletMap; leaflet: LeafletNamespace };
+type MapHandle = { provider: "openstreetmap"; map: LeafletMap; leaflet: LeafletNamespace };
 
 interface TerritoryPinsResponse {
   ok: boolean;
@@ -79,40 +74,10 @@ interface TerritoryWorkspaceProps {
   territoryConfig: WorkspaceDefinition["modules"]["territory"] | null;
 }
 
-const googleMapsScriptPromises = new Map<string, Promise<GoogleNamespace>>();
 let leafletPromise: Promise<LeafletNamespace> | null = null;
 const repPalette = ["#d74314", "#1958d6", "#209365", "#8b5cf6", "#c2410c", "#0f766e", "#be123c", "#4f46e5"];
 const defaultOpenStreetMapTileUrlTemplate = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const defaultOpenStreetMapAttribution = "&copy; OpenStreetMap contributors";
-
-function loadGoogleMaps(apiKey: string) {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Google Maps can only load in the browser"));
-  }
-
-  const existing = (window as any).google?.maps;
-  if (existing) {
-    return Promise.resolve((window as any).google);
-  }
-
-  const cached = googleMapsScriptPromises.get(apiKey);
-  if (cached) {
-    return cached;
-  }
-
-  const promise = new Promise<GoogleNamespace>((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry,places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve((window as any).google);
-    script.onerror = () => reject(new Error("Google Maps failed to load"));
-    document.head.appendChild(script);
-  });
-
-  googleMapsScriptPromises.set(apiKey, promise);
-  return promise;
-}
 
 function loadLeaflet() {
   if (typeof window === "undefined") {
@@ -156,7 +121,6 @@ function teardownMap(
   polygonRefs: MutableRefObject<LayerCleanup[]>,
   overlayMarkerRefs: MutableRefObject<LayerCleanup[]>,
   routeLineRef: MutableRefObject<LayerCleanup | null>,
-  directionsRendererRef: MutableRefObject<GoogleDirectionsRenderer | null>,
   lastFitSignatureRef: MutableRefObject<string>,
 ) {
   markerRefs.current.forEach((cleanup) => cleanup());
@@ -167,8 +131,6 @@ function teardownMap(
   overlayMarkerRefs.current = [];
   routeLineRef.current?.();
   routeLineRef.current = null;
-  directionsRendererRef.current?.setMap(null);
-  directionsRendererRef.current = null;
   lastFitSignatureRef.current = "";
 
   const handle = mapRef.current;
@@ -176,12 +138,7 @@ function teardownMap(
     return;
   }
 
-  if (handle.provider === "openstreetmap") {
-    handle.map.remove();
-  } else {
-    const google = (window as any).google;
-    google?.maps?.event?.clearInstanceListeners?.(handle.map);
-  }
+  handle.map.remove();
 
   mapRef.current = null;
 }
@@ -270,35 +227,6 @@ function getPinLabel(pin: TerritoryAccountPin, mode: ColorMode) {
   return (pin.salesRepNames[0] ?? "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 
-function buildMarkerIcon(google: GoogleNamespace, pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
-  const color = getPinColor(pin, mode);
-  const size = selected ? 44 : 36;
-  const strokeWidth = selected ? 4 : 2;
-  const svg = `
-    <svg width="${size}" height="${size + 8}" viewBox="0 0 ${size} ${size + 8}" xmlns="http://www.w3.org/2000/svg">
-      <path d="M${size / 2} ${size + 4}C${size / 2} ${size + 4} ${size * 0.18} ${size * 0.58} ${size * 0.18} ${size * 0.36}C${size * 0.18} ${size * 0.16} ${size * 0.33} 4 ${size / 2} 4C${size * 0.67} 4 ${size * 0.82} ${size * 0.16} ${size * 0.82} ${size * 0.36}C${size * 0.82} ${size * 0.58} ${size / 2} ${size + 4} ${size / 2} ${size + 4}Z" fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
-      <circle cx="${size / 2}" cy="${size * 0.36}" r="${selected ? 10 : 8}" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.65)" stroke-width="1"/>
-    </svg>`;
-
-  return {
-    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(size, size + 8),
-    anchor: new google.maps.Point(size / 2, size + 4),
-    labelOrigin: new google.maps.Point(size / 2, size * 0.36 + 1),
-  };
-}
-
-function buildLiteGoogleMarkerIcon(google: GoogleNamespace, pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
-  return {
-    path: google.maps.SymbolPath.CIRCLE,
-    fillColor: getPinColor(pin, mode),
-    fillOpacity: 0.92,
-    strokeColor: "#ffffff",
-    strokeWeight: selected ? 3 : 2,
-    scale: selected ? 9 : 7,
-  };
-}
-
 function buildLeafletMarkerHtml(pin: TerritoryAccountPin, selected: boolean, mode: ColorMode) {
   const color = getPinColor(pin, mode);
   const size = selected ? 44 : 36;
@@ -320,13 +248,9 @@ function getNotionHref(detail: AccountRuntimeDetail | null) {
   return identity?.externalId ? `https://www.notion.so/${identity.externalId.replaceAll("-", "")}` : null;
 }
 
-function getDirectionsHref(pin: TerritoryAccountPin | null, mapProvider: MapProvider = "openstreetmap") {
+function getDirectionsHref(pin: TerritoryAccountPin | null) {
   if (!pin || !hasUsableCoordinates(pin)) {
     return null;
-  }
-
-  if (mapProvider === "google_maps") {
-    return `https://www.google.com/maps/dir/?api=1&destination=${pin.latitude},${pin.longitude}`;
   }
 
   return `https://www.openstreetmap.org/directions?from=&to=${pin.latitude}%2C${pin.longitude}`;
@@ -503,12 +427,19 @@ const colorModeLabels: Record<ColorMode, string> = {
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-function readNarrowViewport() {
-  if (typeof window === "undefined") {
-    return false;
+function dedupeTerritoryPins(pins: TerritoryAccountPin[]) {
+  const seen = new Set<string>();
+  const deduped: TerritoryAccountPin[] = [];
+
+  for (const pin of pins) {
+    if (seen.has(pin.id)) {
+      continue;
+    }
+    seen.add(pin.id);
+    deduped.push(pin);
   }
 
-  return window.matchMedia("(max-width: 767px)").matches;
+  return deduped;
 }
 
 export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig }: TerritoryWorkspaceProps) {
@@ -526,9 +457,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       : availableColorModes[0] ?? "rep";
   const pluginSettings = resolveTenantPluginSettings(orgSlug, initialDashboard.organization.settings);
   const routePlanningEnabled = pluginSettings.routePlanning.enabled;
-  const initialIsNarrowViewport = readNarrowViewport();
-  const initialPreferListView = initialIsNarrowViewport && initialDashboard.counts.geocodedPins > 1200;
-  const [view, setView] = useState<"map" | "list">(initialPreferListView ? "list" : "map");
+  const initialPins = useMemo(() => dedupeTerritoryPins(initialDashboard.pins), [initialDashboard.pins]);
+  const [view, setView] = useState<"map" | "list">("map");
   const [colorMode, setColorMode] = useState<ColorMode>(defaultColorMode);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [data, setData] = useState<TerritoryPinsResponse>({
@@ -539,12 +469,12 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     statusFacets: initialDashboard.statusFacets,
     referralSourceFacets: initialDashboard.referralSourceFacets,
     leadGradeFacets: initialDashboard.leadGradeFacets,
-    pins: initialDashboard.pins,
+    pins: initialPins,
   });
   const [overlays, setOverlays] = useState<TerritoryOverlaysResponse>({ ok: true, boundaries: [], markers: [] });
   const [mapConfig, setMapConfig] = useState<MapConfigResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(initialDashboard.pins[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialPins[0]?.id ?? null);
   const [routeStopIds, setRouteStopIds] = useState<string[]>([]);
   const [detail, setDetail] = useState<AccountRuntimeDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -553,11 +483,11 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const [notice, setNotice] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [consoleOpen, setConsoleOpen] = useState(!initialIsNarrowViewport);
-  const [detailsOpen, setDetailsOpen] = useState(!initialIsNarrowViewport);
+  const [consoleOpen, setConsoleOpen] = useState(true);
+  const [detailsOpen, setDetailsOpen] = useState(true);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
-  const [isNarrowViewport, setIsNarrowViewport] = useState(initialIsNarrowViewport);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapHandle | null>(null);
@@ -565,9 +495,8 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const polygonRefs = useRef<LayerCleanup[]>([]);
   const overlayMarkerRefs = useRef<LayerCleanup[]>([]);
   const routeLineRef = useRef<LayerCleanup | null>(null);
-  const directionsRendererRef = useRef<GoogleDirectionsRenderer | null>(null);
   const lastFitSignatureRef = useRef<string>("");
-  const mobileViewAutoSwitchedRef = useRef(initialPreferListView);
+  const mobileViewAutoSwitchedRef = useRef(false);
 
   const pins = data.pins;
   const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
@@ -593,12 +522,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     setFiltersOpen(false);
     const handle = mapRef.current;
     if (handle && pin.latitude !== null && pin.longitude !== null) {
-      if (handle.provider === "google_maps") {
-        handle.map.panTo({ lat: pin.latitude, lng: pin.longitude });
-        handle.map.setZoom(Math.max(handle.map.getZoom() ?? 12, 14));
-        return;
-      }
-
       handle.map.setView([pin.latitude, pin.longitude], Math.max(handle.map.getZoom(), 14), { animate: true });
     }
   }, [isNarrowViewport]);
@@ -672,7 +595,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       return;
     }
 
-    teardownMap(mapRef, markerRefs, polygonRefs, overlayMarkerRefs, routeLineRef, directionsRendererRef, lastFitSignatureRef);
+    teardownMap(mapRef, markerRefs, polygonRefs, overlayMarkerRefs, routeLineRef, lastFitSignatureRef);
     setMapReady(false);
   }, [shouldRenderInteractiveMap]);
 
@@ -682,13 +605,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       return;
     }
 
-    if (handle.provider === "openstreetmap") {
-      handle.map.invalidateSize({ pan: false });
-      return;
-    }
-
-    const google = (window as any).google;
-    google?.maps?.event?.trigger(handle.map, "resize");
+    handle.map.invalidateSize({ pan: false });
   }, []);
 
   const loadPins = useCallback(async () => {
@@ -702,8 +619,9 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         throw new Error(`Pins request failed: ${response.status}`);
       }
       const payload = (await response.json()) as TerritoryPinsResponse;
-      setData(payload);
-      setSelectedId((current) => (current && payload.pins.some((pin) => pin.id === current) ? current : payload.pins[0]?.id ?? null));
+      const nextPins = dedupeTerritoryPins(payload.pins);
+      setData({ ...payload, pins: nextPins });
+      setSelectedId((current) => (current && nextPins.some((pin) => pin.id === current) ? current : nextPins[0]?.id ?? null));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Territory refresh failed");
     } finally {
@@ -762,31 +680,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
 
   useEffect(() => {
     if (!shouldRenderInteractiveMap || !mapConfig || !mapElementRef.current || mapRef.current) {
-      return;
-    }
-
-    if (mapConfig.mapProvider === "google_maps" && mapConfig.browserApiKey) {
-      void loadGoogleMaps(mapConfig.browserApiKey)
-        .then((google) => {
-          if (!mapElementRef.current || mapRef.current) {
-            return;
-          }
-
-          const map = new google.maps.Map(mapElementRef.current, {
-            center: { lat: 40.73, lng: -73.93 },
-            zoom: 10,
-            gestureHandling: "greedy",
-            zoomControl: true,
-            mapTypeControl: true,
-            fullscreenControl: true,
-            streetViewControl: false,
-            clickableIcons: false,
-            controlSize: 32,
-          });
-          mapRef.current = { provider: "google_maps", map };
-          setMapReady(true);
-        })
-        .catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Google Maps failed to load"));
       return;
     }
 
@@ -850,51 +743,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
 
     const fitSignatureParts: string[] = [];
 
-    if (handle.provider === "google_maps") {
-      const google = (window as any).google;
-      if (!google?.maps) {
-        return;
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      for (const pin of pins) {
-        if (!hasUsableCoordinates(pin)) {
-          continue;
-        }
-
-        const selected = pin.id === selectedId;
-        const marker = new google.maps.Marker({
-          map: handle.map,
-          position: { lat: pin.latitude, lng: pin.longitude },
-          title: pin.name,
-          icon: useLiteMarkers
-            ? buildLiteGoogleMarkerIcon(google, pin, selected, colorMode)
-            : buildMarkerIcon(google, pin, selected, colorMode),
-          label: useLiteMarkers
-            ? undefined
-            : {
-                text: getPinLabel(pin, colorMode),
-                color: "#ffffff",
-                fontSize: selected ? "12px" : "11px",
-                fontWeight: "800",
-              },
-          zIndex: selected ? 1000 : 1,
-        });
-
-        marker.addListener("click", () => focusPin(pin));
-        markerRefs.current.push(() => marker.setMap(null));
-        bounds.extend(marker.getPosition());
-        fitSignatureParts.push(`${pin.id}:${pin.latitude}:${pin.longitude}`);
-      }
-
-      const nextFitSignature = fitSignatureParts.sort().join("|");
-      if (!bounds.isEmpty() && nextFitSignature !== lastFitSignatureRef.current) {
-        handle.map.fitBounds(bounds, 48);
-        lastFitSignatureRef.current = nextFitSignature;
-      }
-      return;
-    }
-
     const { leaflet, map } = handle;
     const bounds = leaflet.latLngBounds([]);
     for (const pin of pins) {
@@ -953,52 +801,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     polygonRefs.current = [];
     overlayMarkerRefs.current = [];
 
-    if (handle.provider === "google_maps") {
-      const google = (window as any).google;
-      if (!google?.maps) {
-        return;
-      }
-
-      for (const boundary of overlays.boundaries) {
-        if (!boundary.isVisibleByDefault || boundary.coordinates.length < 3) {
-          continue;
-        }
-
-        const polygon = new google.maps.Polygon({
-          paths: boundary.coordinates.map(([lng, lat]) => ({ lat, lng })),
-          strokeColor: boundary.color,
-          strokeOpacity: 0.9,
-          strokeWeight: boundary.borderWidth,
-          fillColor: boundary.color,
-          fillOpacity: 0.08,
-          map: handle.map,
-        });
-        polygonRefs.current.push(() => polygon.setMap(null));
-      }
-
-      for (const markerRow of overlays.markers) {
-        if (!markerRow.isVisibleByDefault) {
-          continue;
-        }
-
-        const marker = new google.maps.Marker({
-          map: handle.map,
-          position: { lat: markerRow.latitude, lng: markerRow.longitude },
-          title: markerRow.name,
-          icon: {
-            path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-            fillColor: markerRow.color,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-            scale: 6,
-          },
-        });
-        overlayMarkerRefs.current.push(() => marker.setMap(null));
-      }
-      return;
-    }
-
     const { leaflet, map } = handle;
     for (const boundary of overlays.boundaries) {
       if (!boundary.isVisibleByDefault || boundary.coordinates.length < 3) {
@@ -1047,8 +849,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
 
     routeLineRef.current?.();
     routeLineRef.current = null;
-    directionsRendererRef.current?.setMap(null);
-    directionsRendererRef.current = null;
 
     if (!routePlanningEnabled) {
       return;
@@ -1059,62 +859,16 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       return;
     }
 
-    if (handle.provider === "openstreetmap") {
-      const path = stops.map((pin) => [pin.latitude as number, pin.longitude as number] as [number, number]);
-      const line = handle.leaflet
-        .polyline(path, {
-          color: "#1958d6",
-          opacity: 0.72,
-          weight: 5,
-        })
-        .addTo(handle.map);
-      routeLineRef.current = () => line.remove();
-      handle.map.fitBounds(line.getBounds(), { padding: [56, 56] });
-      return;
-    }
-
-    const google = (window as any).google;
-    if (!google?.maps) {
-      return;
-    }
-    const path = stops.map((pin) => ({ lat: pin.latitude as number, lng: pin.longitude as number }));
-    const renderer = new google.maps.DirectionsRenderer({
-      suppressMarkers: true,
-      preserveViewport: true,
-      polylineOptions: {
-        strokeColor: "#1958d6",
-        strokeOpacity: 0.9,
-        strokeWeight: 5,
-      },
-    });
-    const service = new google.maps.DirectionsService();
-    renderer.setMap(handle.map);
-    directionsRendererRef.current = renderer;
-
-    service.route(
-      {
-        origin: path[0],
-        destination: path[path.length - 1],
-        waypoints: path.slice(1, -1).map((location) => ({ location, stopover: true })),
-        travelMode: google.maps.TravelMode.DRIVING,
-        optimizeWaypoints: true,
-      },
-      (result: unknown, status: string) => {
-        if (status === "OK") {
-          renderer.setDirections(result);
-          return;
-        }
-
-        const fallback = new google.maps.Polyline({
-          path,
-          strokeColor: "#1958d6",
-          strokeOpacity: 0.65,
-          strokeWeight: 4,
-          map: handle.map,
-        });
-        routeLineRef.current = () => fallback.setMap(null);
-      },
-    );
+    const path = stops.map((pin) => [pin.latitude as number, pin.longitude as number] as [number, number]);
+    const line = handle.leaflet
+      .polyline(path, {
+        color: "#1958d6",
+        opacity: 0.72,
+        weight: 5,
+      })
+      .addTo(handle.map);
+    routeLineRef.current = () => line.remove();
+    handle.map.fitBounds(line.getBounds(), { padding: [56, 56] });
   }, [mapReady, routePlanningEnabled, routeStops]);
 
   function updateFilter<Key extends keyof Filters>(key: Key, value: Filters[Key]) {
@@ -1146,11 +900,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         if (!handle) {
           return;
         }
-        if (handle.provider === "google_maps") {
-          handle.map.panTo({ lat: position.coords.latitude, lng: position.coords.longitude });
-          handle.map.setZoom(13);
-          return;
-        }
         handle.map.setView([position.coords.latitude, position.coords.longitude], 13, { animate: true });
       },
       () => setNotice("Location permission was not granted"),
@@ -1161,24 +910,6 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   function fitVisiblePins() {
     const handle = mapRef.current;
     if (!handle) {
-      return;
-    }
-
-    if (handle.provider === "google_maps") {
-      const google = (window as any).google;
-      if (!google?.maps) {
-        return;
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      for (const pin of pins) {
-        if (hasUsableCoordinates(pin)) {
-          bounds.extend({ lat: pin.latitude, lng: pin.longitude });
-        }
-      }
-      if (!bounds.isEmpty()) {
-        handle.map.fitBounds(bounds, 56);
-      }
       return;
     }
 
@@ -1207,7 +938,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
         ok: boolean;
         error?: string;
         summary?: {
-          provider: "google_maps" | "openstreetmap";
+          provider: "openstreetmap";
           scanned: number;
           attempted: number;
           geocoded: number;
@@ -1262,7 +993,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
     }
   }
 
-  const directionsHref = getDirectionsHref(selectedPin, mapConfig?.mapProvider ?? "openstreetmap");
+  const directionsHref = getDirectionsHref(selectedPin);
   const notionHref = getNotionHref(detail);
   const organizationName = initialDashboard.organization.name;
   const mapSurface =

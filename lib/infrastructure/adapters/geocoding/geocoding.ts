@@ -1,24 +1,6 @@
 import "server-only";
 
-import { resolveTenantGoogleMapsServerKey } from "@/lib/application/runtime/provider-credentials";
-
-export type GeocodeProvider = "google_maps" | "openstreetmap";
-
-interface GoogleGeocodeResult {
-  formatted_address?: string;
-  geometry?: {
-    location?: {
-      lat?: number;
-      lng?: number;
-    };
-  };
-}
-
-interface GoogleGeocodeResponse {
-  status: string;
-  results?: GoogleGeocodeResult[];
-  error_message?: string;
-}
+export type GeocodeProvider = "openstreetmap";
 
 interface NominatimResult {
   display_name?: string;
@@ -38,7 +20,6 @@ export interface GeocodeCandidate {
 
 export interface GeocodingPlan {
   provider: GeocodeProvider;
-  googleApiKey: string | null;
   maxPerSync: number;
   openGeocodingBaseUrl: string;
   openGeocodingUserAgent: string;
@@ -49,7 +30,6 @@ const DEFAULT_OPEN_GEOCODING_BASE_URL = "https://nominatim.openstreetmap.org/sea
 const DEFAULT_OPEN_GEOCODING_USER_AGENT = "MapApp/1.0 (https://map-app-supabase.vercel.app)";
 const DEFAULT_OPEN_GEOCODING_MIN_DELAY_MS = 1_100;
 const DEFAULT_OPEN_GEOCODING_MAX_PER_SYNC = 20;
-const DEFAULT_GOOGLE_GEOCODING_MAX_PER_SYNC = 80;
 
 let lastOpenGeocodeAt = 0;
 
@@ -91,15 +71,7 @@ async function waitForOpenGeocodingSlot(minDelayMs: number) {
   lastOpenGeocodeAt = Date.now();
 }
 
-export async function resolveGeocodingPlan(input: { organizationId?: string | null; organizationSlug?: string | null } = {}): Promise<GeocodingPlan> {
-  const googleApiKey =
-    input.organizationId && input.organizationSlug
-      ? await resolveTenantGoogleMapsServerKey({
-          organizationId: input.organizationId,
-          organizationSlug: input.organizationSlug,
-        })
-      : null;
-  const provider: GeocodeProvider = googleApiKey ? "google_maps" : "openstreetmap";
+export async function resolveGeocodingPlan(): Promise<GeocodingPlan> {
   const openGeocodingMinDelayMs = numberFromEnv(
     process.env.OPEN_GEOCODING_MIN_DELAY_MS,
     DEFAULT_OPEN_GEOCODING_MIN_DELAY_MS,
@@ -108,54 +80,11 @@ export async function resolveGeocodingPlan(input: { organizationId?: string | nu
   );
 
   return {
-    provider,
-    googleApiKey,
-    maxPerSync:
-      provider === "google_maps"
-        ? numberFromEnv(process.env.GOOGLE_GEOCODING_MAX_PER_SYNC, DEFAULT_GOOGLE_GEOCODING_MAX_PER_SYNC, 1, 200)
-        : numberFromEnv(process.env.OPEN_GEOCODING_MAX_PER_SYNC, DEFAULT_OPEN_GEOCODING_MAX_PER_SYNC, 1, 50),
+    provider: "openstreetmap",
+    maxPerSync: numberFromEnv(process.env.OPEN_GEOCODING_MAX_PER_SYNC, DEFAULT_OPEN_GEOCODING_MAX_PER_SYNC, 1, 50),
     openGeocodingBaseUrl: process.env.OPEN_GEOCODING_BASE_URL?.trim() || DEFAULT_OPEN_GEOCODING_BASE_URL,
     openGeocodingUserAgent: process.env.OPEN_GEOCODING_USER_AGENT?.trim() || DEFAULT_OPEN_GEOCODING_USER_AGENT,
     openGeocodingMinDelayMs,
-  };
-}
-
-async function geocodeWithGoogle(candidate: GeocodeCandidate, apiKey: string) {
-  const address = buildAddress(candidate);
-
-  if (!address) {
-    return null;
-  }
-
-  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
-  url.searchParams.set("address", address);
-  url.searchParams.set("key", apiKey);
-
-  const response = await fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const payload = (await response.json()) as GoogleGeocodeResponse;
-  if (payload.status !== "OK") {
-    return null;
-  }
-
-  const result = payload.results?.[0];
-  const location = result?.geometry?.location;
-  if (typeof location?.lat !== "number" || typeof location.lng !== "number") {
-    return null;
-  }
-
-  return {
-    latitude: location.lat,
-    longitude: location.lng,
-    geocodedAddress: result?.formatted_address ?? address,
-    provider: "google_maps" as const,
   };
 }
 
@@ -207,9 +136,5 @@ async function geocodeWithOpenStreetMap(candidate: GeocodeCandidate, plan: Geoco
 }
 
 export async function geocodeAccountCandidate(candidate: GeocodeCandidate, plan: GeocodingPlan) {
-  if (plan.provider === "google_maps" && plan.googleApiKey) {
-    return geocodeWithGoogle(candidate, plan.googleApiKey);
-  }
-
   return geocodeWithOpenStreetMap(candidate, plan);
 }

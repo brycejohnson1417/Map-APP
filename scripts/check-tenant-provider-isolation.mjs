@@ -5,14 +5,23 @@ const repoRoot = new URL("..", import.meta.url).pathname;
 
 const filesToCheck = [
   "app/api/runtime",
+  "components/territory",
   "lib/application/runtime",
   "lib/application/fraternitees",
   "lib/infrastructure/adapters/geocoding",
 ];
 
+const standaloneFilesToCheck = [
+  ".env.example",
+  "scripts/mapapp.mjs",
+  "scripts/seed-runtime.mjs",
+];
+
 const forbiddenPatterns = [
   { label: "generic Google Maps browser key", pattern: /\bprocess\.env\.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_API_KEY\b|\bprocess\.env\.GOOGLE_MAPS_BROWSER_API_KEY\b/g },
   { label: "generic Google Maps server key", pattern: /\bprocess\.env\.GOOGLE_MAPS_SERVER_API_KEY\b/g },
+  { label: "active Google Maps env key", pattern: /\b[A-Z0-9_]*GOOGLE_MAPS_(?:BROWSER_API_KEY|SERVER_API_KEY|API_KEY)\b/g },
+  { label: "active Google Maps runtime URL", pattern: /\bmaps\.googleapis\.com\b/g },
   { label: "generic Nabis API key", pattern: /\bprocess\.env\.NABIS_API_KEY\b/g },
   { label: "generic Nabis API base URL", pattern: /\bprocess\.env\.NABIS_API_BASE_URL\b/g },
   { label: "generic Nabis orders path", pattern: /\bprocess\.env\.NABIS_ORDERS_PATH\b/g },
@@ -52,6 +61,19 @@ for (const relativeDir of filesToCheck) {
         const line = before.split("\n").length;
         failures.push(`${filePath}:${line} uses ${rule.label}`);
       }
+    }
+  }
+}
+
+for (const relativeFile of standaloneFilesToCheck) {
+  const filePath = join(repoRoot, relativeFile);
+  const content = readFileSync(filePath, "utf8");
+  for (const rule of forbiddenPatterns) {
+    const matches = [...content.matchAll(rule.pattern)];
+    for (const match of matches) {
+      const before = content.slice(0, match.index ?? 0);
+      const line = before.split("\n").length;
+      failures.push(`${filePath}:${line} uses ${rule.label}`);
     }
   }
 }

@@ -252,12 +252,12 @@ Success response:
 ```json
 {
   "ok": true,
-  "mapProvider": "google_maps",
-  "browserApiKey": "browser-safe-key-or-null",
+  "mapProvider": "openstreetmap",
+  "browserApiKey": null,
   "tileUrlTemplate": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   "tileAttribution": "&copy; OpenStreetMap contributors",
   "configured": true,
-  "upgraded": true
+  "upgraded": false
 }
 ```
 

@@ -480,10 +480,7 @@ export async function importFraterniteesOrdersToRuntime(input: {
       score,
     };
   }).filter((summary): summary is AccountImportSummary => Boolean(summary.score));
-  const geocodingPlan = await resolveGeocodingPlan({
-    organizationId: input.organizationId,
-    organizationSlug: input.organizationSlug,
-  });
+  const geocodingPlan = await resolveGeocodingPlan();
 
   let createdAccounts = 0;
   let updatedAccounts = 0;
@@ -590,10 +587,6 @@ export async function importFraterniteesOrdersToRuntime(input: {
           ? {
               provider: geocodeResult.provider,
               address: geocodeResult.geocodedAddress,
-              tenantScopedKey:
-                geocodeResult.provider === "google_maps" && input.organizationSlug
-                  ? `${input.organizationSlug.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_GOOGLE_MAPS_SERVER_API_KEY`
-                  : null,
               geocodedAt: new Date().toISOString(),
             }
           : null,

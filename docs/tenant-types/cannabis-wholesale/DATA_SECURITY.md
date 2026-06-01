@@ -27,9 +27,10 @@ Use tenant-scoped credentials for:
 
 - Nabis
 - Notion or CRM systems
-- Google Maps
 - future distributor systems
 - future document storage
+
+Google Maps credentials are intentionally not active in map-app for now. If maps are later moved back to a paid provider, the credentials must be tenant-scoped and must not fall back to generic shared keys.
 
 Generic global provider fallbacks are not allowed for tenant-facing runtime paths.
 

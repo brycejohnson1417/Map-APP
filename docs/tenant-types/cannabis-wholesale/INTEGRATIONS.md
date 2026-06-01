@@ -51,9 +51,9 @@ Tenant-specific configuration:
 - read/write contract
 - manual approval gates
 
-## Google Maps
+## Maps and geocoding
 
-Use tenant-scoped browser and server keys or tenant-scoped integration installs.
+Google Maps keys are intentionally not active in map-app for now. Use the committed OpenStreetMap/Open Geocoding configuration.
 
 Pull/use:
 
@@ -61,7 +61,7 @@ Pull/use:
 - maps rendering
 - route planning where enabled
 
-Do not use generic shared Google Maps keys for tenant-facing runtime paths.
+Do not use generic shared paid-provider map keys for tenant-facing runtime paths.
 
 ## Document generation
 

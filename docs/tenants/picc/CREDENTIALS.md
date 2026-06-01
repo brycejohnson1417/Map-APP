@@ -19,11 +19,10 @@ Do not put raw secrets in this file.
 - `NOTION_VENDOR_DAY_DATABASE_ID`
 - `NOTION_VENDOR_DAY_EVENTS_DATABASE_ID`
 
-### Google Maps / routing
-- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — browser map rendering
-- `GOOGLE_MAPS_SERVER_API_KEY` — server-side maps
-- `GOOGLE_GEOCODING_API_KEY` — geocoding
-- `GOOGLE_ROUTES_API_KEY` — routing
+### Maps / routing
+- Google Maps keys are not active in map-app for PICC right now.
+- PICC map-app territory maps use the shared OpenStreetMap/Open Geocoding configuration.
+- Legacy PICC-only Google geocoding/routing env names may exist in historical exports, but they are not part of the current map-app credential contract.
 
 ### Nabis
 - `NABIS_API_KEY`
@@ -47,8 +46,6 @@ Required:
 - `NEON_SOURCE_DATABASE_URL`
 - `NOTION_TOKEN`
 - `NABIS_API_KEY`
-- `GOOGLE_MAPS_BROWSER_API_KEY`
-- `GOOGLE_MAPS_SERVER_API_KEY`
 
 ## Current operating rule
 The repo now documents the environment contract, but the real values still need to be supplied by the human operator before autonomous migration work can proceed.

@@ -1,13 +1,16 @@
 # ADR 0002: Google Maps Platform standard
 
 ## Status
-Accepted
+Superseded for now by [GitHub issue #171](https://github.com/brycejohnson1417/Map-APP/issues/171)
+
+## Current runtime position
+Google Maps keys are intentionally not active in map-app for now. Runtime maps and geocoding use the OpenStreetMap/Open Geocoding path, and active code must not fall back to a previous generic Google Maps key.
 
 ## Context
 The product needs map rendering, geocoding, and routing for field and account workflows. Tenant map cost and key ownership must be controlled.
 
 ## Decision
-Use Google Maps Platform for map rendering, geocoding, and routing.
+Historical decision: use Google Maps Platform for map rendering, geocoding, and routing.
 
 ## Rationale
 The product needs highly polished map UX, reliable routing, and commercial-grade geocoding. Open-source mapping stacks are valuable, but Google Maps provides the strongest default user experience for this product.

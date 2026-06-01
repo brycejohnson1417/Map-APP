@@ -257,23 +257,6 @@ async function main() {
     });
   }
 
-  const googleMapsBrowserApiKey = tenantEnv(orgSlug, "GOOGLE_MAPS_BROWSER_API_KEY");
-  const googleMapsServerApiKey = tenantEnv(orgSlug, "GOOGLE_MAPS_SERVER_API_KEY");
-  if (googleMapsBrowserApiKey || googleMapsServerApiKey) {
-    integrations.google_maps = await upsertIntegration(supabase, organization.id, {
-      provider: "google_maps",
-      displayName: "Google Maps",
-      config: {
-        browserApiKey: googleMapsBrowserApiKey || null,
-      },
-      secrets: googleMapsServerApiKey
-        ? {
-            serverApiKey: googleMapsServerApiKey,
-          }
-        : {},
-    });
-  }
-
   const fieldMappings = readFieldMappings(orgSlug);
   for (const mapping of fieldMappings) {
     const installation = integrations[mapping.provider];

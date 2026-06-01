@@ -53,8 +53,6 @@ Provider credentials must be tenant-scoped. Use the organization slug prefix:
 - `<ORG>_NABIS_API_BASE_URL`
 - `<ORG>_NABIS_ORDERS_PATH`
 - `<ORG>_NABIS_API_KEY`
-- `<ORG>_GOOGLE_MAPS_BROWSER_API_KEY`
-- `<ORG>_GOOGLE_MAPS_SERVER_API_KEY`
 
 ### Platform-owned Meta OAuth app
 Meta/Instagram OAuth uses one platform-owned Meta app so tenants can authorize owned Instagram accounts from the frontend without handling app secrets.
@@ -83,8 +81,6 @@ Examples:
 
 - `PICC_NABIS_API_KEY`
 - `PICC_NOTION_TOKEN`
-- `PICC_GOOGLE_MAPS_SERVER_API_KEY`
-- `FRATERNITEES_GOOGLE_MAPS_BROWSER_API_KEY`
 
 `<ORG>_NOTION_DATA_SOURCE_IDS` remains supported as a bootstrap list. For live sync, prefer the explicit
 company/contact variables so PICC's Dispensary Master List CRM and Contacts Database cannot be
@@ -96,8 +92,8 @@ accidentally swapped.
 
 ## Notes
 - Do not put tenant secrets into committed files.
-- Browser-safe Google Maps keys are still tenant-scoped configuration and should not be shared across organizations.
-- Server-side maps keys, Notion tokens, and Nabis credentials are treated as secrets.
+- Google Maps keys are intentionally not active in map-app for now. Use the committed OpenStreetMap/Open Geocoding settings instead.
+- Notion tokens and Nabis credentials are treated as secrets.
 - Generic paid-provider env fallbacks are no longer allowed for tenant runtime paths. If a tenant needs a provider, use an organization-scoped integration install or an organization-scoped env key.
 - The exception is the platform-owned Meta OAuth app credentials, which identify this product's Meta app only; tenant access tokens remain organization-scoped encrypted integration secrets.
 - `NEXT_PUBLIC_DEFAULT_ORG_SLUG` / `ORG_SLUG` can still define a local default org, but the platform fallback is now `starter` rather than implicitly pointing at PICC.

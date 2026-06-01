@@ -35,7 +35,7 @@ Cannabis Wholesale tenants need:
 | Accounts | Required | Retailer and account directory |
 | Orders | Required | Distributor order history and rollups |
 | Documents | Optional | Proposal, savings, and account-specific generated docs |
-| Integrations | Required | Nabis, Notion, Google Maps, and future CRM connectors |
+| Integrations | Required | Nabis, Notion, OpenStreetMap/Open Geocoding, and future CRM connectors |
 | Change Requests | Required | Tenant-visible request capture and maintainer workflow |
 
 ## Separation from Screenprinting

@@ -107,8 +107,6 @@ function requiredEnvKeys(org) {
     keys.push(
       `${prefix}_NOTION_TOKEN`,
       `${prefix}_NABIS_API_KEY`,
-      `${prefix}_GOOGLE_MAPS_BROWSER_API_KEY`,
-      `${prefix}_GOOGLE_MAPS_SERVER_API_KEY`,
     );
   }
 

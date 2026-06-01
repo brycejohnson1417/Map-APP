@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Tenants bring credentials for providers such as Printavo, Nabis, Notion, Google Maps, and future social/catalog APIs. Those credentials must not be shared or committed.
+Tenants bring credentials for providers such as Printavo, Nabis, Notion, and future social/catalog APIs. If Google Maps is intentionally reintroduced later, those credentials must be tenant-scoped and must not be shared or committed.
 
 ## Decision
 Store tenant-scoped connector secrets encrypted at rest, keyed by organization and installation, with an explicit rotation path and a clear distinction between browser-safe config and server-only secrets.
