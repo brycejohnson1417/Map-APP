@@ -20,6 +20,19 @@ It means:
 - tenant-specific shortcuts are acceptable only when they leave behind a cleaner extraction path
 - abstractions are justified when they reduce future founder dependence, not when they merely sound elegant
 
+## AI-native operating thesis
+
+The product should use AI to make vertical operations faster, safer, and more inspectable. It should not become a generic chatbot or thin model wrapper.
+
+The durable AI-native direction is documented in [AI_NATIVE_OPS_STRATEGY.md](AI_NATIVE_OPS_STRATEGY.md). The practical 90-day sequence is documented in [90_DAY_BUILD_PLAN.md](90_DAY_BUILD_PLAN.md).
+
+In short:
+
+- models are the engine, not the moat
+- workflow-specific data, adapters, review queues, tenant type packages, and audit history are the compounding assets
+- AI should propose, explain, draft, classify, and preview before any sensitive action is applied
+- every AI-native feature must be browser-visible, tenant-scoped, provenance-backed, and approval-gated for risky operations
+
 ## External story vs internal architecture
 
 Externally, tenants buy a vertical workspace:
