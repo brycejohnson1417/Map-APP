@@ -5,11 +5,35 @@ This file defines the environment contract for local development, verification, 
 
 Runtime versions and framework/tooling expectations are defined in [OPERATING_ENVIRONMENT.md](OPERATING_ENVIRONMENT.md).
 
+## Node runtime
+This repo requires Node 22.x. The version is pinned in `package.json`, `.nvmrc`, and `.tool-versions`.
+
+Use nvm:
+
+```bash
+nvm use
+```
+
+or mise:
+
+```bash
+mise install
+mise use
+```
+
+On this machine, Homebrew's Node 22 binary is available directly:
+
+```bash
+PATH="/opt/homebrew/opt/node@22/bin:$PATH" node -v
+PATH="/opt/homebrew/opt/node@22/bin:$PATH" npm run verify
+```
+
 ## Bootstrap steps
 1. Copy `.env.example` to `.env.local`
 2. Fill in the required environment variables
-3. Install dependencies with `npm install`
-4. Run `npm run verify`
+3. Enter Node 22 with nvm, mise, or the Homebrew path above
+4. Install dependencies with `npm install`
+5. Run `npm run verify`
 
 ## Environment loading behavior
 - `npm run mapapp -- ...` automatically loads `.env.local` first and `.env` second.
