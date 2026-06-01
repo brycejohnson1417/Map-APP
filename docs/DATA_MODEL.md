@@ -12,6 +12,7 @@ For vocabulary, read [GLOSSARY.md](GLOSSARY.md). API payloads are documented in 
 - Tenant-facing tables must enable RLS.
 - Current committed migrations enable RLS but do not define browser/client policies. Existing runtime code uses trusted server/service-role paths.
 - Add direct browser Supabase access only after adding explicit RLS policies and documenting the expected auth claim and membership lookup.
+- `npm run check:browser-supabase-boundary` blocks browser-reachable imports of the Supabase client helper until those policies and tests are committed.
 - Provider IDs must be preserved through identity rows, source fields, or `source_payload`.
 - Provider data that may be dirty must remain reviewable and remappable. Do not overwrite it destructively.
 - Additive migrations are preferred. Breaking schema changes require migration notes and rollback planning.

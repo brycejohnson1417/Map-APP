@@ -9,6 +9,19 @@ Tenant isolation cannot depend only on route code. Database tables that may ever
 ## Decision
 Use `organization_id` as the primary tenant boundary, enforce access through Row Level Security on exposed schemas, and keep privileged write paths behind trusted server-side services.
 
+Current browser exposure inventory:
+- `lib/supabase/client.ts` is the only browser Supabase client helper.
+- No committed `app/`, `components/`, or runtime `lib/` source may import `@/lib/supabase/client`, call `getSupabaseBrowserClient()`, or import `@supabase/supabase-js` from a browser-reachable module.
+- `npm run check:browser-supabase-boundary` enforces that inventory and runs inside `npm run verify`.
+
+Direct browser tenant-table access remains blocked until a migration commits explicit policies and verification for the table set being exposed.
+
+Expected auth and membership model for any future browser-accessible tenant table:
+- the browser Supabase session must carry a stable external user id claim that maps to `public.organization_member.clerk_user_id`
+- tenant table policies must allow reads or writes only when `organization_id` matches an active `public.organization_member.organization_id` row for the JWT user
+- role-specific writes must check `public.organization_member.role` instead of relying on route-level UI hiding
+- cross-tenant administrative views must use a separate documented policy path and tests, not a broad service-role bypass in client code
+
 ## Rationale
 Middleware alone is not sufficient for tenant isolation. The database must defend the boundary even when application code is wrong.
 
@@ -27,3 +40,4 @@ Middleware alone is not sufficient for tenant isolation. The database must defen
 - RLS must be enabled on tenant-facing tables.
 - Direct browser Supabase access requires policies before release.
 - Server routes using service-role access must resolve and apply one tenant organization id.
+- Browser Supabase imports must keep passing `npm run check:browser-supabase-boundary` until explicit policies and browser cross-tenant tests are committed.
