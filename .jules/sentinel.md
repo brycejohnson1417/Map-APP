@@ -1,0 +1,4 @@
+## 2024-05-09 - Fix SQL injection in mapapp.mjs
+**Vulnerability:** A script `scripts/mapapp.mjs` was directly interpolating unescaped user-supplied database table names into an SQL query (`select count(*)::int as count from public."${table}"`).
+**Learning:** Even internal tooling or scripts should be treated with care when constructing SQL queries, especially when iterating over strings. The `pg` library doesn't inherently protect standard parameterized queries if it involves table or column names, meaning specific escaping must be done for identifiers.
+**Prevention:** Always use the database client's specific identifier escaping mechanism (e.g., `client.escapeIdentifier(table)`) instead of raw string concatenation or interpolation when referring to table or column names dynamically in SQL queries.
