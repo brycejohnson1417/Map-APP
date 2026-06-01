@@ -1930,6 +1930,7 @@ Current behavior:
 
 - read routes resolve the workspace slug and require `tenantType.id=screenprinting`
 - mutating routes require tenant-session access
+- mutating routes validate related object ids against the active `organization_id` before insert/update or provider-side actions
 - config mutation writes tenant-owned organization settings and records audit events
 - Printavo-derived order routes are read-only
 - email draft routes render or record draft state only and do not send email
