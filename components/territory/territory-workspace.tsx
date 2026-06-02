@@ -570,13 +570,14 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const mobileViewAutoSwitchedRef = useRef(initialPreferListView);
 
   const pins = data.pins;
-  const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
+  const pinsMap = useMemo(() => new Map(pins.map((pin) => [pin.id, pin])), [pins]);
+  const selectedPin = useMemo(() => pinsMap.get(selectedId ?? "") ?? null, [pinsMap, selectedId]);
   const routeStops = useMemo(
     () =>
       routePlanningEnabled
-        ? routeStopIds.map((id) => pins.find((pin) => pin.id === id)).filter((pin): pin is TerritoryAccountPin => Boolean(pin))
+        ? routeStopIds.map((id) => pinsMap.get(id)).filter((pin): pin is TerritoryAccountPin => Boolean(pin))
         : [],
-    [pins, routePlanningEnabled, routeStopIds],
+    [pinsMap, routePlanningEnabled, routeStopIds],
   );
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -648,7 +649,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
       getLeafletClickPointForPin(pinId: string) {
         const handle = mapRef.current;
         const element = mapElementRef.current;
-        const pin = pins.find((entry) => entry.id === pinId);
+        const pin = pinsMap.get(pinId);
         if (!handle || handle.provider !== "openstreetmap" || !element || !pin || !hasUsableCoordinates(pin)) {
           return null;
         }
