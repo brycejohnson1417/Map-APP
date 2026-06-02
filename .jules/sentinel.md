@@ -1,0 +1,4 @@
+## 2025-06-02 - Secure Email Preview Rendering
+**Vulnerability:** XSS risk identified in `components/accounts/ppp-savings-panel.tsx` due to rendering potentially untrusted or dynamic email HTML directly into the DOM using React's `dangerouslySetInnerHTML`, even when passed through `DOMPurify`.
+**Learning:** For rendering email previews or other untrusted HTML content, a sandboxed `iframe` is far more secure than sanitization alone because it establishes an isolated browsing context that prevents CSS inheritance and Javascript execution.
+**Prevention:** In React, strictly prefer an `<iframe srcDoc={html} sandbox="allow-popups allow-popups-to-escape-sandbox" />` over `dangerouslySetInnerHTML` for third-party or dynamic HTML to create a defense-in-depth barrier against XSS. Avoid `allow-scripts` and `allow-same-origin` in the sandbox directive.
