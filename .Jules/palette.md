@@ -1,0 +1,3 @@
+## 2024-05-18 - [Fix Accordion Expand/Collapse ARIA Connectivity]
+ **Learning:** When creating an expandable section (accordion) toggled by a button, you need to use React useId() to explicitly tie the trigger `aria-controls={contentId}` to the conditional content container `id={contentId}`. Ensure both the expanded and collapsed state return containers have the id assigned to ensure screen readers dont lose track when switching states.
+ **Action:** Make sure that conditionally rendered subtrees of aria-controlled content maintain the specific ID identifier to avoid broken accessibility associations.
