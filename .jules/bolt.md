@@ -1,0 +1,3 @@
+## 2024-06-03 - Remove redundant database queries in tenant access resolution
+**Learning:** Avoid redundant database queries by passing already-fetched `Organization` objects directly to synchronous compilers (e.g., `compileWorkspaceExperience` from `@/lib/platform/workspace/compiler`) instead of calling async services like `getWorkspaceExperienceBySlug` that perform a redundant `findBySlug` lookup.
+**Action:** When a service requires workspace experience data and the caller already holds the `Organization` object, use `compileWorkspaceExperience({ slug, organization })` synchronously to avoid an unnecessary database hit.

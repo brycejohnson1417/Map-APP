@@ -1,0 +1,306 @@
+
+> map-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.0-canary.36 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 512ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+○ Compiling /login ...
+ GET / 307 in 5.8s (next.js: 5.1s, application-code: 752ms)
+ GET /login?org=fraternitees 200 in 5.9s (next.js: 5.3s, application-code: 630ms)
+ GET /login 200 in 180ms (next.js: 12ms, application-code: 168ms)
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationMemberRepository.listByEmail (lib/infrastructure/supabase/organization-member-repository.ts:27:44)
+    at resolveTenantAccess (lib/application/auth/tenant-access.ts:98:45)
+    at POST (app/api/tenant-session/route.ts:11:43)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+ POST /api/tenant-session 500 in 3.1s (next.js: 2.5s, application-code: 601ms)
+○ Compiling /accounts ...
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 4.8s (next.js: 3.4s, application-code: 1318ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 478ms (next.js: 4ms, application-code: 475ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 540ms (next.js: 4ms, application-code: 536ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:59:33)
+    at TodayPage (app/today/page.tsx:15:43)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2618707514'
+}
+ GET /today?org=fraternitees 500 in 1584ms (next.js: 910ms, application-code: 674ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:59:33)
+    at TodayPage (app/today/page.tsx:15:43)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 481ms (next.js: 5ms, application-code: 476ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:59:33)
+    at TodayPage (app/today/page.tsx:15:43)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2618707514'
+}
+ GET /today?org=dynalites 500 in 553ms (next.js: 4ms, application-code: 549ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:59:33)
+    at TodayPage (app/today/page.tsx:15:43)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 595ms (next.js: 8ms, application-code: 587ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at TerritoryPage (app/territory/page.tsx:16:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2717520535'
+}
+ GET /territory?org=fraternitees 500 in 1439ms (next.js: 804ms, application-code: 635ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at TerritoryPage (app/territory/page.tsx:16:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '2309298484'
+}
+ GET /accounts?org=fraternitees 500 in 496ms (next.js: 3ms, application-code: 493ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at AccountsPage (app/accounts/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
+⨯ Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <unknown> (lib/application/workspace/workspace-service.ts:24:44)
+    at IntegrationsPage (app/integrations/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, { {
+  digest: '810309265'
+}
+ GET /integrations?org=fraternitees 500 in 1463ms (next.js: 746ms, application-code: 717ms)
+[browser] Uncaught Error: Supabase is not configured
+    at getSupabaseAdminClient (lib/supabase/admin.ts:17:11)
+    at OrganizationRepository.findBySlug (lib/infrastructure/supabase/organization-repository.ts:29:44)
+    at <anonymous> (lib/application/workspace/workspace-service.ts:24:44)
+    at IntegrationsPage (app/integrations/page.tsx:33:55)
+  15 |
+  16 |   if (!url || !key) {
+> 17 |     throw new Error("Supabase is not configured");
+     |           ^
+  18 |   }
+  19 |
+  20 |   adminClient = createClient(url, key, {
