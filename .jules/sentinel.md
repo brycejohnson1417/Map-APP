@@ -1,0 +1,4 @@
+## 2024-06-04 - [Use isolated iframes instead of dangerouslySetInnerHTML]
+**Vulnerability:** Used dangerouslySetInnerHTML for rendering dynamic/untrusted HTML content (email previews) which poses a potential XSS risk, even when using DOMPurify.
+**Learning:** Rendering dynamic or untrusted HTML via dangerouslySetInnerHTML can still be risky if the content structure bypasses standard sanitization edge cases, and it exposes the rendered content to the parent's CSS context. Using an iframe with `srcDoc` ensures complete isolation and prevents malicious scripts from accessing the parent browsing context.
+**Prevention:** Prioritize using a sandboxed `<iframe>` with the `srcDoc` attribute over `dangerouslySetInnerHTML`. Use `sandbox="allow-popups allow-popups-to-escape-sandbox"` to restrict scripts while still allowing link clicks, providing defense-in-depth against XSS.
