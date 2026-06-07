@@ -1,0 +1,4 @@
+## 2024-03-24 - High-Risk XSS in Email Previews via `dangerouslySetInnerHTML`
+**Vulnerability:** Found `dangerouslySetInnerHTML` used to render potentially untrusted email content in the `ppp-savings-panel.tsx` component.
+**Learning:** Even when used with `DOMPurify`, `dangerouslySetInnerHTML` does not isolate the rendered HTML into its own browsing context, making it vulnerable if the sanitizer misses an edge case.
+**Prevention:** Always use an `<iframe>` with the `srcDoc` attribute and a strict `sandbox` policy (e.g. `sandbox="allow-popups allow-popups-to-escape-sandbox"`) when rendering potentially dangerous content like emails or user-generated HTML to ensure complete isolation.
