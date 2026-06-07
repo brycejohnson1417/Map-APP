@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize redundant queries with synchronous workspace compilation
+**Learning:** In critical auth paths like tenant access resolution, redundant database queries can occur when using helper services like `getWorkspaceExperienceBySlug` (which internalize a `findBySlug` lookup), even if the full `Organization` object has already been fetched earlier in the function.
+**Action:** Always check if the full entity (e.g., `Organization`) is already available in scope. If so, bypass the async service wrapper and directly invoke the underlying synchronous compilation function (e.g., `compileWorkspaceExperience`) by passing the already-fetched entity. This prevents N+1 and duplicate queries in performance-sensitive routing paths.
