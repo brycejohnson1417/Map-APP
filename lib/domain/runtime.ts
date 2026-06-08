@@ -284,6 +284,11 @@ export interface FraterniteesAccountDirectoryItem {
   leadPriority: string | null;
   leadScore: number | null;
   leadGrade: FraterniteesLeadGrade;
+  computedLeadGrade: FraterniteesLeadGrade | null;
+  manualLeadGrade: FraterniteesLeadGrade | null;
+  manualLeadGradeReason: string | null;
+  manualLeadGradeUpdatedAt: string | null;
+  manualLeadGradeUpdatedBy: string | null;
   closeRate: number | null;
   closedOrders: number;
   lostOrders: number;
@@ -322,16 +327,34 @@ export interface FraterniteesTopCustomerSpendItem {
   lastOrderDate: string | null;
 }
 
+export interface FraterniteesCalendarYearCustomerItem {
+  accountId: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  fraternity: string;
+  chapter: string;
+  orderCount: number;
+  closedOrders: number;
+  openOrders: number;
+  lostOrders: number;
+  revenue: number;
+  lastOrderDate: string | null;
+  needsClose: boolean;
+}
+
 export interface FraterniteesAccountDirectoryPage {
   organization: Organization;
   summary: FraterniteesAccountDirectorySummary;
   items: FraterniteesAccountDirectoryItem[];
   topCustomersLast12Months: FraterniteesTopCustomerSpendItem[];
+  calendarYearCustomers: FraterniteesCalendarYearCustomerItem[];
   filters: {
     query: string;
     grade: FraterniteesLeadGrade | "All Grades";
     dncOnly: boolean;
     sort: "score" | "close_rate" | "order_count";
+    calendarSort: "needs_close" | "fraternity" | "spend";
     page: number;
     pageSize: number;
   };

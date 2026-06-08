@@ -16,11 +16,18 @@ import {
   classifyFraterniteesStatus,
   gradeFraterniteesLead,
 } from "@/lib/application/fraternitees/lead-scoring";
+import {
+  buildCalendarYearCustomerRows,
+  normalizeCalendarYearCustomerSort,
+  resolveManualLeadGrade,
+  type CalendarYearCustomerSort,
+} from "@/lib/application/fraternitees/account-insights";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
 
 const DEFAULT_PAGE_SIZE = 50;
 const SUMMARY_BATCH_SIZE = 1000;
 const TOP_CUSTOMER_LIMIT = 100;
+const ACCOUNT_LOOKUP_BATCH_SIZE = 250;
 
 type FraterniteesDirectorySort = "score" | "close_rate" | "order_count";
 
@@ -69,7 +76,7 @@ interface SummaryRow {
 }
 
 interface TrendOrderRow {
-  account_id: string;
+  account_id: string | null;
   external_order_id: string | null;
   order_number: string | null;
   status: string | null;
@@ -117,6 +124,11 @@ function normalizeSort(value: string | string[] | undefined): FraterniteesDirect
   }
 
   return "score";
+}
+
+function normalizeCalendarSort(value: string | string[] | undefined): CalendarYearCustomerSort {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return normalizeCalendarYearCustomerSort(raw);
 }
 
 function normalizePage(value: string | string[] | undefined) {
@@ -170,13 +182,19 @@ function extractAccountMetrics(
     closedRevenue: closedRevenue ?? 0,
     monthsWithClosedOrdersLast12: 0,
   }, { config });
+  const manual = resolveManualLeadGrade({ leadGrade, leadScore }, fields);
 
   return {
     leadPriority,
     primaryContactName,
     primaryContactEmail,
     leadScore,
-    leadGrade,
+    leadGrade: manual.leadGrade,
+    computedLeadGrade: manual.computedLeadGrade,
+    manualLeadGrade: manual.manualLeadGrade,
+    manualLeadGradeReason: manual.manualLeadGradeReason,
+    manualLeadGradeUpdatedAt: manual.manualLeadGradeUpdatedAt,
+    manualLeadGradeUpdatedBy: manual.manualLeadGradeUpdatedBy,
     closeRate,
     closedOrders,
     lostOrders,
@@ -203,6 +221,11 @@ function mapAccountRow(row: AccountRow, config?: FraterniteesScoreModelConfig): 
     leadPriority: metrics.leadPriority,
     leadScore: metrics.leadScore,
     leadGrade: metrics.leadGrade,
+    computedLeadGrade: metrics.computedLeadGrade,
+    manualLeadGrade: metrics.manualLeadGrade,
+    manualLeadGradeReason: metrics.manualLeadGradeReason,
+    manualLeadGradeUpdatedAt: metrics.manualLeadGradeUpdatedAt,
+    manualLeadGradeUpdatedBy: metrics.manualLeadGradeUpdatedBy,
     closeRate: metrics.closeRate,
     closedOrders: metrics.closedOrders,
     lostOrders: metrics.lostOrders,
@@ -229,6 +252,11 @@ function mapDirectoryRow(row: DirectoryRow): FraterniteesAccountDirectoryItem {
     leadPriority: row.lead_priority,
     leadScore: toNumber(row.lead_score),
     leadGrade: row.lead_grade ?? "Unscored",
+    computedLeadGrade: null,
+    manualLeadGrade: null,
+    manualLeadGradeReason: null,
+    manualLeadGradeUpdatedAt: null,
+    manualLeadGradeUpdatedBy: null,
     closeRate: toNumber(row.lead_close_rate),
     closedOrders: toNumber(row.closed_orders) ?? 0,
     lostOrders: toNumber(row.lost_orders) ?? 0,
@@ -620,6 +648,43 @@ async function fetchViewItems(input: {
   return result.data.map(mapDirectoryRow);
 }
 
+async function applyManualGradeOverrides(input: {
+  organizationId: string;
+  items: FraterniteesAccountDirectoryItem[];
+}) {
+  if (!input.items.length) {
+    return input.items;
+  }
+
+  const params = new URLSearchParams({
+    organization_id: `eq.${input.organizationId}`,
+    select: "id,custom_fields",
+    limit: String(input.items.length),
+  });
+  params.set("id", `in.(${input.items.map((item) => item.id).join(",")})`);
+  const { data } = await runtimeRestRequest<Array<{ id: string; custom_fields: Record<string, unknown> | null }>>("account", params);
+  const customFieldsById = new Map(data.map((row) => [row.id, row.custom_fields ?? {}]));
+
+  return input.items.map((item) => {
+    const resolved = resolveManualLeadGrade(
+      {
+        leadGrade: item.leadGrade,
+        leadScore: item.leadScore,
+      },
+      customFieldsById.get(item.id),
+    );
+    return {
+      ...item,
+      leadGrade: resolved.leadGrade,
+      computedLeadGrade: resolved.computedLeadGrade,
+      manualLeadGrade: resolved.manualLeadGrade,
+      manualLeadGradeReason: resolved.manualLeadGradeReason,
+      manualLeadGradeUpdatedAt: resolved.manualLeadGradeUpdatedAt,
+      manualLeadGradeUpdatedBy: resolved.manualLeadGradeUpdatedBy,
+    };
+  });
+}
+
 const fetchCachedViewItems = unstable_cache(
   async (
     organizationId: string,
@@ -808,6 +873,68 @@ async function fetchTopCustomersLast12Months(input: {
     .filter((item): item is FraterniteesTopCustomerSpendItem => Boolean(item));
 }
 
+async function fetchCalendarYearCustomers(input: {
+  organizationId: string;
+  sort: CalendarYearCustomerSort;
+}) {
+  const yearStart = `${new Date().getUTCFullYear()}-01-01T00:00:00.000Z`;
+  const orderParams = new URLSearchParams({
+    organization_id: `eq.${input.organizationId}`,
+    select: "account_id,status,order_total,order_created_at",
+    order: "order_created_at.desc.nullslast",
+    limit: "50000",
+  });
+  orderParams.set("order_created_at", `gte.${yearStart}`);
+
+  const { data: orders } = await runtimeRestRequest<TrendOrderRow[]>("order_record", orderParams);
+  const accountIds = [...new Set(orders.map((order) => order.account_id).filter((id): id is string => Boolean(id)))];
+  if (!accountIds.length) {
+    return [];
+  }
+
+  const accountBatches = await Promise.all(
+    Array.from({ length: Math.ceil(accountIds.length / ACCOUNT_LOOKUP_BATCH_SIZE) }, (_, index) => {
+      const ids = accountIds.slice(index * ACCOUNT_LOOKUP_BATCH_SIZE, (index + 1) * ACCOUNT_LOOKUP_BATCH_SIZE);
+      const accountParams = new URLSearchParams({
+        organization_id: `eq.${input.organizationId}`,
+        select: "id,name,display_name,city,state,custom_fields",
+        limit: String(ids.length),
+      });
+      accountParams.set("id", `in.(${ids.join(",")})`);
+      return runtimeRestRequest<TopCustomerAccountRow[]>("account", accountParams);
+    }),
+  );
+  const accounts = accountBatches.flatMap((batch) => batch.data);
+
+  return buildCalendarYearCustomerRows({
+    now: new Date(),
+    accounts: accounts.map((account) => ({
+      id: account.id,
+      name: account.display_name || account.name,
+      city: account.city,
+      state: account.state,
+      customFields: account.custom_fields,
+    })),
+    orders: orders.map((order) => ({
+      accountId: order.account_id,
+      status: order.status,
+      orderTotal: toNumber(order.order_total),
+      orderCreatedAt: order.order_created_at,
+    })),
+    sort: input.sort,
+  });
+}
+
+const fetchCachedCalendarYearCustomers = unstable_cache(
+  async (organizationId: string, sort: CalendarYearCustomerSort) =>
+    fetchCalendarYearCustomers({
+      organizationId,
+      sort,
+    }),
+  ["fraternitees-calendar-year-customers"],
+  { revalidate: 300 },
+);
+
 const fetchCachedTopCustomersLast12Months = unstable_cache(
   async (organizationId: string, configJson: string) =>
     fetchTopCustomersLast12Months({
@@ -823,10 +950,12 @@ function buildDirectoryPage(input: {
   summary: FraterniteesAccountDirectorySummary;
   items: FraterniteesAccountDirectoryItem[];
   topCustomersLast12Months: FraterniteesTopCustomerSpendItem[];
+  calendarYearCustomers: FraterniteesAccountDirectoryPage["calendarYearCustomers"];
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
   sort: FraterniteesDirectorySort;
+  calendarSort: CalendarYearCustomerSort;
   page: number;
   totalItems: number;
   pageSize: number;
@@ -841,11 +970,13 @@ function buildDirectoryPage(input: {
     summary: input.summary,
     items: input.items,
     topCustomersLast12Months: input.topCustomersLast12Months,
+    calendarYearCustomers: input.calendarYearCustomers,
     filters: {
       query: input.query,
       grade: input.grade,
       dncOnly: input.dncOnly,
       sort: input.sort,
+      calendarSort: input.calendarSort,
       page: normalizedPage,
       pageSize: input.pageSize,
     },
@@ -868,14 +999,16 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
   sort: FraterniteesDirectorySort;
+  calendarSort: CalendarYearCustomerSort;
   page: number;
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems, topCustomersLast12Months] = await Promise.all([
+  const [summary, totalItems, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
     fetchCachedViewSummarySnapshot(input.organization.slug),
     fetchCachedViewFilteredCount(input.organization.id, input.query, input.grade, input.dncOnly),
     fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
+    fetchCachedCalendarYearCustomers(input.organization.id, input.calendarSort),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / input.pageSize));
@@ -889,9 +1022,13 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     normalizedPage,
     input.pageSize,
   );
-  const itemsWithTrends = await applyScoreTrends({
+  const itemsWithOverrides = await applyManualGradeOverrides({
     organizationId: input.organization.id,
     items,
+  });
+  const itemsWithTrends = await applyScoreTrends({
+    organizationId: input.organization.id,
+    items: itemsWithOverrides,
     config: input.config,
   });
 
@@ -900,10 +1037,12 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     summary,
     items: itemsWithTrends,
     topCustomersLast12Months,
+    calendarYearCustomers,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,
     sort: input.sort,
+    calendarSort: input.calendarSort,
     page: normalizedPage,
     totalItems,
     pageSize: input.pageSize,
@@ -916,11 +1055,12 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
   sort: FraterniteesDirectorySort;
+  calendarSort: CalendarYearCustomerSort;
   page: number;
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems, topCustomersLast12Months] = await Promise.all([
+  const [summary, totalItems, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
     fetchDirectSummarySnapshot(input.organization),
     fetchDirectFilteredCount({
       organizationId: input.organization.id,
@@ -930,6 +1070,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
       config: input.config,
     }),
     fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
+    fetchCachedCalendarYearCustomers(input.organization.id, input.calendarSort),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / input.pageSize));
@@ -955,10 +1096,12 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
     summary,
     items: itemsWithTrends,
     topCustomersLast12Months,
+    calendarYearCustomers,
     query: input.query,
     grade: input.grade,
     dncOnly: input.dncOnly,
     sort: input.sort,
+    calendarSort: input.calendarSort,
     page: normalizedPage,
     totalItems,
     pageSize: input.pageSize,
@@ -981,6 +1124,7 @@ export async function getFraterniteesAccountDirectory(
   const grade = normalizeGrade(params.grade);
   const dncOnly = (Array.isArray(params.dnc) ? params.dnc[0] : params.dnc) === "1";
   const sort = normalizeSort(params.sort);
+  const calendarSort = normalizeCalendarSort(params.calendarSort);
   const page = normalizePage(params.page);
 
   try {
@@ -990,6 +1134,7 @@ export async function getFraterniteesAccountDirectory(
       grade,
       dncOnly,
       sort,
+      calendarSort,
       page,
       pageSize,
       config,
@@ -1001,6 +1146,7 @@ export async function getFraterniteesAccountDirectory(
       grade,
       dncOnly,
       sort,
+      calendarSort,
       page,
       pageSize,
       config,

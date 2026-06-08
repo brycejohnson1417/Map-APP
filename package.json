@@ -17,6 +17,7 @@
     "check:tenant-isolation": "node scripts/check-tenant-provider-isolation.mjs",
     "check:tenant-isolation:self-test": "node scripts/test-tenant-provider-isolation.mjs",
     "check:tenant-access": "node scripts/test-tenant-access-selection.mjs",
+    "check:fraternitees-change-requests": "node --no-warnings --experimental-strip-types scripts/test-fraternitees-change-requests.mjs",
     "check:change-request-attachments": "node scripts/test-change-request-attachment-performance.mjs",
     "check:browser-supabase-boundary:self-test": "node scripts/test-browser-supabase-boundary.mjs",
     "check:browser-supabase-boundary": "node scripts/check-browser-supabase-boundary.mjs",
