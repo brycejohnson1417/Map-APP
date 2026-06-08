@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Minus, ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Save, ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
 import type { FraterniteesAccountDirectoryItem, FraterniteesAccountDirectoryPage } from "@/lib/domain/runtime";
+import { FraterniteesGradeOverrideForm } from "@/components/accounts/fraternitees-grade-override-form";
 import { FilterToolbar } from "@/components/primitives/filter-toolbar";
 import { ScorecardGrid } from "@/components/primitives/scorecard-grid";
 import { orgScopedHref } from "@/lib/presentation/org-slug";
 
-export type FraterniteesAccountsView = "scoring" | "leaderboard";
+export type FraterniteesAccountsView = "scoring" | "leaderboard" | "calendar_year";
 
 interface FraterniteesLeadQualificationModuleProps {
   orgSlug: string;
@@ -66,6 +67,7 @@ function accountsPageHref(input: {
   sort?: string;
   page?: number;
   view?: FraterniteesAccountsView;
+  calendarSort?: string;
 }) {
   const params = new URLSearchParams({ org: input.orgSlug });
   if (input.query?.trim()) {
@@ -85,6 +87,9 @@ function accountsPageHref(input: {
   }
   if (input.view && input.view !== "scoring") {
     params.set("view", input.view);
+  }
+  if (input.calendarSort && input.calendarSort !== "needs_close") {
+    params.set("calendarSort", input.calendarSort);
   }
   return `/accounts?${params.toString()}`;
 }
@@ -306,11 +311,7 @@ function ScoringSection({
             const TrendIcon = trendMeta.icon;
 
             return (
-              <Link
-                key={account.id}
-                href={orgScopedHref(`/accounts/${account.id}`, orgSlug)}
-                className="grid gap-4 px-5 py-5 transition hover:bg-slate-50 lg:grid-cols-[1.5fr_0.8fr_1fr_0.8fr_auto] lg:items-center"
-              >
+              <div key={account.id} className="grid gap-4 px-5 py-5 transition hover:bg-slate-50 lg:grid-cols-[1.5fr_0.8fr_1fr_0.8fr_auto] lg:items-center">
                 <div>
                   <p className="text-xl font-bold tracking-normal text-slate-950">{account.name}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{statusLine(account)}</p>
@@ -332,6 +333,12 @@ function ScoringSection({
                       <TrendIcon className="h-3.5 w-3.5" />
                       {trendMeta.label}
                     </span>
+                    {account.manualLeadGrade ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700">
+                        <Save className="h-3.5 w-3.5" />
+                        Manual over {account.computedLeadGrade}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-600">
@@ -341,8 +348,23 @@ function ScoringSection({
                   <p className="mt-1 font-bold text-emerald-600">{formatPercent(account.closeRate)}</p>
                 </div>
                 <p className="text-lg font-bold text-slate-700">{formatMoney(aov)}</p>
-                <ChevronRight className="h-5 w-5 text-slate-400" />
-              </Link>
+                <Link
+                  href={orgScopedHref(`/accounts/${account.id}`, orgSlug)}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-slate-950"
+                >
+                  Open
+                  <ChevronRight className="h-5 w-5 text-slate-400" />
+                </Link>
+                <div className="lg:col-span-5">
+                  <FraterniteesGradeOverrideForm
+                    orgSlug={orgSlug}
+                    accountId={account.id}
+                    computedGrade={account.computedLeadGrade ?? account.leadGrade}
+                    manualGrade={account.manualLeadGrade}
+                    reason={account.manualLeadGradeReason}
+                  />
+                </div>
+              </div>
             );
           })}
           {!items.length ? (
@@ -424,7 +446,12 @@ export function FraterniteesLeadQualificationModule({
   const connectionHealthy = summary.accounts > 0 && summary.orders > 0;
   const resolvedGradeOptions = configuredGradeOptions ?? [...gradeOptions];
   const resolvedSortOptions = configuredSortOptions ?? [...sortOptions];
-  const activeTabTitle = activeView === "leaderboard" ? "Account Leaderboard" : "Scoring Engine";
+  const activeTabTitle =
+    activeView === "leaderboard"
+      ? "Account Leaderboard"
+      : activeView === "calendar_year"
+        ? "Calendar Year Customers"
+        : "Scoring Engine";
 
   return (
     <section className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-[#f7f9fc] p-5 text-slate-950 shadow-sm md:p-6">
@@ -496,7 +523,7 @@ export function FraterniteesLeadQualificationModule({
       />
 
       <div className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-        <div role="tablist" aria-label="FraterniTees accounts sections" className="grid gap-2 md:grid-cols-2">
+        <div role="tablist" aria-label="FraterniTees accounts sections" className="grid gap-2 md:grid-cols-3">
           <Link
             href={accountsPageHref({
               orgSlug,
@@ -544,11 +571,33 @@ export function FraterniteesLeadQualificationModule({
               Top 100 customers by trailing 12-month spend.
             </span>
           </Link>
+          <Link
+            href={accountsPageHref({
+              orgSlug,
+              view: "calendar_year",
+              calendarSort: filters.calendarSort,
+            })}
+            role="tab"
+            aria-selected={activeView === "calendar_year"}
+            className={`flex min-h-20 flex-col justify-center rounded-md px-4 py-3 text-left transition ${
+              activeView === "calendar_year"
+                ? "border border-[#f26a00]/30 bg-[#fff4eb] text-slate-950 shadow-sm ring-1 ring-[#f26a00]/20"
+                : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+            }`}
+          >
+            <span className="text-xs font-semibold uppercase tracking-[0.24em] opacity-70">Tab</span>
+            <span className="mt-1 text-lg font-bold tracking-[-0.02em]">Calendar Year</span>
+            <span className={`mt-1 text-sm ${activeView === "calendar_year" ? "text-slate-600" : "text-slate-500"}`}>
+              Customers touched this year, grouped by fraternity and close status.
+            </span>
+          </Link>
         </div>
       </div>
 
       {activeView === "leaderboard" ? (
         <LeaderboardSection orgSlug={orgSlug} topCustomersLast12Months={directory.topCustomersLast12Months} />
+      ) : activeView === "calendar_year" ? (
+        <CalendarYearSection orgSlug={orgSlug} directory={directory} />
       ) : (
         <ScoringSection
           orgSlug={orgSlug}
@@ -557,6 +606,99 @@ export function FraterniteesLeadQualificationModule({
           resolvedSortOptions={resolvedSortOptions}
         />
       )}
+    </section>
+  );
+}
+
+function CalendarYearSection({
+  orgSlug,
+  directory,
+}: {
+  orgSlug: string;
+  directory: FraterniteesAccountDirectoryPage;
+}) {
+  const rows = directory.calendarYearCustomers;
+  const needsClose = rows.filter((row) => row.needsClose).length;
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Current calendar year</p>
+          <h3 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Worked customers by fraternity</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            {rows.length} customers have Printavo activity this year. {needsClose} still need a closed order this calendar year.
+          </p>
+        </div>
+        <form action="/accounts" className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <input type="hidden" name="org" value={orgSlug} />
+          <input type="hidden" name="view" value="calendar_year" />
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+            Sort
+            <select
+              name="calendarSort"
+              defaultValue={directory.filters.calendarSort}
+              className="min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold normal-case tracking-normal text-slate-900"
+            >
+              <option value="needs_close">Needs close first</option>
+              <option value="fraternity">Fraternity A-Z</option>
+              <option value="spend">Closed spend</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white"
+            style={{ color: "#fff" }}
+          >
+            Apply
+          </button>
+        </form>
+      </div>
+      <div className="max-h-[34rem] overflow-auto">
+        <div className="grid grid-cols-[1.1fr_1fr_0.8fr_0.7fr_0.7fr] gap-3 bg-slate-100 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 max-lg:hidden">
+          <p>Customer</p>
+          <p>Fraternity / chapter</p>
+          <p>Status</p>
+          <p>Orders</p>
+          <p>Spend</p>
+        </div>
+        <div className="divide-y divide-slate-200">
+          {rows.map((account) => (
+            <Link
+              key={account.accountId}
+              href={orgScopedHref(`/accounts/${account.accountId}`, orgSlug)}
+              className="grid gap-3 px-5 py-4 transition hover:bg-slate-50 lg:grid-cols-[1.1fr_1fr_0.8fr_0.7fr_0.7fr] lg:items-center"
+            >
+              <div>
+                <p className="text-base font-bold text-slate-950">{account.name}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {[account.city, account.state].filter(Boolean).join(", ") || "No location"} / Last {formatDate(account.lastOrderDate)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">{account.fraternity}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{account.chapter}</p>
+              </div>
+              <span
+                className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                  account.needsClose ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                }`}
+              >
+                {account.needsClose ? "Needs close" : "Closed this year"}
+              </span>
+              <p className="text-sm font-semibold text-slate-700">
+                {account.orderCount} total / {account.closedOrders} closed / {account.openOrders} open
+              </p>
+              <p className="text-lg font-bold text-slate-900">{formatMoney(account.revenue)}</p>
+            </Link>
+          ))}
+          {!rows.length ? (
+            <div className="px-5 py-6 text-sm font-semibold text-slate-500">
+              No Printavo customer activity has landed for this calendar year yet.
+            </div>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }

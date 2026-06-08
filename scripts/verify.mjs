@@ -6,6 +6,7 @@ const steps = [
   ["npm", ["run", "check:tenant-isolation:self-test"]],
   ["npm", ["run", "check:tenant-isolation"]],
   ["npm", ["run", "check:tenant-access"]],
+  ["npm", ["run", "check:fraternitees-change-requests"]],
   ["npm", ["run", "check:change-request-attachments"]],
   ["npm", ["run", "check:browser-supabase-boundary:self-test"]],
   ["npm", ["run", "check:browser-supabase-boundary"]],

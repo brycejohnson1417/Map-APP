@@ -46,6 +46,13 @@ a {
   text-decoration: none;
 }
 
+input,
+select,
+textarea,
+button {
+  font-size: max(16px, 1rem);
+}
+
 ::selection {
   background: rgba(215, 67, 20, 0.18);
 }

@@ -23,7 +23,10 @@ function formatNumber(value: number) {
 
 function normalizeAccountsView(value: string | string[] | undefined): FraterniteesAccountsView {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === "leaderboard" ? "leaderboard" : "scoring";
+  if (raw === "leaderboard" || raw === "calendar_year") {
+    return raw;
+  }
+  return "scoring";
 }
 
 export default async function AccountsPage({ searchParams }: AccountsPageProps) {
