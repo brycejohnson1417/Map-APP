@@ -24,6 +24,7 @@
     "check:self-contained-requirements": "node scripts/check-self-contained-requirements.mjs",
     "check:work-registry": "node scripts/check-work-registry.mjs",
     "check:screenprinting-foundation": "node scripts/check-screenprinting-foundation.mjs",
+    "check:printavo-owner-attribution": "node scripts/test-printavo-owner-attribution.mjs",
     "verify:browser": "playwright test",
     "verify": "node scripts/verify.mjs",
     "review:adversarial": "node scripts/adversarial-review.mjs",

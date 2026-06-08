@@ -1122,7 +1122,7 @@ export function ScreenprintingWorkspace({
             )}
           </Section>
 
-          <Section title="Team pulse" description="Attribution from Printavo manager fields. Treat missing manager data as needs-review.">
+          <Section title="Rep pulse" description="Attribution from Printavo order owner fields. Treat missing rep data as needs-review.">
             <div className="grid gap-3">
               <MetricCard label="AOV" value={formatMoney(sales.averageOrderValue)} sublabel={`${formatNumber(sales.totalOrders)} total orders`} icon={Target} />
               <MetricCard label="Repeat customers" value={formatNumber(sales.repeatCustomers)} sublabel={formatPercent(sales.repeatCustomerRate)} icon={RefreshCw} tone="green" />
@@ -1135,7 +1135,7 @@ export function ScreenprintingWorkspace({
                   <span className="font-semibold text-emerald-700">{formatMoney(manager.revenue)}</span>
                 </div>
               ))}
-              {!summary.salesDashboard.managerPerformance?.length ? <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No manager attribution is available.</p> : null}
+              {!summary.salesDashboard.managerPerformance?.length ? <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No rep attribution is available.</p> : null}
             </div>
           </Section>
         </div>
@@ -1270,7 +1270,7 @@ export function ScreenprintingWorkspace({
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-right">Revenue</th>
                     <th className="px-4 py-3 text-right">Orders</th>
-                    <th className="px-4 py-3 text-left">Manager</th>
+                    <th className="px-4 py-3 text-left">Rep</th>
                     <th className="px-4 py-3 text-left">Last order</th>
                   </tr>
                 </thead>
@@ -1414,7 +1414,7 @@ export function ScreenprintingWorkspace({
     }
     return (
       <Section
-        title="Manager Performance Targets"
+        title="Rep Performance Targets"
         description={`Goals save per month in product-owned tenant dashboard storage. Current period: ${summary.managerGoals.period}.`}
         actions={
           <>
@@ -1430,7 +1430,7 @@ export function ScreenprintingWorkspace({
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">Manager</th>
+                  <th className="px-4 py-3 text-left">Rep</th>
                   <th className="px-4 py-3 text-right">Actual revenue</th>
                   <th className="px-4 py-3 text-right">Actual orders</th>
                   <th className="px-4 py-3 text-right">Revenue goal</th>
@@ -1466,7 +1466,7 @@ export function ScreenprintingWorkspace({
             </table>
           </TableShell>
         ) : (
-          <EmptyState title="No manager actuals" body="Printavo manager fields are not currently available for this tenant's synced orders." />
+          <EmptyState title="No rep actuals" body="Printavo owner fields are not currently available for this tenant's synced orders." />
         )}
       </Section>
     );
@@ -1580,7 +1580,7 @@ export function ScreenprintingWorkspace({
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Payment</th>
-                  <th className="px-4 py-3 text-left">Manager</th>
+                  <th className="px-4 py-3 text-left">Rep</th>
                   <th className="px-4 py-3 text-left">Date</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -2951,7 +2951,7 @@ function OrderDetailModal({ order, onClose }: { order: SalesOrder; onClose: () =
           <MetricCard label="Total" value={formatMoney(order.orderTotal)} icon={DollarSign} tone="green" />
           <MetricCard label="Status" value={<span className="text-base">{order.status ?? "Unknown"}</span>} icon={FileText} />
           <MetricCard label="Payment" value={<span className="text-base">{order.paymentStatus ?? "Unknown"}</span>} icon={CheckCircle2} tone="green" />
-          <MetricCard label="Manager" value={<span className="text-base">{order.managerName ?? "Unassigned"}</span>} icon={Users} tone="slate" />
+          <MetricCard label="Rep" value={<span className="text-base">{order.managerName ?? "Unassigned"}</span>} icon={Users} tone="slate" />
           <MetricCard label="Order date" value={<span className="text-base">{shortDate(order.orderCreatedAt ?? order.productionDate)}</span>} icon={Clock3} tone="slate" />
         </div>
         <div className="px-5 pb-5">

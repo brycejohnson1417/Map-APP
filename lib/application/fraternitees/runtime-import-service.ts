@@ -129,6 +129,9 @@ function sourcePayloadToLeadOrder(payload: Record<string, unknown> | null): Frat
     contactName: stringOrNull(payload.contactName),
     contactEmail: stringOrNull(payload.contactEmail),
     contactPhone: stringOrNull(payload.contactPhone),
+    ownerId: stringOrNull(payload.ownerId),
+    ownerName: stringOrNull(payload.ownerName),
+    ownerEmail: stringOrNull(payload.ownerEmail),
     addressLine1: stringOrNull(payload.addressLine1),
     addressLine2: stringOrNull(payload.addressLine2),
     quantity: numberOrNull(payload.quantity),
@@ -702,7 +705,7 @@ export async function importFraterniteesOrdersToRuntime(input: {
       order_total: order.total ?? null,
       order_created_at: order.orderDate ? new Date(order.orderDate).toISOString() : null,
       delivery_date: null,
-      sales_rep_name: null,
+      sales_rep_name: order.ownerName ?? null,
       is_internal_transfer: false,
       source_payload: {
         ...order,

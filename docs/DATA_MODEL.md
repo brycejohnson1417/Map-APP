@@ -280,7 +280,7 @@ Canonical tenant order record from provider order systems.
 | `order_total` | `numeric(12,2)` | no | Order total. |
 | `order_created_at` | `timestamptz` | no | Source creation timestamp. |
 | `delivery_date` | `date` | no | Delivery/production/customer date depending on provider. |
-| `sales_rep_name` | `text` | no | Source rep/manager. |
+| `sales_rep_name` | `text` | no | Normalized source rep attribution. For Printavo, this is copied from the order owner name. |
 | `is_internal_transfer` | `boolean` | yes | Default `false`. |
 | `source_payload` | `jsonb` | yes | Provider/source payload. |
 | `created_at` | `timestamptz` | yes | Default `now()`. |

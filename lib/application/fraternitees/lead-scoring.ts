@@ -116,6 +116,9 @@ export interface FraterniteesLeadOrder {
   contactName?: string | null;
   contactEmail?: string | null;
   contactPhone?: string | null;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
   addressLine1?: string | null;
   addressLine2?: string | null;
   quantity?: number | null;
