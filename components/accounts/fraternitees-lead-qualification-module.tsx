@@ -348,14 +348,14 @@ function ScoringSection({
                   <p className="mt-1 font-bold text-emerald-600">{formatPercent(account.closeRate)}</p>
                 </div>
                 <p className="text-lg font-bold text-slate-700">{formatMoney(aov)}</p>
-                <Link
-                  href={orgScopedHref(`/accounts/${account.id}`, orgSlug)}
-                  className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-slate-950"
-                >
-                  Open
-                  <ChevronRight className="h-5 w-5 text-slate-400" />
-                </Link>
-                <div className="lg:col-span-5">
+                <div className="flex flex-col items-start gap-2 lg:items-end lg:justify-self-end">
+                  <Link
+                    href={orgScopedHref(`/accounts/${account.id}`, orgSlug)}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-slate-950"
+                  >
+                    Open
+                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                  </Link>
                   <FraterniteesGradeOverrideForm
                     orgSlug={orgSlug}
                     accountId={account.id}
