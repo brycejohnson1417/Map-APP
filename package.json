@@ -59,7 +59,7 @@
     "globals": "^17.5.0",
     "oxlint": "^1.60.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1"
   }
 }
