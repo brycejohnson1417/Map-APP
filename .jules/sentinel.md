@@ -1,0 +1,4 @@
+## 2025-03-01 - Replace dangerouslySetInnerHTML with Sandboxed iframe for email previews
+**Vulnerability:** XSS vulnerability through usage of `dangerouslySetInnerHTML` for untrusted or dynamic HTML (email preview). Even if `DOMPurify` is used, zero-day bypasses can occur and an external iframe context is much safer.
+**Learning:** React's `dangerouslySetInnerHTML` injects HTML directly into the application DOM structure which can share styling contexts or be manipulated by script bypasses. Sandboxed `iframes` (`sandbox=""` or `sandbox="allow-popups allow-popups-to-escape-sandbox"`) create isolated browsing contexts that prevent scripts and don't inherit CSS.
+**Prevention:** For any untrusted HTML rendering like email previews, strictly prioritize using `iframe` with `srcDoc` and `sandbox` attributes instead of `dangerouslySetInnerHTML`.
