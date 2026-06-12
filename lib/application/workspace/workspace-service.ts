@@ -20,8 +20,8 @@ export interface WorkspaceRuntimeExperience {
   allowChangeRequests: boolean;
 }
 
-export const getWorkspaceExperienceBySlug = cache(async (slug: string): Promise<WorkspaceRuntimeExperience> => {
-  const organization = await organizations.findBySlug(slug);
+export const getWorkspaceExperienceBySlug = cache(async (slug: string, prefetchedOrganization?: Organization | null): Promise<WorkspaceRuntimeExperience> => {
+  const organization = prefetchedOrganization !== undefined ? prefetchedOrganization : await organizations.findBySlug(slug);
   const compiled = compileWorkspaceExperience({
     slug,
     organization,
