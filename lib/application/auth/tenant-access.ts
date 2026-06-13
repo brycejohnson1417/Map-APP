@@ -110,7 +110,8 @@ export async function resolveTenantAccess(
     });
 
     if (organization) {
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+      const fullOrganization = organizationsById.get(organization.id);
+      const workspace = await getWorkspaceExperienceBySlug(organization.slug, fullOrganization);
       return existingWorkspaceAccess({
         slug: organization.slug,
         name: organization.name,
@@ -124,7 +125,7 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization && (!requestedSlug || workspaceOrganization.slug === requestedSlug)) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug, workspaceOrganization);
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
@@ -143,7 +144,7 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug, existingOrganization);
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,

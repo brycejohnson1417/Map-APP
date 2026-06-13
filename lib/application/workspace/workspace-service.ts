@@ -20,20 +20,27 @@ export interface WorkspaceRuntimeExperience {
   allowChangeRequests: boolean;
 }
 
-export const getWorkspaceExperienceBySlug = cache(async (slug: string): Promise<WorkspaceRuntimeExperience> => {
-  const organization = await organizations.findBySlug(slug);
-  const compiled = compileWorkspaceExperience({
-    slug,
-    organization,
-  });
+export const getWorkspaceExperienceBySlug = cache(
+  async (slug: string, prefetchedOrganization?: Organization | null): Promise<WorkspaceRuntimeExperience> => {
+    let organization = prefetchedOrganization;
+    if (organization === undefined) {
+      organization = await organizations.findBySlug(slug);
+    }
+    const compiled = compileWorkspaceExperience({
+      slug,
+      organization,
+    });
 
-  return {
-    organization,
-    ...compiled,
-  };
-});
+    return {
+      organization,
+      ...compiled,
+    };
+  },
+);
 
-export const getWorkspaceDefinitionBySlug = cache(async (slug: string): Promise<WorkspaceDefinition> => {
-  const workspace = await getWorkspaceExperienceBySlug(slug);
-  return workspace.workspace;
-});
+export const getWorkspaceDefinitionBySlug = cache(
+  async (slug: string, prefetchedOrganization?: Organization | null): Promise<WorkspaceDefinition> => {
+    const workspace = await getWorkspaceExperienceBySlug(slug, prefetchedOrganization);
+    return workspace.workspace;
+  },
+);
