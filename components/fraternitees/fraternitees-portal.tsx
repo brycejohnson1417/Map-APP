@@ -180,6 +180,7 @@ function PluginToggle({
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={enabled}
         disabled={disabled}
         onClick={onToggle}
@@ -1037,6 +1038,7 @@ export function FraterniteesWorkspace({
                 <button
                   type="button"
                   role="switch"
+                  aria-label="Toggle automatic daily sync"
                   aria-checked={dailyAutoSync.enabled}
                   onClick={() => void updateDailyAutoSync(!dailyAutoSync.enabled)}
                   className={classNames(
