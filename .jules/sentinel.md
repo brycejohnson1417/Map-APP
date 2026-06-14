@@ -1,0 +1,4 @@
+## 2025-03-01 - Replace dangerouslySetInnerHTML with Sandboxed iframe for Email Previews
+**Vulnerability:** XSS risk from rendering sanitized email HTML using dangerouslySetInnerHTML, even with DOMPurify, in `components/accounts/ppp-savings-panel.tsx`.
+**Learning:** To prevent XSS when rendering dynamic or untrusted HTML (like email previews), a sandboxed `<iframe>` with the `srcDoc` attribute provides a more robust defense-in-depth approach than `dangerouslySetInnerHTML`. Because the iframe is an isolated browsing context, Tailwind utility classes applied to the iframe tag won't affect the inner content, necessitating an inline `<style>` tag within the `srcDoc`.
+**Prevention:** Use `<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" srcDoc="...">` instead of `dangerouslySetInnerHTML` for untrusted HTML, manually injecting necessary styles into the `srcDoc`.
