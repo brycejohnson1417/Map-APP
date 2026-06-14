@@ -402,6 +402,7 @@ export function ChangeRequestList({
                   type="button"
                   onClick={() => toggleExpanded(request.id)}
                   aria-expanded={expanded}
+                  aria-controls={expanded ? `change-request-content-${request.id}` : undefined}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -434,6 +435,7 @@ export function ChangeRequestList({
                     type="button"
                     onClick={() => toggleExpanded(request.id)}
                     aria-expanded={expanded}
+                    aria-controls={expanded ? `change-request-content-${request.id}` : undefined}
                     aria-label={`${expanded ? "Collapse" : "Expand"} request: ${request.title}`}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
                   >
@@ -443,7 +445,7 @@ export function ChangeRequestList({
               </div>
 
               {expanded ? (
-                <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
+                <div id={`change-request-content-${request.id}`} className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
                   {previewImage?.signedUrl ? (
                     <a
                       href={previewImage.signedUrl}

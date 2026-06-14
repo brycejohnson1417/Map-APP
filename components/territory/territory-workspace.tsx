@@ -1395,6 +1395,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
               type="button"
               onClick={() => setFiltersOpen((current) => !current)}
               aria-expanded={filtersOpen}
+              aria-controls={filtersOpen ? "territory-filter-panel" : undefined}
               className={classNames(
                 "inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold",
                 filtersOpen || activeFilterCount
