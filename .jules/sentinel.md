@@ -1,0 +1,4 @@
+## 2024-06-15 - Prevent XSS in Email Previews
+**Vulnerability:** XSS vulnerability from rendering untrusted HTML via `dangerouslySetInnerHTML`. Even with `DOMPurify`, advanced attacks or misconfigurations can bypass sanitization.
+**Learning:** For rendering rich, untrusted HTML content (like email previews), a sandboxed `iframe` with `srcDoc` provides a safer isolated browsing context than `dangerouslySetInnerHTML`. The iframe allows preventing script execution entirely without risking escaping the DOM scope, but styling it requires manually injecting an inline `<style>` tag.
+**Prevention:** Avoid `dangerouslySetInnerHTML` for third-party or highly dynamic content unless absolutely necessary. Default to using sandboxed iframes (`sandbox="allow-popups allow-popups-to-escape-sandbox"`) combined with `srcDoc` for displaying potentially unsafe documents.

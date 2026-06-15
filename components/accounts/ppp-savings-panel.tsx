@@ -2,7 +2,15 @@
 
 import { useMemo, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
-import { Calculator, ChevronDown, ChevronUp, Copy, Download, Loader2, Mail } from "lucide-react";
+import {
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  Loader2,
+  Mail,
+} from "lucide-react";
 import type { PppSavingsReport } from "@/lib/application/runtime/ppp-savings-service";
 
 interface PppSavingsPanelProps {
@@ -41,9 +49,57 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     }
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
-  const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const sanitizedEmailHtml = useMemo(
+    () => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""),
+    [report],
+  );
+  const iframeSrcDoc = useMemo(() => {
+    if (!sanitizedEmailHtml) return "";
 
-  const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
+    return `
+
+      <!DOCTYPE html>
+
+      <html>
+
+        <head>
+
+          <style>
+
+            body {
+
+              margin: 0;
+
+              padding: 1.5rem;
+
+              font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+              font-size: 0.875rem;
+
+              line-height: 1.25rem;
+
+              color: #000000;
+
+            }
+
+          </style>
+
+        </head>
+
+        <body>
+
+          ${sanitizedEmailHtml}
+
+        </body>
+
+      </html>
+
+    `;
+  }, [sanitizedEmailHtml]);
+
+  const pdfHref = report
+    ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}`
+    : null;
 
   async function calculateSavings() {
     setLoading(true);
@@ -51,13 +107,16 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     setCopied(false);
 
     try {
-      const response = await fetch(`/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ year: new Date().getFullYear() }),
         },
-        body: JSON.stringify({ year: new Date().getFullYear() }),
-      });
+      );
       const payload = (await response.json()) as SavingsResponse;
       if (!response.ok || !payload.ok || !payload.report) {
         throw new Error(payload.error ?? "Unable to calculate PPP savings.");
@@ -66,7 +125,11 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
       setDraft(payload.report.email.body);
       setCollapsed(false);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Unable to calculate PPP savings.");
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to calculate PPP savings.",
+      );
     } finally {
       setLoading(false);
     }
@@ -93,8 +156,12 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     <section className="overflow-hidden rounded-[2rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
       <div className="flex flex-col justify-between gap-4 border-b border-[var(--border-subtle)] p-6 lg:flex-row lg:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-secondary-strong)]">Preferred Partner</p>
-          <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em]">PPP savings email</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent-secondary-strong)]">
+            Preferred Partner
+          </p>
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em]">
+            PPP savings email
+          </h2>
         </div>
         <div className="flex flex-wrap gap-2">
           {report ? (
@@ -104,7 +171,11 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               aria-expanded={!collapsed}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
             >
-              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              {collapsed ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronUp className="h-4 w-4" />
+              )}
               {collapsed ? "Expand" : "Collapse"}
             </button>
           ) : null}
@@ -114,25 +185,42 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
             disabled={loading}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Calculator className="h-4 w-4" />
+            )}
             {report ? "Recalculate" : "Calculate PPP savings"}
           </button>
         </div>
       </div>
 
-      {error ? <div className="border-b border-[var(--border-subtle)] p-5 text-sm font-semibold text-[var(--accent-danger)]">{error}</div> : null}
+      {error ? (
+        <div className="border-b border-[var(--border-subtle)] p-5 text-sm font-semibold text-[var(--accent-danger)]">
+          {error}
+        </div>
+      ) : null}
 
       {report && collapsed ? (
         <div className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
           <div className="flex flex-wrap gap-4 text-[var(--text-secondary)]">
             <span>
-              <strong className="text-[var(--text-primary)]">{formatMoney(report.totalSavings)}</strong> savings
+              <strong className="text-[var(--text-primary)]">
+                {formatMoney(report.totalSavings)}
+              </strong>{" "}
+              savings
             </span>
             <span>
-              <strong className="text-[var(--text-primary)]">{report.orders.length}</strong> orders
+              <strong className="text-[var(--text-primary)]">
+                {report.orders.length}
+              </strong>{" "}
+              orders
             </span>
             <span>
-              <strong className="text-[var(--text-primary)]">{formatMoney(report.preferredTotal)}</strong> PPP total
+              <strong className="text-[var(--text-primary)]">
+                {formatMoney(report.preferredTotal)}
+              </strong>{" "}
+              PPP total
             </span>
           </div>
           {pdfHref ? (
@@ -150,16 +238,28 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
           <div className="border-b border-[var(--border-subtle)] p-6 xl:border-b-0 xl:border-r">
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">YTD savings</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{formatMoney(report.totalSavings)}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                  YTD savings
+                </p>
+                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  {formatMoney(report.totalSavings)}
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Orders</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{report.orders.length}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                  Orders
+                </p>
+                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  {report.orders.length}
+                </p>
               </div>
               <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Est. PPP total</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{formatMoney(report.preferredTotal)}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+                  Est. PPP total
+                </p>
+                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  {formatMoney(report.preferredTotal)}
+                </p>
               </div>
             </div>
 
@@ -168,20 +268,39 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
                 <div key={order.externalOrderId} className="py-3">
                   <div className="flex items-center justify-between gap-4">
                     <p className="font-semibold">#{order.orderNumber}</p>
-                    <p className="font-semibold text-[var(--accent-success)]">{formatMoney(order.savings)}</p>
+                    <p className="font-semibold text-[var(--accent-success)]">
+                      {formatMoney(order.savings)}
+                    </p>
                   </div>
                   <p className="mt-1 text-[var(--text-tertiary)]">
-                    {formatMoney(order.paidTotal)} paid / {formatMoney(order.preferredTotal)} PPP
+                    {formatMoney(order.paidTotal)} paid /{" "}
+                    {formatMoney(order.preferredTotal)} PPP
                   </p>
                 </div>
               ))}
-              {!report.orders.length ? <div className="py-3 text-[var(--text-secondary)]">No eligible paid orders found for {report.year}.</div> : null}
+              {!report.orders.length ? (
+                <div className="py-3 text-[var(--text-secondary)]">
+                  No eligible paid orders found for {report.year}.
+                </div>
+              ) : null}
             </div>
 
-            {report.diagnostics.skippedLineItems || report.diagnostics.unmatchedLineItems || report.diagnostics.warnings.length ? (
+            {report.diagnostics.skippedLineItems ||
+            report.diagnostics.unmatchedLineItems ||
+            report.diagnostics.warnings.length ? (
               <div className="mt-5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 text-xs leading-6 text-[var(--text-secondary)]">
-                {report.diagnostics.skippedLineItems ? <p>{report.diagnostics.skippedLineItems} $0/sample line items were excluded from PPP savings.</p> : null}
-                {report.diagnostics.unmatchedLineItems ? <p>{report.diagnostics.unmatchedLineItems} line items did not match the PPP pricing table.</p> : null}
+                {report.diagnostics.skippedLineItems ? (
+                  <p>
+                    {report.diagnostics.skippedLineItems} $0/sample line items
+                    were excluded from PPP savings.
+                  </p>
+                ) : null}
+                {report.diagnostics.unmatchedLineItems ? (
+                  <p>
+                    {report.diagnostics.unmatchedLineItems} line items did not
+                    match the PPP pricing table.
+                  </p>
+                ) : null}
                 {report.diagnostics.warnings.map((warning) => (
                   <p key={warning}>{warning}</p>
                 ))}
@@ -192,7 +311,9 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
           <div className="flex min-w-0 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] p-4">
               <p className="min-w-0 text-sm font-semibold text-[var(--text-secondary)]">
-                {report.recipientEmail ? report.recipientEmail : "No contact email on this account"}
+                {report.recipientEmail
+                  ? report.recipientEmail
+                  : "No contact email on this account"}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -233,12 +354,19 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+              <iframe
+                title="Email preview"
+                srcDoc={iframeSrcDoc}
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                className="h-full min-h-[24rem] w-full border-none"
+              />
             </div>
           </div>
         </div>
       ) : (
-        <div className="p-6 text-sm text-[var(--text-secondary)]">PPP savings will appear here after calculation.</div>
+        <div className="p-6 text-sm text-[var(--text-secondary)]">
+          PPP savings will appear here after calculation.
+        </div>
       )}
     </section>
   );
