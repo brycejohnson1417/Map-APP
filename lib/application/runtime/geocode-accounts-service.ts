@@ -49,7 +49,7 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
     organizationId: organization.id,
     organizationSlug: organization.slug,
   });
-  const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+  const workspace = await getWorkspaceExperienceBySlug(organization.slug, organization);
   const geocodingConfig = workspace.workspace.geocoding ?? null;
   const limit = readLimit(input.limit, plan.maxPerSync, plan.maxPerSync);
   const supabase = getSupabaseAdminClient() as any;

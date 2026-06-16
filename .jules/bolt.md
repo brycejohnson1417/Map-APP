@@ -1,0 +1,3 @@
+## 2026-06-16 - Avoiding N+1 Queries in Workspace Context Compilation
+**Learning:** In highly multi-tenant architectures, `getWorkspaceExperienceBySlug` is called frequently (e.g. during authentication and routing). If the function internally queries the DB for an `Organization` that the caller just fetched, it creates an N+1/duplicate query bottleneck.
+**Action:** Always accept an optional `prefetchedOrganization` to bypass the redundant query. Additionally, ensure helper functions (like `selectMembershipOrganization`) are properly typed with generics (`<T extends ...>`) so the full returned type can be safely passed to downstream methods without triggering TS2345 downcasting errors.
