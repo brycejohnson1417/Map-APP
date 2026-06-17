@@ -1,0 +1,3 @@
+## 2024-05-18 - [Optimize Array.find inside Array.map in TerritoryWorkspace]
+**Learning:** O(N*M) nested array iterations inside `useMemo` hooks can block the main thread, especially when mapping over an array and performing `Array.find` on a larger array (`pins`). In `components/territory/territory-workspace.tsx`, `routeStops` maps over `routeStopIds` and finds the corresponding pin from `pins` on each iteration. For large pin sets, this degrades performance.
+**Action:** Replaced the O(N*M) lookup with a Map lookup for O(1) performance. We construct `pinsById` once inside a `useMemo` to dictionary-lookup the pins when mapping `routeStopIds`.
