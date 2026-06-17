@@ -1,0 +1,4 @@
+## 2024-06-17 - [Remove dangerouslySetInnerHTML]
+**Vulnerability:** Found `dangerouslySetInnerHTML` being used to render untrusted/dynamic HTML for an email preview. Even with `DOMPurify`, rendering complex untrusted HTML directly into the application DOM poses a residual XSS risk.
+**Learning:** For features like email previews that require rendering full HTML documents or complex untrusted markup, an isolated browsing context is significantly safer. Applying a sandboxed iframe with `srcDoc` ensures the content cannot execute scripts or access the parent DOM, providing true defense-in-depth.
+**Prevention:** Always prioritize using a sandboxed `iframe` with the `srcDoc` attribute over `dangerouslySetInnerHTML` when rendering dynamic HTML. Add inline `<style>` to the `srcDoc` to handle necessary styling instead of relying on the parent's CSS. Set `sandbox="allow-popups allow-popups-to-escape-sandbox"` to allow link navigation without enabling scripts.
