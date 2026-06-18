@@ -1,0 +1,7 @@
+## 2025-02-28 - Preserve domain boundaries while avoiding redundant database queries
+**Learning:** In service methods like `getWorkspaceExperienceBySlug` which use internal compilers (`compileWorkspaceExperience`) alongside asynchronous data fetching (e.g. `organizations.findBySlug`), we should pass prefetched models to the service layer when available instead of calling compilers directly from the application layer. This prevents N+1-like redundant queries while preserving encapsulation and type safety.
+**Action:** When we already have an object from a `Map` lookup or previous query, update the service method to accept it as an optional parameter and use it instead of refetching, making sure to fallback to the asynchronous fetch if the parameter is `undefined`.
+
+## 2025-02-28 - NextJS Cache memoization signature breaking
+**Learning:** React's `cache` memoizes results based on **all arguments** provided to the function. Altering the function signature of cached React functions (e.g. by passing an optional `organization` object to `getWorkspaceExperienceBySlug`) fragments the cache keys. When other parts of the application subsequently call `getWorkspaceExperienceBySlug(slug)` with *only* the slug, they will experience a cache miss triggering a new database fetch and redundant execution.
+**Action:** When avoiding redundant data fetches alongside cached functions, do not change the cached function signature. Instead, directly invoke the underlying compiler (e.g., `compileWorkspaceExperience`) with the prefetched object.
