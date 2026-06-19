@@ -1,0 +1,4 @@
+## 2024-06-19 - XSS Vulnerability in PPP Savings Panel
+**Vulnerability:** The application uses `dangerouslySetInnerHTML` combined with `DOMPurify` to render email previews. However, the DOMPurify output is then placed inside a `div`. The application instructions note: "To prevent XSS when rendering dynamic or untrusted HTML (e.g., email previews), prioritize using a sandboxed `<iframe>` with the `srcDoc` attribute instead of `dangerouslySetInnerHTML`, even when used with `DOMPurify`."
+**Learning:** Using `dangerouslySetInnerHTML` with `DOMPurify` does not offer defense-in-depth or full sandbox separation. A sandboxed iframe provides a separate browsing context.
+**Prevention:** Replace `dangerouslySetInnerHTML` with an `iframe` with the `sandbox` attribute for untrusted HTML previews. Ensure inline CSS is applied via `<style>` tags within the `srcDoc` HTML string.

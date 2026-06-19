@@ -41,7 +41,13 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     }
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
-  const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const srcDocHtml = useMemo(() => {
+    if (!report?.email.html) {
+      return "";
+    }
+    const sanitized = DOMPurify.sanitize(report.email.html);
+    return `<!DOCTYPE html>\n<html>\n  <head>\n    <style>\n      body {\n        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;\n        font-size: 0.875rem;\n        line-height: 1.25rem;\n        color: #000;\n        margin: 0;\n        padding: 0;\n      }\n    </style>\n  </head>\n  <body>${sanitized}</body>\n</html>`;
+  }, [report]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -79,7 +85,7 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     if (typeof ClipboardItem !== "undefined" && report.email.html) {
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/html": new Blob([sanitizedEmailHtml], { type: "text/html" }),
+          "text/html": new Blob([report.email.html ? DOMPurify.sanitize(report.email.html) : ""], { type: "text/html" }),
           "text/plain": new Blob([draft], { type: "text/plain" }),
         }),
       ]);
@@ -232,8 +238,8 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
                 )}
               </div>
             </div>
-            <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+            <div className="min-h-[24rem] w-full bg-white p-6 text-sm text-black">
+              <iframe title="Email Preview" srcDoc={srcDocHtml} sandbox="allow-popups allow-popups-to-escape-sandbox" className="h-full min-h-[24rem] w-full border-none" />
             </div>
           </div>
         </div>
