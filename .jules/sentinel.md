@@ -1,0 +1,4 @@
+## 2025-06-20 - Defense-in-depth against XSS for email previews
+**Vulnerability:** Used `dangerouslySetInnerHTML` for rendering email previews which is risky even with `DOMPurify` since DOM structure can be manipulated or styling can overwrite page styling.
+**Learning:** Using an isolated sandboxed iframe (`<iframe srcDoc={...} sandbox="allow-popups allow-popups-to-escape-sandbox" />`) provides defense-in-depth. It completely isolates the untrusted HTML and limits interactions without needing to run potentially harmful scripts on our main page.
+**Prevention:** To render third-party or dynamic HTML like email templates securely, prefer sandboxed iframes. Make sure to embed inline `<style>` inside `srcDoc` for the content styling instead of applying styles directly on the iframe element.
