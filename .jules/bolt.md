@@ -1,0 +1,3 @@
+## 2024-06-20 - Map Lookups in React Contexts
+**Learning:** O(N*M) array lookups (`array.map` nesting `array.find`) in React components cause rendering delays, especially with large datasets like mapping pins. Memoizing a `Map` dictionary mitigates this, improving lookups to O(1). However, global/external test bindings (like `window.__TEST_HOOKS` initialized outside the component's render cycle) must retain original array lookups (e.g. `array.find`) because using the memoized map within imperative handlers introduces stale closure bugs.
+**Action:** Extract large array lookups into memoized Maps, but ensure these maps are only consumed by internal React state or properly dependency-tracked hooks, leaving global imperative bindings to use the raw arrays directly.
