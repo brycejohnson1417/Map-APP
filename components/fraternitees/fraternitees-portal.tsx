@@ -181,6 +181,7 @@ function PluginToggle({
         type="button"
         role="switch"
         aria-checked={enabled}
+        aria-label={`Toggle ${label}`}
         disabled={disabled}
         onClick={onToggle}
         className={classNames(
@@ -1038,6 +1039,7 @@ export function FraterniteesWorkspace({
                   type="button"
                   role="switch"
                   aria-checked={dailyAutoSync.enabled}
+                  aria-label="Toggle daily Printavo auto-sync"
                   onClick={() => void updateDailyAutoSync(!dailyAutoSync.enabled)}
                   className={classNames(
                     "relative h-7 w-12 shrink-0 rounded-full border transition",
