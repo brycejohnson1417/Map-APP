@@ -570,13 +570,25 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const mobileViewAutoSwitchedRef = useRef(initialPreferListView);
 
   const pins = data.pins;
-  const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
+  const pinsById = useMemo(() => {
+    const map = new Map<string, TerritoryAccountPin>();
+    for (const pin of pins) {
+      map.set(pin.id, pin);
+    }
+    return map;
+  }, [pins]);
+  const selectedPin = useMemo(() => {
+    if (!selectedId) {
+      return null;
+    }
+    return pinsById.get(selectedId) ?? null;
+  }, [pinsById, selectedId]);
   const routeStops = useMemo(
     () =>
       routePlanningEnabled
-        ? routeStopIds.map((id) => pins.find((pin) => pin.id === id)).filter((pin): pin is TerritoryAccountPin => Boolean(pin))
+        ? routeStopIds.map((id) => pinsById.get(id)).filter((pin): pin is TerritoryAccountPin => Boolean(pin))
         : [],
-    [pins, routePlanningEnabled, routeStopIds],
+    [pinsById, routePlanningEnabled, routeStopIds],
   );
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;

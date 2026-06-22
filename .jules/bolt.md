@@ -1,0 +1,5 @@
+## 2025-06-22 - Optimize nested array lookups in useMemo
+
+**Learning:** Nesting `Array.find()` inside `Array.map()` within React's `useMemo` hooks introduces an O(N*M) performance bottleneck, as the nested operations block the main thread during renders. Furthermore, when replacing array lookups with memoized Maps for optimization, the memoized Map should not be used in external bindings or global test hooks initialized outside the React render cycle (such as `window.__MAP_APP_TEST`), as this can introduce stale closures.
+
+**Action:** Replace nested `Array.find` inside `Array.map` within React render logic or memoization hooks with a memoized `Map` dictionary for O(1) lookups. Retain the original array lookups (e.g., `Array.find`) for external bindings to prevent stale closure issues. Include explicit `undefined` checks when retrieving values from the memoized `Map`.
