@@ -41,7 +41,26 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     }
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
-  const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const sanitizedEmailHtml = useMemo(() => {
+    if (!report?.email.html) return "";
+    const cleanHtml = DOMPurify.sanitize(report.email.html);
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              margin: 0;
+              font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+              font-size: 0.875rem;
+              color: #000;
+            }
+          </style>
+        </head>
+        <body>${cleanHtml}</body>
+      </html>
+    `;
+  }, [report]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -232,8 +251,13 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
                 )}
               </div>
             </div>
-            <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+            <div className="flex min-h-[24rem] w-full flex-col bg-white p-6">
+              <iframe
+                title="Email preview"
+                srcDoc={sanitizedEmailHtml}
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                className="h-full min-h-[24rem] w-full flex-1 border-none bg-transparent"
+              />
             </div>
           </div>
         </div>

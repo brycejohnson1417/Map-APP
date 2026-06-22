@@ -1630,7 +1630,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                     <a
                       href={directionsHref}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3 text-sm font-semibold"
                     >
                       <Navigation className="h-4 w-4" />
@@ -1719,7 +1719,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                           <a
                             href={notionHref}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-2 text-xs font-semibold"
                           >
                             Source CRM
@@ -1894,7 +1894,7 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
                 <a
                   href={directionsHref}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 text-sm font-semibold"
                 >
                   <Navigation className="h-4 w-4" />
