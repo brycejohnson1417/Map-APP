@@ -1,0 +1,3 @@
+## 2025-02-23 - Accessibility linking for conditional accordion content
+**Learning:** When creating an accordion where content is completely replaced via React conditional rendering (e.g. `collapsed ? <Summary /> : <Full />`), the toggle button's `aria-controls` attribute breaks unless both conditional branches share the exact same ID. React doesn't persist the DOM node across conditional branches.
+**Action:** Use `const contentId = useId()` and explicitly apply `id={contentId}` to the root element of *both* conditional content branches to ensure screen reader association remains unbroken regardless of the accordion state.
