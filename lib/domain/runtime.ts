@@ -299,6 +299,7 @@ export interface FraterniteesAccountDirectoryItem {
   averageClosedOrderValue: number | null;
   medianClosedOrderValue: number | null;
   dncFlagged: boolean;
+  salesRepNames: string[];
   lastOrderDate: string | null;
   scoreTrend: {
     direction: "up" | "down" | "flat" | "insufficient_data";
@@ -353,7 +354,7 @@ export interface FraterniteesAccountDirectoryPage {
     query: string;
     grade: FraterniteesLeadGrade | "All Grades";
     dncOnly: boolean;
-    sort: "score" | "close_rate" | "order_count";
+    sort: "score" | "close_rate" | "order_count" | "last_order_date" | "salesperson";
     calendarSort: "needs_close" | "fraternity" | "spend";
     page: number;
     pageSize: number;

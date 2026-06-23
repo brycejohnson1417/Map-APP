@@ -7,6 +7,7 @@ import {
   type FraterniteesLeadOrder,
   type FraterniteesLeadScore,
 } from "@/lib/application/fraternitees/lead-scoring";
+import { collectSalesRepNames } from "@/lib/application/fraternitees/account-insights";
 import { hasUsableFraterniteesAddress, isFraterniteesHqAddress } from "@/lib/application/fraternitees/address-rules";
 import { geocodeAccountCandidate, resolveGeocodingPlan } from "@/lib/infrastructure/adapters/geocoding/geocoding";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -129,6 +130,9 @@ function sourcePayloadToLeadOrder(payload: Record<string, unknown> | null): Frat
     contactName: stringOrNull(payload.contactName),
     contactEmail: stringOrNull(payload.contactEmail),
     contactPhone: stringOrNull(payload.contactPhone),
+    salesRepExternalId: stringOrNull(payload.salesRepExternalId),
+    salesRepName: stringOrNull(payload.salesRepName),
+    salesRepEmail: stringOrNull(payload.salesRepEmail),
     addressLine1: stringOrNull(payload.addressLine1),
     addressLine2: stringOrNull(payload.addressLine2),
     quantity: numberOrNull(payload.quantity),
@@ -515,6 +519,7 @@ export async function importFraterniteesOrdersToRuntime(input: {
     const effectivePostalCode = usesFraterniteesHqAddress ? null : postalCode;
     const existingAccountId = accountIdsByKey.get(summary.key);
     const existingLocation = existingAccountId ? accountLocationsById.get(existingAccountId) : null;
+    const salesRepNames = collectSalesRepNames(summary.orders);
     const hasExistingCoordinates = existingLocation?.latitude !== null && existingLocation?.latitude !== undefined && existingLocation.longitude !== null && existingLocation.longitude !== undefined;
     const needsGeocode = input.geocodeAccounts !== false && !hasExistingCoordinates && !noAddressAvailable;
     const shouldGeocode = needsGeocode && geocodeAttempts < geocodingPlan.maxPerSync;
@@ -563,6 +568,8 @@ export async function importFraterniteesOrdersToRuntime(input: {
       addressSuppressedReason: usesFraterniteesHqAddress ? "fraternitees_hq_individual_shipments" : null,
       primaryContactName: firstNonEmpty(summary.orders.map((order) => order.contactName)),
       primaryContactEmail: firstNonEmpty(summary.orders.map((order) => order.contactEmail)),
+      primarySalesRepName: salesRepNames[0] ?? null,
+      salesRepNames,
     };
     const accountPayload = {
       organization_id: input.organizationId,
@@ -578,6 +585,7 @@ export async function importFraterniteesOrdersToRuntime(input: {
       country,
       ...(usesFraterniteesHqAddress ? { latitude: null, longitude: null } : {}),
       ...(geocodeResult ? { latitude: geocodeResult.latitude, longitude: geocodeResult.longitude } : {}),
+      sales_rep_names: salesRepNames,
       last_order_date: lastOrderDate,
       customer_since_date: earliestDate(summary.orders),
       external_updated_at: new Date().toISOString(),
@@ -702,7 +710,7 @@ export async function importFraterniteesOrdersToRuntime(input: {
       order_total: order.total ?? null,
       order_created_at: order.orderDate ? new Date(order.orderDate).toISOString() : null,
       delivery_date: null,
-      sales_rep_name: null,
+      sales_rep_name: order.salesRepName ?? null,
       is_internal_transfer: false,
       source_payload: {
         ...order,

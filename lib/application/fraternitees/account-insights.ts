@@ -4,6 +4,8 @@ const leadGrades = new Set<FraterniteesLeadGrade>(["A+", "A", "B", "C", "D", "F"
 const closedStatusHints = ["order placed", "completed", "shipped by"];
 const lostStatusHints = ["order canceled", "cancelled", "ghost", "not enough interest", "other company", "event cancelled"];
 
+export type AccountRankingSort = "score" | "close_rate" | "order_count" | "last_order_date" | "salesperson";
+export type AccountRankingOrderSource = "account_table" | "directory_view";
 export type CalendarYearCustomerSort = "needs_close" | "fraternity" | "spend";
 
 export interface CalendarYearAccountInput {
@@ -41,8 +43,63 @@ export function normalizeCalendarYearCustomerSort(value: unknown): CalendarYearC
   return value === "fraternity" || value === "spend" ? value : "needs_close";
 }
 
+export function normalizeAccountRankingSort(value: unknown): AccountRankingSort {
+  return value === "close_rate" ||
+    value === "order_count" ||
+    value === "last_order_date" ||
+    value === "salesperson"
+    ? value
+    : "score";
+}
+
+export function buildAccountRankingOrderClause(sort: AccountRankingSort, source: AccountRankingOrderSource) {
+  if (source === "directory_view") {
+    if (sort === "close_rate") {
+      return "lead_close_rate.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
+    }
+
+    if (sort === "order_count") {
+      return "total_orders.desc.nullslast,lead_close_rate.desc.nullslast,display_name.asc";
+    }
+
+    if (sort === "last_order_date") {
+      return "last_order_date.desc.nullslast,lead_score.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
+    }
+
+    if (sort === "salesperson") {
+      return "primary_sales_rep.asc.nullslast,display_name.asc,last_order_date.desc.nullslast";
+    }
+
+    return "lead_score.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
+  }
+
+  if (sort === "close_rate") {
+    return "custom_fields->closeRate.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
+  }
+
+  if (sort === "order_count") {
+    return "custom_fields->closedOrders.desc.nullslast,custom_fields->lostOrders.desc.nullslast,custom_fields->openOrders.desc.nullslast,display_name.asc";
+  }
+
+  if (sort === "last_order_date") {
+    return "last_order_date.desc.nullslast,custom_fields->leadScore.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
+  }
+
+  if (sort === "salesperson") {
+    return "sales_rep_names.asc.nullslast,display_name.asc,last_order_date.desc.nullslast";
+  }
+
+  return "custom_fields->leadScore.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
+}
+
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+export function collectSalesRepNames(values: Array<{ salesRepName?: string | null | undefined }>) {
+  return [...new Set(values.map((value) => cleanText(value.salesRepName)).filter(Boolean))].sort((left, right) =>
+    left.localeCompare(right),
+  );
 }
 
 export function normalizeManualLeadGrade(value: unknown): FraterniteesLeadGrade | null {

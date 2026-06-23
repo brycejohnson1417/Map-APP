@@ -17,9 +17,12 @@ import {
   gradeFraterniteesLead,
 } from "@/lib/application/fraternitees/lead-scoring";
 import {
+  buildAccountRankingOrderClause,
   buildCalendarYearCustomerRows,
+  normalizeAccountRankingSort,
   normalizeCalendarYearCustomerSort,
   resolveManualLeadGrade,
+  type AccountRankingSort,
   type CalendarYearCustomerSort,
 } from "@/lib/application/fraternitees/account-insights";
 import { findRuntimeOrganization, runtimeExactCount, runtimeRestRequest } from "@/lib/application/runtime/runtime-rest";
@@ -29,8 +32,6 @@ const SUMMARY_BATCH_SIZE = 1000;
 const TOP_CUSTOMER_LIMIT = 100;
 const ACCOUNT_LOOKUP_BATCH_SIZE = 250;
 
-type FraterniteesDirectorySort = "score" | "close_rate" | "order_count";
-
 interface AccountRow {
   id: string;
   organization_id: string;
@@ -38,6 +39,7 @@ interface AccountRow {
   display_name: string | null;
   city: string | null;
   state: string | null;
+  sales_rep_names: string[] | null;
   last_order_date: string | null;
   custom_fields: Record<string, unknown> | null;
 }
@@ -49,6 +51,8 @@ interface DirectoryRow {
   display_name: string;
   city: string | null;
   state: string | null;
+  sales_rep_names: string[] | null;
+  primary_sales_rep: string | null;
   last_order_date: string | null;
   primary_contact_name: string | null;
   primary_contact_email: string | null;
@@ -117,13 +121,9 @@ function normalizeGrade(value: string | string[] | undefined): FraterniteesLeadG
   return "All Grades";
 }
 
-function normalizeSort(value: string | string[] | undefined): FraterniteesDirectorySort {
+function normalizeSort(value: string | string[] | undefined): AccountRankingSort {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === "close_rate" || raw === "order_count") {
-    return raw;
-  }
-
-  return "score";
+  return normalizeAccountRankingSort(raw);
 }
 
 function normalizeCalendarSort(value: string | string[] | undefined): CalendarYearCustomerSort {
@@ -236,6 +236,7 @@ function mapAccountRow(row: AccountRow, config?: FraterniteesScoreModelConfig): 
     averageClosedOrderValue: metrics.averageClosedOrderValue,
     medianClosedOrderValue: metrics.medianClosedOrderValue,
     dncFlagged: metrics.dncFlagged,
+    salesRepNames: row.sales_rep_names ?? [],
     lastOrderDate: row.last_order_date,
     scoreTrend: null,
   };
@@ -267,6 +268,7 @@ function mapDirectoryRow(row: DirectoryRow): FraterniteesAccountDirectoryItem {
     averageClosedOrderValue: toNumber(row.average_closed_order_value),
     medianClosedOrderValue: toNumber(row.median_closed_order_value),
     dncFlagged: Boolean(row.dnc_flagged),
+    salesRepNames: row.sales_rep_names ?? [],
     lastOrderDate: row.last_order_date,
     scoreTrend: null,
   };
@@ -422,30 +424,6 @@ function applyViewGradeFilter(params: URLSearchParams, grade: FraterniteesLeadGr
   return params;
 }
 
-function directOrderClause(sort: FraterniteesDirectorySort) {
-  if (sort === "close_rate") {
-    return "custom_fields->closeRate.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
-  }
-
-  if (sort === "order_count") {
-    return "custom_fields->closedOrders.desc.nullslast,custom_fields->lostOrders.desc.nullslast,custom_fields->openOrders.desc.nullslast,display_name.asc";
-  }
-
-  return "custom_fields->leadScore.desc.nullslast,custom_fields->closedOrders.desc.nullslast,display_name.asc";
-}
-
-function viewOrderClause(sort: FraterniteesDirectorySort) {
-  if (sort === "close_rate") {
-    return "lead_close_rate.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
-  }
-
-  if (sort === "order_count") {
-    return "total_orders.desc.nullslast,lead_close_rate.desc.nullslast,display_name.asc";
-  }
-
-  return "lead_score.desc.nullslast,total_orders.desc.nullslast,display_name.asc";
-}
-
 async function fetchDirectSummarySnapshot(organization: Organization): Promise<FraterniteesAccountDirectorySummary> {
   const [accounts, scoredAccounts, dncFlaggedAccounts, orders] = await Promise.all([
     runtimeExactCount("account", organization.id),
@@ -596,7 +574,7 @@ async function fetchDirectItems(input: {
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
-  sort: FraterniteesDirectorySort;
+  sort: AccountRankingSort;
   page: number;
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
@@ -605,8 +583,8 @@ async function fetchDirectItems(input: {
   const params = applyDirectGradeFilter(
     applyDirectBaseFilters(
       new URLSearchParams({
-        select: "id,organization_id,name,display_name,city,state,last_order_date,custom_fields",
-        order: directOrderClause(input.sort),
+        select: "id,organization_id,name,display_name,city,state,sales_rep_names,last_order_date,custom_fields",
+        order: buildAccountRankingOrderClause(input.sort, "account_table"),
         limit: String(input.pageSize),
         offset: String(offset),
       }),
@@ -625,7 +603,7 @@ async function fetchViewItems(input: {
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
-  sort: FraterniteesDirectorySort;
+  sort: AccountRankingSort;
   page: number;
   pageSize: number;
 }) {
@@ -634,8 +612,8 @@ async function fetchViewItems(input: {
     applyViewBaseFilters(
       new URLSearchParams({
         select:
-          "id,organization_id,name,display_name,city,state,last_order_date,primary_contact_name,primary_contact_email,lead_priority,lead_score,lead_grade,lead_close_rate,closed_orders,lost_orders,open_orders,total_orders,total_opportunities,closed_revenue,average_closed_order_value,median_closed_order_value,dnc_flagged",
-        order: viewOrderClause(input.sort),
+          "id,organization_id,name,display_name,city,state,sales_rep_names,primary_sales_rep,last_order_date,primary_contact_name,primary_contact_email,lead_priority,lead_score,lead_grade,lead_close_rate,closed_orders,lost_orders,open_orders,total_orders,total_opportunities,closed_revenue,average_closed_order_value,median_closed_order_value,dnc_flagged",
+        order: buildAccountRankingOrderClause(input.sort, "directory_view"),
         limit: String(input.pageSize),
         offset: String(offset),
       }),
@@ -691,7 +669,7 @@ const fetchCachedViewItems = unstable_cache(
     query: string,
     grade: FraterniteesLeadGrade | "All Grades",
     dncOnly: boolean,
-    sort: FraterniteesDirectorySort,
+    sort: AccountRankingSort,
     page: number,
     pageSize: number,
   ) =>
@@ -954,7 +932,7 @@ function buildDirectoryPage(input: {
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
-  sort: FraterniteesDirectorySort;
+  sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
   page: number;
   totalItems: number;
@@ -998,7 +976,7 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
-  sort: FraterniteesDirectorySort;
+  sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
   page: number;
   pageSize: number;
@@ -1054,7 +1032,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
   dncOnly: boolean;
-  sort: FraterniteesDirectorySort;
+  sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
   page: number;
   pageSize: number;

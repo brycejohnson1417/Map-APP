@@ -129,6 +129,22 @@ function shortDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(date);
 }
 
+function orderSalesDateValue(order: SalesOrder) {
+  return order.orderCreatedAt ?? order.productionDate ?? "";
+}
+
+function orderSalesDateInputValue(order: SalesOrder) {
+  return orderSalesDateValue(order).slice(0, 10);
+}
+
+function compareOrderSalesDate(left: SalesOrder, right: SalesOrder) {
+  return orderSalesDateValue(left).localeCompare(orderSalesDateValue(right));
+}
+
+function compareOrderText(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "Unassigned").localeCompare(right ?? "Unassigned");
+}
+
 function metricValue(metrics: Record<string, unknown> | null | undefined, key: string) {
   const value = metrics?.[key];
   if (typeof value === "number") {
@@ -457,6 +473,9 @@ export function ScreenprintingWorkspace({
     managerName: "all",
     teamName: "all",
     syncState: "all",
+    dateFrom: "",
+    dateTo: "",
+    sortBy: "date_desc",
   });
   const [savedViewName, setSavedViewName] = useState("");
   const [newOpportunity, setNewOpportunity] = useState({ title: "", value: "", customerName: "", stageKey: "new_lead" });
@@ -663,6 +682,9 @@ export function ScreenprintingWorkspace({
       managerName: typeof filters.managerName === "string" ? filters.managerName : "all",
       teamName: typeof filters.teamName === "string" ? filters.teamName : "all",
       syncState: typeof filters.syncState === "string" ? filters.syncState : "all",
+      dateFrom: typeof filters.dateFrom === "string" ? filters.dateFrom : "",
+      dateTo: typeof filters.dateTo === "string" ? filters.dateTo : "",
+      sortBy: typeof filters.sortBy === "string" ? filters.sortBy : "date_desc",
     });
     setNotice({ tone: "success", message: `Applied saved view: ${savedView.name}.` });
   }
@@ -680,7 +702,7 @@ export function ScreenprintingWorkspace({
         name,
         filters: orderFilters,
         columns: ["customer", "job", "total", "status", "payment", "manager", "date"],
-        sort: { key: "orderCreatedAt", direction: "desc" },
+        sort: { key: orderFilters.sortBy, direction: orderFilters.sortBy.endsWith("_asc") ? "asc" : "desc" },
       }),
     });
   }
@@ -1487,7 +1509,22 @@ export function ScreenprintingWorkspace({
       const matchesSync =
         orderFilters.syncState === "all" ||
         (orderFilters.syncState === "synced" ? order.sourcePayloadAvailable : !order.sourcePayloadAvailable);
-      return matchesQuery && matchesStatus && matchesPayment && matchesManager && matchesTeam && matchesSync;
+      const salesDate = orderSalesDateInputValue(order);
+      const matchesDateFrom = !orderFilters.dateFrom || (salesDate && salesDate >= orderFilters.dateFrom);
+      const matchesDateTo = !orderFilters.dateTo || (salesDate && salesDate <= orderFilters.dateTo);
+      return matchesQuery && matchesStatus && matchesPayment && matchesManager && matchesTeam && matchesSync && matchesDateFrom && matchesDateTo;
+    });
+    const sortedOrders = [...filteredOrders].sort((left, right) => {
+      if (orderFilters.sortBy === "date_asc") {
+        return compareOrderSalesDate(left, right) || compareOrderText(left.managerName, right.managerName);
+      }
+      if (orderFilters.sortBy === "salesperson") {
+        return compareOrderText(left.managerName, right.managerName) || compareOrderSalesDate(right, left);
+      }
+      if (orderFilters.sortBy === "total_desc") {
+        return (right.orderTotal ?? 0) - (left.orderTotal ?? 0) || compareOrderSalesDate(right, left);
+      }
+      return compareOrderSalesDate(right, left) || compareOrderText(left.managerName, right.managerName);
     });
     const orderCounts = {
       all: orders.length,
@@ -1514,8 +1551,8 @@ export function ScreenprintingWorkspace({
           </>
         }
       >
-        <div className="mb-4 grid gap-3 xl:grid-cols-[1.4fr_repeat(5,minmax(150px,1fr))]">
-          <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-blue-500">
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
+          <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:ring-2 focus-within:ring-blue-500 md:col-span-2 xl:col-span-2 2xl:col-span-1">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
             <input
               className="min-w-0 flex-1 bg-transparent outline-none"
@@ -1524,6 +1561,20 @@ export function ScreenprintingWorkspace({
               onChange={(event) => setOrderFilters((current) => ({ ...current, q: event.target.value }))}
             />
           </label>
+          <input
+            aria-label="Sales date from"
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold"
+            type="date"
+            value={orderFilters.dateFrom}
+            onChange={(event) => setOrderFilters((current) => ({ ...current, dateFrom: event.target.value }))}
+          />
+          <input
+            aria-label="Sales date to"
+            className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold"
+            type="date"
+            value={orderFilters.dateTo}
+            onChange={(event) => setOrderFilters((current) => ({ ...current, dateTo: event.target.value }))}
+          />
           <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.statusBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, statusBucket: event.target.value }))}>
             <option value="all">All statuses</option>
             {summary.orders.facets.statusBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
@@ -1545,6 +1596,12 @@ export function ScreenprintingWorkspace({
             <option value="synced">Synced payload</option>
             <option value="unsynced">Needs payload review</option>
           </select>
+          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" aria-label="Sort orders" value={orderFilters.sortBy} onChange={(event) => setOrderFilters((current) => ({ ...current, sortBy: event.target.value }))}>
+            <option value="date_desc">Newest sales date</option>
+            <option value="date_asc">Oldest sales date</option>
+            <option value="salesperson">Salesperson</option>
+            <option value="total_desc">Highest order total</option>
+          </select>
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
           {Object.entries(orderCounts).map(([key, count]) => (
@@ -1553,7 +1610,7 @@ export function ScreenprintingWorkspace({
               type="button"
               className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50"
               onClick={() => {
-                if (key === "all") setOrderFilters((current) => ({ ...current, statusBucket: "all", paymentBucket: "all", syncState: "all" }));
+                if (key === "all") setOrderFilters((current) => ({ ...current, q: "", statusBucket: "all", paymentBucket: "all", managerName: "all", teamName: "all", syncState: "all", dateFrom: "", dateTo: "", sortBy: "date_desc" }));
                 if (key === "processed") setOrderFilters((current) => ({ ...current, statusBucket: "completed" }));
                 if (key === "unprocessed") setOrderFilters((current) => ({ ...current, statusBucket: "needs_review" }));
                 if (key === "paid") setOrderFilters((current) => ({ ...current, paymentBucket: "paid" }));
@@ -1570,7 +1627,7 @@ export function ScreenprintingWorkspace({
             </button>
           ))}
         </div>
-        {filteredOrders.length ? (
+        {sortedOrders.length ? (
           <TableShell>
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -1586,7 +1643,7 @@ export function ScreenprintingWorkspace({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredOrders.map((order) => (
+                {sortedOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-blue-50/40">
                     <td className="px-4 py-3 font-semibold text-slate-950">{order.customerName}</td>
                     <td className="max-w-md px-4 py-3 text-slate-700">{order.jobName}</td>

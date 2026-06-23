@@ -75,6 +75,8 @@
       "gradeOptions": ["All Grades", "A+", "A", "B", "C", "D", "F", "Unscored"],
       "sortOptions": [
         { "value": "score", "label": "Top score" },
+        { "value": "last_order_date", "label": "Latest sale date" },
+        { "value": "salesperson", "label": "Salesperson" },
         { "value": "close_rate", "label": "Highest close rate" },
         { "value": "order_count", "label": "Most orders" }
       ],
