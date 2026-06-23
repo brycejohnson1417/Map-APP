@@ -1,20 +1,3 @@
-create index if not exists account_org_fraternitees_lead_score_idx
-  on public.account (organization_id, (((custom_fields ->> 'leadScore')::integer)) desc)
-  where custom_fields ? 'leadScore';
-
-create index if not exists account_org_fraternitees_close_rate_idx
-  on public.account (organization_id, (((custom_fields ->> 'closeRate')::numeric)) desc)
-  where custom_fields ? 'closeRate';
-
-create index if not exists account_org_fraternitees_total_orders_idx
-  on public.account (
-    organization_id,
-    (
-      coalesce(nullif(custom_fields ->> 'totalOrders', '')::integer, 0)
-    ) desc
-  )
-  where custom_fields ? 'totalOrders';
-
 create index if not exists account_org_fraternitees_last_order_idx
   on public.account (organization_id, last_order_date desc nulls last);
 
@@ -118,7 +101,7 @@ from public.fraternitees_account_directory_view
 group by fraternitees_account_directory_view.organization_id;
 
 comment on view public.fraternitees_account_directory_view is
-  'FraterniTees account directory read model for fast server-side sorting, filtering, and pagination.';
+  'FraterniTees account directory read model for fast server-side sorting, filtering, pagination, and sales attribution.';
 
 comment on view public.fraternitees_account_directory_summary_view is
   'FraterniTees account directory summary metrics used by the accounts workspace.';

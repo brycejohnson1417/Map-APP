@@ -65,6 +65,11 @@ interface PrintavoOrderNode {
     phone: string | null;
     customer: { id: string; companyName: string | null } | null;
   } | null;
+  owner: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
   shippingAddress: {
     address1: string | null;
     address2: string | null;
@@ -287,6 +292,7 @@ export async function fetchPrintavoLeadOrdersBatch(
               dueAt
               invoiceAt
               timestamps { createdAt updatedAt }
+              owner { id name email }
               contact {
                 id
                 fullName
@@ -313,6 +319,7 @@ export async function fetchPrintavoLeadOrdersBatch(
               dueAt
               invoiceAt
               timestamps { createdAt updatedAt }
+              owner { id name email }
               contact {
                 id
                 fullName
@@ -386,6 +393,9 @@ function mapPrintavoOrder(order: PrintavoOrderNode): FraterniteesLeadOrder {
     contactName: order.contact?.fullName ?? order.shippingAddress?.customerName ?? null,
     contactEmail: order.contact?.email ?? null,
     contactPhone: order.contact?.phone ?? null,
+    salesRepExternalId: order.owner?.id ?? null,
+    salesRepName: order.owner?.name ?? null,
+    salesRepEmail: order.owner?.email ?? null,
     addressLine1: order.shippingAddress?.address1 ?? null,
     addressLine2: order.shippingAddress?.address2 ?? null,
     quantity: typeof order.totalQuantity === "number" ? order.totalQuantity : null,

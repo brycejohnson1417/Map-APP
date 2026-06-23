@@ -23,6 +23,8 @@ interface FraterniteesLeadQualificationModuleProps {
 const gradeOptions = ["All Grades", "A+", "A", "B", "C", "D", "F", "Unscored"] as const;
 const sortOptions = [
   { value: "score", label: "Top score" },
+  { value: "last_order_date", label: "Latest sale date" },
+  { value: "salesperson", label: "Salesperson" },
   { value: "close_rate", label: "Highest close rate" },
   { value: "order_count", label: "Most orders" },
 ] as const;
@@ -43,6 +45,10 @@ function formatPercent(value: number | null | undefined) {
 
 function formatDate(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "None";
+}
+
+function formatSalesRepNames(values: readonly string[]) {
+  return values.length ? values.join(", ") : "Unassigned";
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -297,8 +303,10 @@ function ScoringSection({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <div className="grid grid-cols-[1.5fr_0.8fr_1fr_0.8fr_auto] gap-4 bg-slate-100 px-5 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 max-lg:hidden">
+        <div className="grid grid-cols-[1.35fr_0.75fr_0.65fr_0.65fr_0.85fr_0.65fr_auto] gap-4 bg-slate-100 px-5 py-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 max-lg:hidden">
           <p>Organization</p>
+          <p>Salesperson</p>
+          <p>Last sale</p>
           <p>Score</p>
           <p>Orders (close rate)</p>
           <p>AOV</p>
@@ -311,10 +319,18 @@ function ScoringSection({
             const TrendIcon = trendMeta.icon;
 
             return (
-              <div key={account.id} className="grid gap-4 px-5 py-5 transition hover:bg-slate-50 lg:grid-cols-[1.5fr_0.8fr_1fr_0.8fr_auto] lg:items-center">
+              <div key={account.id} className="grid gap-4 px-5 py-5 transition hover:bg-slate-50 lg:grid-cols-[1.35fr_0.75fr_0.65fr_0.65fr_0.85fr_0.65fr_auto] lg:items-center">
                 <div>
                   <p className="text-xl font-bold tracking-normal text-slate-950">{account.name}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-500">{statusLine(account)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 lg:hidden">Salesperson</p>
+                  <p className="text-sm font-bold text-slate-700">{formatSalesRepNames(account.salesRepNames)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 lg:hidden">Last sale</p>
+                  <p className="text-sm font-bold text-slate-700">{formatDate(account.lastOrderDate)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span
