@@ -44,4 +44,18 @@ const sortValues = workspace.modules.accounts.sortOptions.map((option) => option
 assert.ok(sortValues.includes("last_order_date"), "FraterniTees account sort options must include latest sale date.");
 assert.ok(sortValues.includes("salesperson"), "FraterniTees account sort options must include salesperson.");
 
+const runtimeTypes = readFileSync("lib/domain/runtime.ts", "utf8");
+assert.ok(runtimeTypes.includes("salesperson: string;"), "FraterniTees account filters must expose the selected salesperson.");
+assert.ok(runtimeTypes.includes("salespersonOptions: string[];"), "FraterniTees account filters must expose salesperson filter options.");
+
+const directoryService = readFileSync("lib/application/fraternitees/account-directory-service.ts", "utf8");
+assert.ok(directoryService.includes("function normalizeSalesperson"), "FraterniTees account directory must normalize the salesperson query param.");
+assert.ok(directoryService.includes('params.set("sales_rep_names", salesRepArrayFilter(input.salesperson));'), "FraterniTees account directory must filter account rows by salesperson.");
+assert.ok(directoryService.includes("fetchCachedSalespersonOptions"), "FraterniTees account directory must load salesperson filter options.");
+
+const accountModule = readFileSync("components/accounts/fraternitees-lead-qualification-module.tsx", "utf8");
+assert.ok(accountModule.includes('name: "salesperson"'), "FraterniTees account toolbar must include a salesperson filter select.");
+assert.ok(accountModule.includes("All salespeople"), "FraterniTees account toolbar must include an all-salespeople option.");
+assert.ok(accountModule.includes("Unassigned"), "FraterniTees account toolbar must include an unassigned salesperson option.");
+
 console.log("FraterniTees account ranking sort contract passed.");

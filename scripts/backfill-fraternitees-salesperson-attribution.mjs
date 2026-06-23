@@ -150,14 +150,24 @@ async function printavoGraphql(credentials, query, variables) {
 
 async function fetchOrdersMissingSalesRep() {
   const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
+  let lastExternalOrderId = null;
+
+  for (;;) {
+    let query = supabase
       .from("order_record")
       .select("organization_id,provider,external_order_id,source_payload")
       .eq("organization_id", ORGANIZATION_ID)
       .eq("provider", "printavo")
       .is("sales_rep_name", null)
-      .range(from, from + 999);
+      .not("external_order_id", "is", null)
+      .order("external_order_id", { ascending: true })
+      .limit(1000);
+
+    if (lastExternalOrderId) {
+      query = query.gt("external_order_id", lastExternalOrderId);
+    }
+
+    const { data, error } = await query;
     if (error) {
       throw error;
     }
@@ -166,6 +176,7 @@ async function fetchOrdersMissingSalesRep() {
     if (!data || data.length < 1000) {
       break;
     }
+    lastExternalOrderId = data[data.length - 1].external_order_id;
   }
 
   return new Map(rows.map((row) => [row.external_order_id, row]));
