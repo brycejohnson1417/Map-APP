@@ -1,0 +1,3 @@
+## 2024-06-25 - Explicit aria-label Required for Custom Toggle Switches
+**Learning:** Custom toggle switches implemented as `<button role="switch">` must explicitly use `aria-label` or `aria-labelledby` for screen reader accessibility, even if visually paired with descriptive text (like a preceding heading or paragraph). Screen readers do not automatically associate adjacent text with the switch unless explicitly linked.
+**Action:** Always verify that `<button role="switch">` elements have `aria-label` or `aria-labelledby` linking to their description to ensure visually hidden context is properly conveyed to assistive technologies.
