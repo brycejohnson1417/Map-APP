@@ -1,0 +1,3 @@
+## 2024-03-24 - [Avoid re-computing array mapping for orders]
+**Learning:** In React components with many state variables and frequent re-renders (like `ScreenprintingWorkspace`), nested render functions that iterate over large arrays to derive options (e.g. `Array.from(new Set(orders.map(...)))`) cause unnecessary re-computation and can become a bottleneck.
+**Action:** Extract expensive array derivation logic out of nested render helpers, lift them to the component's root, and memoize them using `useMemo` hooks so they only re-compute when their dependency array (like `orders`) changes.

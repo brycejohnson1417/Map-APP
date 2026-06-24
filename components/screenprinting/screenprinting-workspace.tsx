@@ -38,7 +38,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { getScreenprintingWorkspaceSummary } from "@/lib/application/screenprinting/screenprinting-service";
 
 type ScreenprintingWorkspaceSummary = Awaited<ReturnType<typeof getScreenprintingWorkspaceSummary>>;
@@ -531,6 +531,17 @@ export function ScreenprintingWorkspace({
   const savedViews = summary.orders.savedViews ?? [];
   const socialConnection = summary.socialConnection;
   const selectedSocialAccount = socialAccounts.find((account) => account.id === selectedSocialAccountId) ?? socialAccounts[0] ?? null;
+  const managerOptions = useMemo(() => Array.from(new Set(orders.map((order) => order.managerName ?? "Unassigned"))).sort(), [orders]);
+  const teamOptions = useMemo(() => Array.from(new Set(orders.map((order) => order.teamName ?? "Unassigned"))).sort(), [orders]);
+  const orderCounts = useMemo(() => ({
+    all: orders.length,
+    processed: orders.filter((order) => order.statusBucket === "completed").length,
+    unprocessed: orders.filter((order) => order.statusBucket !== "completed" && order.statusBucket !== "cancelled").length,
+    paid: orders.filter((order) => order.paymentBucket === "paid").length,
+    unpaid: orders.filter((order) => order.paymentBucket === "unpaid").length,
+    synced: orders.filter((order) => order.sourcePayloadAvailable).length,
+    unsynced: orders.filter((order) => !order.sourcePayloadAvailable).length,
+  }), [orders]);
   const socialPosts = summary.socialPosts.posts;
   const selectedAccountPosts = selectedSocialAccount ? socialPosts.filter((post) => post.socialAccountId === selectedSocialAccount.id) : socialPosts;
   const socialThreads = summary.threads.threads;
@@ -1495,8 +1506,6 @@ export function ScreenprintingWorkspace({
   }
 
   function renderOrders() {
-    const managerOptions = Array.from(new Set(orders.map((order) => order.managerName ?? "Unassigned"))).sort();
-    const teamOptions = Array.from(new Set(orders.map((order) => order.teamName ?? "Unassigned"))).sort();
     const filteredOrders = orders.filter((order) => {
       const query = orderFilters.q.trim().toLowerCase();
       const matchesQuery = query
@@ -1526,15 +1535,6 @@ export function ScreenprintingWorkspace({
       }
       return compareOrderSalesDate(right, left) || compareOrderText(left.managerName, right.managerName);
     });
-    const orderCounts = {
-      all: orders.length,
-      processed: orders.filter((order) => order.statusBucket === "completed").length,
-      unprocessed: orders.filter((order) => order.statusBucket !== "completed" && order.statusBucket !== "cancelled").length,
-      paid: orders.filter((order) => order.paymentBucket === "paid").length,
-      unpaid: orders.filter((order) => order.paymentBucket === "unpaid").length,
-      synced: orders.filter((order) => order.sourcePayloadAvailable).length,
-      unsynced: orders.filter((order) => !order.sourcePayloadAvailable).length,
-    };
     return (
       <Section
         title="Orders"
