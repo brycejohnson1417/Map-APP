@@ -1,0 +1,3 @@
+## 2024-06-25 - Explicit ARIA Labels for Custom Toggle Switches
+**Learning:** Custom toggle switches (e.g., `<button role="switch">`) that are visually icon-only or lack embedded visible text must explicitly include an `aria-label` or `aria-labelledby`, even if descriptive text exists nearby, to ensure screen reader accessibility. Otherwise screen readers just read "switch" and the user doesn't know what it controls.
+**Action:** When implementing custom interactive components like switches, always ensure `aria-label` is applied to contextualize the action when there isn't explicit inner text that fulfills that purpose.
