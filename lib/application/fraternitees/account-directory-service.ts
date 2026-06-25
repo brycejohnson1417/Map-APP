@@ -121,6 +121,12 @@ function normalizeGrade(value: string | string[] | undefined): FraterniteesLeadG
   return "All Grades";
 }
 
+function normalizeSalesperson(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const normalized = raw?.trim().slice(0, 120);
+  return normalized || "all";
+}
+
 function normalizeSort(value: string | string[] | undefined): AccountRankingSort {
   const raw = Array.isArray(value) ? value[0] : value;
   return normalizeAccountRankingSort(raw);
@@ -150,6 +156,11 @@ function buildSearchFilter(query: string, fields: string[]) {
   }
 
   return `(${fields.map((field) => `${field}.ilike.*${escaped}*`).join(",")})`;
+}
+
+function salesRepArrayFilter(value: string) {
+  const escaped = value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  return `cs.{"${escaped}"}`;
 }
 
 function extractAccountMetrics(
@@ -295,10 +306,17 @@ function applyDirectBaseFilters(
   input: {
     organizationId: string;
     query: string;
+    salesperson: string;
     dncOnly: boolean;
   },
 ) {
   params.set("organization_id", `eq.${input.organizationId}`);
+
+  if (input.salesperson === "Unassigned") {
+    params.set("sales_rep_names", "eq.{}");
+  } else if (input.salesperson !== "all") {
+    params.set("sales_rep_names", salesRepArrayFilter(input.salesperson));
+  }
 
   if (input.dncOnly) {
     params.set("custom_fields->lostOrders", "gte.3");
@@ -326,10 +344,17 @@ function applyViewBaseFilters(
   input: {
     organizationId: string;
     query: string;
+    salesperson: string;
     dncOnly: boolean;
   },
 ) {
   params.set("organization_id", `eq.${input.organizationId}`);
+
+  if (input.salesperson === "Unassigned") {
+    params.set("sales_rep_names", "eq.{}");
+  } else if (input.salesperson !== "all") {
+    params.set("sales_rep_names", salesRepArrayFilter(input.salesperson));
+  }
 
   if (input.dncOnly) {
     params.set("dnc_flagged", "eq.true");
@@ -503,6 +528,7 @@ async function fetchDirectFilteredCount(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
   config?: FraterniteesScoreModelConfig;
 }) {
@@ -533,6 +559,7 @@ async function fetchViewFilteredCount(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
 }) {
   const params = applyViewGradeFilter(
@@ -557,12 +584,46 @@ async function fetchViewFilteredCount(input: {
   return result.count;
 }
 
+async function fetchSalespersonOptions(organizationId: string) {
+  const params = new URLSearchParams({
+    organization_id: `eq.${organizationId}`,
+    select: "sales_rep_names",
+    limit: "10000",
+  });
+  params.set("sales_rep_names", "not.eq.{}");
+
+  const { data } = await runtimeRestRequest<Array<{ sales_rep_names: string[] | null }>>("account", params);
+  const names = new Set<string>();
+  for (const row of data) {
+    for (const name of row.sales_rep_names ?? []) {
+      if (name.trim()) {
+        names.add(name.trim());
+      }
+    }
+  }
+
+  return [...names].sort((left, right) => left.localeCompare(right));
+}
+
+const fetchCachedSalespersonOptions = unstable_cache(
+  async (organizationId: string) => fetchSalespersonOptions(organizationId),
+  ["fraternitees-account-directory-salespeople"],
+  { revalidate: 120 },
+);
+
 const fetchCachedViewFilteredCount = unstable_cache(
-  async (organizationId: string, query: string, grade: FraterniteesLeadGrade | "All Grades", dncOnly: boolean) =>
+  async (
+    organizationId: string,
+    query: string,
+    grade: FraterniteesLeadGrade | "All Grades",
+    salesperson: string,
+    dncOnly: boolean,
+  ) =>
     fetchViewFilteredCount({
       organizationId,
       query,
       grade,
+      salesperson,
       dncOnly,
     }),
   ["fraternitees-account-directory-count"],
@@ -573,6 +634,7 @@ async function fetchDirectItems(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
   sort: AccountRankingSort;
   page: number;
@@ -602,6 +664,7 @@ async function fetchViewItems(input: {
   organizationId: string;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
   sort: AccountRankingSort;
   page: number;
@@ -668,6 +731,7 @@ const fetchCachedViewItems = unstable_cache(
     organizationId: string,
     query: string,
     grade: FraterniteesLeadGrade | "All Grades",
+    salesperson: string,
     dncOnly: boolean,
     sort: AccountRankingSort,
     page: number,
@@ -677,6 +741,7 @@ const fetchCachedViewItems = unstable_cache(
       organizationId,
       query,
       grade,
+      salesperson,
       dncOnly,
       sort,
       page,
@@ -931,6 +996,8 @@ function buildDirectoryPage(input: {
   calendarYearCustomers: FraterniteesAccountDirectoryPage["calendarYearCustomers"];
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
+  salespersonOptions: string[];
   dncOnly: boolean;
   sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
@@ -952,6 +1019,8 @@ function buildDirectoryPage(input: {
     filters: {
       query: input.query,
       grade: input.grade,
+      salesperson: input.salesperson,
+      salespersonOptions: input.salespersonOptions,
       dncOnly: input.dncOnly,
       sort: input.sort,
       calendarSort: input.calendarSort,
@@ -975,6 +1044,7 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   organization: Organization;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
   sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
@@ -982,9 +1052,10 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
+  const [summary, totalItems, salespersonOptions, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
     fetchCachedViewSummarySnapshot(input.organization.slug),
-    fetchCachedViewFilteredCount(input.organization.id, input.query, input.grade, input.dncOnly),
+    fetchCachedViewFilteredCount(input.organization.id, input.query, input.grade, input.salesperson, input.dncOnly),
+    fetchCachedSalespersonOptions(input.organization.id),
     fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
     fetchCachedCalendarYearCustomers(input.organization.id, input.calendarSort),
   ]);
@@ -995,6 +1066,7 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     input.organization.id,
     input.query,
     input.grade,
+    input.salesperson,
     input.dncOnly,
     input.sort,
     normalizedPage,
@@ -1018,6 +1090,8 @@ async function getFraterniteesAccountDirectoryViaViews(input: {
     calendarYearCustomers,
     query: input.query,
     grade: input.grade,
+    salesperson: input.salesperson,
+    salespersonOptions,
     dncOnly: input.dncOnly,
     sort: input.sort,
     calendarSort: input.calendarSort,
@@ -1031,6 +1105,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
   organization: Organization;
   query: string;
   grade: FraterniteesLeadGrade | "All Grades";
+  salesperson: string;
   dncOnly: boolean;
   sort: AccountRankingSort;
   calendarSort: CalendarYearCustomerSort;
@@ -1038,15 +1113,17 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
   pageSize: number;
   config?: FraterniteesScoreModelConfig;
 }) {
-  const [summary, totalItems, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
+  const [summary, totalItems, salespersonOptions, topCustomersLast12Months, calendarYearCustomers] = await Promise.all([
     fetchDirectSummarySnapshot(input.organization),
     fetchDirectFilteredCount({
       organizationId: input.organization.id,
       query: input.query,
       grade: input.grade,
+      salesperson: input.salesperson,
       dncOnly: input.dncOnly,
       config: input.config,
     }),
+    fetchCachedSalespersonOptions(input.organization.id),
     fetchCachedTopCustomersLast12Months(input.organization.id, JSON.stringify(input.config ?? null)),
     fetchCachedCalendarYearCustomers(input.organization.id, input.calendarSort),
   ]);
@@ -1057,6 +1134,7 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
     organizationId: input.organization.id,
     query: input.query,
     grade: input.grade,
+    salesperson: input.salesperson,
     dncOnly: input.dncOnly,
     sort: input.sort,
     page: normalizedPage,
@@ -1077,6 +1155,8 @@ async function getFraterniteesAccountDirectoryViaDirect(input: {
     calendarYearCustomers,
     query: input.query,
     grade: input.grade,
+    salesperson: input.salesperson,
+    salespersonOptions,
     dncOnly: input.dncOnly,
     sort: input.sort,
     calendarSort: input.calendarSort,
@@ -1100,6 +1180,7 @@ export async function getFraterniteesAccountDirectory(
 
   const query = normalizeQuery(params.q);
   const grade = normalizeGrade(params.grade);
+  const salesperson = normalizeSalesperson(params.salesperson);
   const dncOnly = (Array.isArray(params.dnc) ? params.dnc[0] : params.dnc) === "1";
   const sort = normalizeSort(params.sort);
   const calendarSort = normalizeCalendarSort(params.calendarSort);
@@ -1110,6 +1191,7 @@ export async function getFraterniteesAccountDirectory(
       organization,
       query,
       grade,
+      salesperson,
       dncOnly,
       sort,
       calendarSort,
@@ -1122,6 +1204,7 @@ export async function getFraterniteesAccountDirectory(
       organization,
       query,
       grade,
+      salesperson,
       dncOnly,
       sort,
       calendarSort,

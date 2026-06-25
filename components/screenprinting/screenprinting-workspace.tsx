@@ -701,7 +701,7 @@ export function ScreenprintingWorkspace({
         module: "sales_orders",
         name,
         filters: orderFilters,
-        columns: ["customer", "job", "total", "status", "payment", "manager", "date"],
+        columns: ["customer", "job", "total", "status", "payment", "salesperson", "date"],
         sort: { key: orderFilters.sortBy, direction: orderFilters.sortBy.endsWith("_asc") ? "asc" : "desc" },
       }),
     });
@@ -742,7 +742,7 @@ export function ScreenprintingWorkspace({
       ordersGoal: Number(values.ordersGoal) || 0,
       storesGoal: Number(values.storesGoal) || 0,
     }));
-    await runAction("Save manager goals", `${apiBase}/sales/manager-goals`, {
+    await runAction("Save salesperson goals", `${apiBase}/sales/manager-goals`, {
       method: "POST",
       body: JSON.stringify({ period: summary.managerGoals.period, goals }),
     });
@@ -1144,7 +1144,7 @@ export function ScreenprintingWorkspace({
             )}
           </Section>
 
-          <Section title="Team pulse" description="Attribution from Printavo manager fields. Treat missing manager data as needs-review.">
+          <Section title="Team pulse" description="Attribution from Printavo invoice owner fields. Treat missing salesperson data as needs-review.">
             <div className="grid gap-3">
               <MetricCard label="AOV" value={formatMoney(sales.averageOrderValue)} sublabel={`${formatNumber(sales.totalOrders)} total orders`} icon={Target} />
               <MetricCard label="Repeat customers" value={formatNumber(sales.repeatCustomers)} sublabel={formatPercent(sales.repeatCustomerRate)} icon={RefreshCw} tone="green" />
@@ -1157,7 +1157,7 @@ export function ScreenprintingWorkspace({
                   <span className="font-semibold text-emerald-700">{formatMoney(manager.revenue)}</span>
                 </div>
               ))}
-              {!summary.salesDashboard.managerPerformance?.length ? <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No manager attribution is available.</p> : null}
+              {!summary.salesDashboard.managerPerformance?.length ? <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">No salesperson attribution is available.</p> : null}
             </div>
           </Section>
         </div>
@@ -1292,7 +1292,7 @@ export function ScreenprintingWorkspace({
                     <th className="px-4 py-3 text-left">Category</th>
                     <th className="px-4 py-3 text-right">Revenue</th>
                     <th className="px-4 py-3 text-right">Orders</th>
-                    <th className="px-4 py-3 text-left">Manager</th>
+                    <th className="px-4 py-3 text-left">Salesperson</th>
                     <th className="px-4 py-3 text-left">Last order</th>
                   </tr>
                 </thead>
@@ -1436,7 +1436,7 @@ export function ScreenprintingWorkspace({
     }
     return (
       <Section
-        title="Manager Performance Targets"
+        title="Salesperson Performance Targets"
         description={`Goals save per month in product-owned tenant dashboard storage. Current period: ${summary.managerGoals.period}.`}
         actions={
           <>
@@ -1452,7 +1452,7 @@ export function ScreenprintingWorkspace({
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">Manager</th>
+                  <th className="px-4 py-3 text-left">Salesperson</th>
                   <th className="px-4 py-3 text-right">Actual revenue</th>
                   <th className="px-4 py-3 text-right">Actual orders</th>
                   <th className="px-4 py-3 text-right">Revenue goal</th>
@@ -1488,15 +1488,15 @@ export function ScreenprintingWorkspace({
             </table>
           </TableShell>
         ) : (
-          <EmptyState title="No manager actuals" body="Printavo manager fields are not currently available for this tenant's synced orders." />
+          <EmptyState title="No salesperson actuals" body="Printavo invoice owner fields are not currently available for this tenant's synced orders." />
         )}
       </Section>
     );
   }
 
   function renderOrders() {
-    const managerOptions = Array.from(new Set(orders.map((order) => order.managerName ?? "Unassigned"))).sort();
-    const teamOptions = Array.from(new Set(orders.map((order) => order.teamName ?? "Unassigned"))).sort();
+    const managerOptions = summary.orders.facets.managers.map((item) => item.name);
+    const teamOptions = summary.orders.facets.teams.map((item) => item.name);
     const filteredOrders = orders.filter((order) => {
       const query = orderFilters.q.trim().toLowerCase();
       const matchesQuery = query
@@ -1547,6 +1547,13 @@ export function ScreenprintingWorkspace({
               value={savedViewName}
               onChange={(event) => setSavedViewName(event.target.value)}
             />
+            <Button
+              icon={Search}
+              variant="primary"
+              onClick={() => setNotice({ tone: "success", message: `Applied order filters to ${formatNumber(sortedOrders.length)} matching rows.` })}
+            >
+              Apply filters
+            </Button>
             <Button icon={SlidersHorizontal} onClick={saveOrderView}>Save view</Button>
           </>
         }
@@ -1561,47 +1568,71 @@ export function ScreenprintingWorkspace({
               onChange={(event) => setOrderFilters((current) => ({ ...current, q: event.target.value }))}
             />
           </label>
-          <input
-            aria-label="Sales date from"
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold"
-            type="date"
-            value={orderFilters.dateFrom}
-            onChange={(event) => setOrderFilters((current) => ({ ...current, dateFrom: event.target.value }))}
-          />
-          <input
-            aria-label="Sales date to"
-            className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold"
-            type="date"
-            value={orderFilters.dateTo}
-            onChange={(event) => setOrderFilters((current) => ({ ...current, dateTo: event.target.value }))}
-          />
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.statusBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, statusBucket: event.target.value }))}>
-            <option value="all">All statuses</option>
-            {summary.orders.facets.statusBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
-          </select>
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.paymentBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, paymentBucket: event.target.value }))}>
-            <option value="all">All payment</option>
-            {summary.orders.facets.paymentBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
-          </select>
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.managerName} onChange={(event) => setOrderFilters((current) => ({ ...current, managerName: event.target.value }))}>
-            <option value="all">All managers</option>
-            {managerOptions.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.teamName} onChange={(event) => setOrderFilters((current) => ({ ...current, teamName: event.target.value }))}>
-            <option value="all">All teams</option>
-            {teamOptions.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" value={orderFilters.syncState} onChange={(event) => setOrderFilters((current) => ({ ...current, syncState: event.target.value }))}>
-            <option value="all">All sync states</option>
-            <option value="synced">Synced payload</option>
-            <option value="unsynced">Needs payload review</option>
-          </select>
-          <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold" aria-label="Sort orders" value={orderFilters.sortBy} onChange={(event) => setOrderFilters((current) => ({ ...current, sortBy: event.target.value }))}>
-            <option value="date_desc">Newest sales date</option>
-            <option value="date_asc">Oldest sales date</option>
-            <option value="salesperson">Salesperson</option>
-            <option value="total_desc">Highest order total</option>
-          </select>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Sales date from
+            <input
+              aria-label="Sales date from"
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900"
+              type="date"
+              value={orderFilters.dateFrom}
+              onChange={(event) => setOrderFilters((current) => ({ ...current, dateFrom: event.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Sales date to
+            <input
+              aria-label="Sales date to"
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900"
+              type="date"
+              value={orderFilters.dateTo}
+              onChange={(event) => setOrderFilters((current) => ({ ...current, dateTo: event.target.value }))}
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Status
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" value={orderFilters.statusBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, statusBucket: event.target.value }))}>
+              <option value="all">All statuses</option>
+              {summary.orders.facets.statusBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Payment
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" value={orderFilters.paymentBucket} onChange={(event) => setOrderFilters((current) => ({ ...current, paymentBucket: event.target.value }))}>
+              <option value="all">All payment</option>
+              {summary.orders.facets.paymentBuckets.map((item) => <option key={item.name} value={item.name}>{labelFromKey(item.name)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Salesperson
+            <select aria-label="Filter orders by salesperson" className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" value={orderFilters.managerName} onChange={(event) => setOrderFilters((current) => ({ ...current, managerName: event.target.value }))}>
+              <option value="all">All salespeople</option>
+              {managerOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Team
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" value={orderFilters.teamName} onChange={(event) => setOrderFilters((current) => ({ ...current, teamName: event.target.value }))}>
+              <option value="all">All teams</option>
+              {teamOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Sync state
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" value={orderFilters.syncState} onChange={(event) => setOrderFilters((current) => ({ ...current, syncState: event.target.value }))}>
+              <option value="all">All sync states</option>
+              <option value="synced">Synced payload</option>
+              <option value="unsynced">Needs payload review</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+            Sort orders
+            <select className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold normal-case tracking-normal text-slate-900" aria-label="Sort orders" value={orderFilters.sortBy} onChange={(event) => setOrderFilters((current) => ({ ...current, sortBy: event.target.value }))}>
+              <option value="date_desc">Newest sales date</option>
+              <option value="date_asc">Oldest sales date</option>
+              <option value="salesperson">Salesperson</option>
+              <option value="total_desc">Highest order total</option>
+            </select>
+          </label>
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
           {Object.entries(orderCounts).map(([key, count]) => (
@@ -1637,7 +1668,7 @@ export function ScreenprintingWorkspace({
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Payment</th>
-                  <th className="px-4 py-3 text-left">Manager</th>
+                  <th className="px-4 py-3 text-left">Salesperson</th>
                   <th className="px-4 py-3 text-left">Date</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -3008,7 +3039,7 @@ function OrderDetailModal({ order, onClose }: { order: SalesOrder; onClose: () =
           <MetricCard label="Total" value={formatMoney(order.orderTotal)} icon={DollarSign} tone="green" />
           <MetricCard label="Status" value={<span className="text-base">{order.status ?? "Unknown"}</span>} icon={FileText} />
           <MetricCard label="Payment" value={<span className="text-base">{order.paymentStatus ?? "Unknown"}</span>} icon={CheckCircle2} tone="green" />
-          <MetricCard label="Manager" value={<span className="text-base">{order.managerName ?? "Unassigned"}</span>} icon={Users} tone="slate" />
+          <MetricCard label="Salesperson" value={<span className="text-base">{order.managerName ?? "Unassigned"}</span>} icon={Users} tone="slate" />
           <MetricCard label="Order date" value={<span className="text-base">{shortDate(order.orderCreatedAt ?? order.productionDate)}</span>} icon={Clock3} tone="slate" />
         </div>
         <div className="px-5 pb-5">

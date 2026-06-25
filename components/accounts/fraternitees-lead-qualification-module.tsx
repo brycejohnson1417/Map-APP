@@ -69,6 +69,7 @@ function accountsPageHref(input: {
   orgSlug: string;
   query?: string;
   grade?: string;
+  salesperson?: string;
   dnc?: boolean;
   sort?: string;
   page?: number;
@@ -81,6 +82,9 @@ function accountsPageHref(input: {
   }
   if (input.grade && input.grade !== "All Grades") {
     params.set("grade", input.grade);
+  }
+  if (input.salesperson && input.salesperson !== "all") {
+    params.set("salesperson", input.salesperson);
   }
   if (input.sort && input.sort !== "score") {
     params.set("sort", input.sort);
@@ -274,6 +278,16 @@ function ScoringSection({
             options: resolvedGradeOptions.map((grade) => ({ value: grade, label: grade })),
           },
           {
+            name: "salesperson",
+            label: "Salesperson",
+            value: filters.salesperson,
+            options: [
+              { value: "all", label: "All salespeople" },
+              ...filters.salespersonOptions.map((salesperson) => ({ value: salesperson, label: salesperson })),
+              { value: "Unassigned", label: "Unassigned" },
+            ],
+          },
+          {
             name: "sort",
             label: "Sort",
             value: filters.sort,
@@ -292,6 +306,7 @@ function ScoringSection({
               orgSlug,
               query: filters.query,
               grade: filters.grade,
+              salesperson: filters.salesperson,
               sort: filters.sort,
               view: "scoring",
             })}
@@ -384,7 +399,7 @@ function ScoringSection({
             );
           })}
           {!items.length ? (
-            <div className="p-6 text-sm font-semibold text-slate-500">No FraterniTees accounts matched this search, grade, and sort selection.</div>
+            <div className="p-6 text-sm font-semibold text-slate-500">No FraterniTees accounts matched this search, grade, salesperson, and sort selection.</div>
           ) : null}
         </div>
       </div>
@@ -403,6 +418,7 @@ function ScoringSection({
                       orgSlug,
                       query: filters.query,
                       grade: filters.grade,
+                      salesperson: filters.salesperson,
                       sort: filters.sort,
                       dnc: filters.dncOnly,
                       page: pagination.page - 1,
@@ -427,6 +443,7 @@ function ScoringSection({
                       orgSlug,
                       query: filters.query,
                       grade: filters.grade,
+                      salesperson: filters.salesperson,
                       sort: filters.sort,
                       dnc: filters.dncOnly,
                       page: pagination.page + 1,
@@ -495,6 +512,7 @@ export function FraterniteesLeadQualificationModule({
               orgSlug,
               query: filters.query,
               grade: filters.grade,
+              salesperson: filters.salesperson,
               sort: filters.sort,
               dnc: true,
               view: "scoring",
@@ -530,6 +548,7 @@ export function FraterniteesLeadQualificationModule({
               orgSlug,
               query: filters.query,
               grade: filters.grade,
+              salesperson: filters.salesperson,
               sort: filters.sort,
               dnc: true,
               view: "scoring",
@@ -545,6 +564,7 @@ export function FraterniteesLeadQualificationModule({
               orgSlug,
               query: filters.query,
               grade: filters.grade,
+              salesperson: filters.salesperson,
               sort: filters.sort,
               dnc: filters.dncOnly,
               page: paginationNeedsRetention(directory) ? directory.pagination.page : undefined,
@@ -569,6 +589,7 @@ export function FraterniteesLeadQualificationModule({
               orgSlug,
               query: filters.query,
               grade: filters.grade,
+              salesperson: filters.salesperson,
               sort: filters.sort,
               dnc: filters.dncOnly,
               view: "leaderboard",
@@ -725,6 +746,7 @@ function paginationNeedsRetention(directory: FraterniteesAccountDirectoryPage) {
     pagination.page > 1 ||
       filters.query ||
       filters.grade !== "All Grades" ||
+      filters.salesperson !== "all" ||
       filters.sort !== "score" ||
       filters.dncOnly,
   );

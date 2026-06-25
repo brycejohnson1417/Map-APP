@@ -12,5 +12,14 @@ assert.ok(source.includes("sortedOrders"), "Screenprinting orders must be sorted
 assert.ok(source.includes("Sales date from"), "The order cockpit must expose the date-from control in the UI.");
 assert.ok(source.includes("Sales date to"), "The order cockpit must expose the date-to control in the UI.");
 assert.ok(source.includes("Sort orders"), "The order cockpit must expose the order sort control in the UI.");
+assert.ok(source.includes("Apply filters"), "The order cockpit must expose an explicit apply-filters action.");
+assert.ok(source.includes("All salespeople"), "The order cockpit must expose an all-salespeople filter option.");
+assert.ok(source.includes("Filter orders by salesperson"), "The order cockpit must label the salesperson filter.");
+assert.ok(source.includes("<option value=\"salesperson\">Salesperson</option>"), "The order cockpit must expose salesperson sorting.");
+assert.ok(source.includes(">Salesperson</th>"), "The order table must label attribution as salesperson.");
+assert.ok(source.includes("summary.orders.facets.managers"), "The salesperson filter options must come from service facets, not only visible rows.");
+assert.ok(!source.includes("All managers"), "The order cockpit must not expose manager terminology for salesperson filters.");
+assert.ok(!source.includes("<th className=\"px-4 py-3\">Manager</th>"), "The order table must not label salesperson attribution as manager.");
+assert.ok(!source.includes('label="Manager"'), "The order detail panel must not label salesperson attribution as manager.");
 
 console.log("Screenprinting order filter UI contract passed.");

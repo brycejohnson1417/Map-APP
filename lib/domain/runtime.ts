@@ -353,6 +353,8 @@ export interface FraterniteesAccountDirectoryPage {
   filters: {
     query: string;
     grade: FraterniteesLeadGrade | "All Grades";
+    salesperson: string;
+    salespersonOptions: string[];
     dncOnly: boolean;
     sort: "score" | "close_rate" | "order_count" | "last_order_date" | "salesperson";
     calendarSort: "needs_close" | "fraternity" | "spend";

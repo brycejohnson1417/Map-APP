@@ -1028,40 +1028,44 @@ export async function getScreenprintingSalesDashboard(slug: string) {
 
 export async function listScreenprintingOrders(slug: string, input: { q?: string | null; pageSize?: number } = {}) {
   const context = await resolveContext(slug);
-  const [orders, total, savedViews] = await Promise.all([
+  const [orders, allOrders, total, savedViews] = await Promise.all([
     listOrdersForContext(context, input),
+    listAllOrdersForContext(context),
     context.organization ? repository.countOrders(context.organization.id, { q: input.q }) : Promise.resolve(fixtureOrders(context.slug, context.config).length),
     listScreenprintingSavedViewsForContext(context, "sales_orders"),
   ]);
+  const facetOrders = input.q?.trim() ? orders : allOrders;
   return {
     orders,
     facets: {
       statusBuckets: Object.entries(
-        orders.reduce<Record<string, number>>((counts, order) => {
+        facetOrders.reduce<Record<string, number>>((counts, order) => {
           counts[order.statusBucket] = (counts[order.statusBucket] ?? 0) + 1;
           return counts;
         }, {}),
       ).map(([name, count]) => ({ name, count })),
       paymentBuckets: Object.entries(
-        orders.reduce<Record<string, number>>((counts, order) => {
+        facetOrders.reduce<Record<string, number>>((counts, order) => {
           counts[order.paymentBucket] = (counts[order.paymentBucket] ?? 0) + 1;
           return counts;
         }, {}),
       ).map(([name, count]) => ({ name, count })),
       teams: Object.entries(
-        orders.reduce<Record<string, number>>((counts, order) => {
+        facetOrders.reduce<Record<string, number>>((counts, order) => {
           const name = order.teamName ?? "Unassigned";
           counts[name] = (counts[name] ?? 0) + 1;
           return counts;
         }, {}),
       ).map(([name, count]) => ({ name, count })),
       managers: Object.entries(
-        orders.reduce<Record<string, number>>((counts, order) => {
+        facetOrders.reduce<Record<string, number>>((counts, order) => {
           const name = order.managerName ?? "Unassigned";
           counts[name] = (counts[name] ?? 0) + 1;
           return counts;
         }, {}),
-      ).map(([name, count]) => ({ name, count })),
+      )
+        .map(([name, count]) => ({ name, count }))
+        .sort((left, right) => left.name.localeCompare(right.name)),
     },
     savedViews,
     pagination: { page: 1, pageSize: orders.length, total },
