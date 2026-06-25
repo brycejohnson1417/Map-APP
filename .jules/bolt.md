@@ -1,0 +1,4 @@
+
+## 2025-06-25 - Prevent redundant DB queries via cache bypassing in tenant-access
+**Learning:** `getWorkspaceExperienceBySlug` is a React `cache()` wrapped function that fetches organization data and compiles the experience. In `resolveTenantAccess`, it was being called *after* the organization was already fetched from the database, resulting in a redundant database query because React's cache keys on the specific arguments and execution context.
+**Action:** Replaced calls to the async `getWorkspaceExperienceBySlug` with direct synchronous calls to the internal `compileWorkspaceExperience` when the `Organization` object is already available in memory. This saves a full database round-trip for every user login/tenant resolution step. Also updated the typing in `tenant-access-selection.ts` to preserve the full type of the cached objects, preventing TypeScript downcasting issues.
