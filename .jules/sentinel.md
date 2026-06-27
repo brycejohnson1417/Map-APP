@@ -1,0 +1,4 @@
+## 2025-02-12 - [XSS Protection with Sandboxed Iframes]
+**Vulnerability:** Use of `dangerouslySetInnerHTML` for user-generated email previews (`sanitizedEmailHtml`).
+**Learning:** Even when using `DOMPurify` to sanitize HTML, `dangerouslySetInnerHTML` allows styles or minor scripts that bypass filters to affect the parent document. Rendering it in a `sandbox` iframe isolates the content from the main application, minimizing XSS risks and layout breakage while retaining functionality (e.g., via `allow-popups` for external links). Because standard CSS (like Tailwind) in the parent doesn't apply inside an iframe's `srcDoc`, inline `<style>` tags must be manually injected to maintain consistent styling.
+**Prevention:** Use sandboxed `iframes` (`sandbox="allow-popups allow-popups-to-escape-sandbox"`) combined with `srcDoc` when rendering dynamic, untrusted HTML instead of `dangerouslySetInnerHTML`.
