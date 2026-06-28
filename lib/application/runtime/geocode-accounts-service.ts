@@ -5,7 +5,7 @@ import {
   hasUsableWorkspaceAddress,
   resolveSuppressedGeocodingAddress,
 } from "@/lib/application/runtime/geocoding-policy";
-import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { geocodeAccountCandidate, resolveGeocodingPlan, type GeocodeCandidate } from "@/lib/infrastructure/adapters/geocoding/geocoding";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -49,7 +49,7 @@ export async function geocodeMissingRuntimeAccounts(input: { organizationSlug: s
     organizationId: organization.id,
     organizationSlug: organization.slug,
   });
-  const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+  const workspace = compileWorkspaceExperience({ slug: organization.slug, organization });
   const geocodingConfig = workspace.workspace.geocoding ?? null;
   const limit = readLimit(input.limit, plan.maxPerSync, plan.maxPerSync);
   const supabase = getSupabaseAdminClient() as any;
