@@ -1,0 +1,4 @@
+## 2024-05-18 - Replacing dangerouslySetInnerHTML with sandboxed iframe
+**Vulnerability:** XSS vulnerability when rendering untrusted HTML via `dangerouslySetInnerHTML`.
+**Learning:** To prevent XSS when rendering dynamic or untrusted HTML (e.g., email previews), prioritize using a sandboxed `<iframe>` with the `srcDoc` attribute instead of `dangerouslySetInnerHTML`, even when used with `DOMPurify`.
+**Prevention:** Use `sandbox="allow-popups allow-popups-to-escape-sandbox"` on the `<iframe>` to permit link clicking while omitting `allow-scripts` and `allow-same-origin`. Manually inject an inline `<style>` tag into the `srcDoc` HTML string to apply styling, as CSS classes applied directly to the `<iframe>` tag will not style the inner document.

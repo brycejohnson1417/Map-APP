@@ -232,8 +232,31 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
                 )}
               </div>
             </div>
-            <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+            <div className="min-h-[24rem] w-full bg-white p-0 text-sm text-black flex flex-col">
+              <iframe
+                title="Email Preview"
+                className="w-full flex-grow border-none p-6"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                srcDoc={`
+                  <!DOCTYPE html>
+                  <html>
+                    <head>
+                      <style>
+                        html, body {
+                          font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+                          font-size: 14px;
+                          color: black;
+                          margin: 0;
+                          padding: 0;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      ${sanitizedEmailHtml}
+                    </body>
+                  </html>
+                `}
+              />
             </div>
           </div>
         </div>
