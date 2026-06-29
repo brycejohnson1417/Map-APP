@@ -1,0 +1,3 @@
+## 2026-06-29 - Stale closures in external test hooks with useMemo Maps
+**Learning:** When replacing array lookups with memoized Maps (`useMemo`) in React components, using the memoized Map within imperative external bindings (e.g., `window.__MAP_APP_TEST`) initialized outside the React render cycle can introduce stale closures.
+**Action:** Retain original array lookups (e.g., `array.find()`) for specific external bindings and global test hooks, while upgrading render-cycle array lookups to Map dictionary lookups.
