@@ -1,0 +1,3 @@
+## 2024-06-29 - Screen Reader Labels for Custom Switches
+**Learning:** Custom toggle switches (e.g., `<button role="switch">`) that are icon-only or lack embedded visible text must explicitly include an `aria-label` or `aria-labelledby`, even if descriptive text exists nearby, to ensure screen reader accessibility.
+**Action:** Added `aria-label` to custom switches in the `components/fraternitees/fraternitees-portal.tsx` component.
