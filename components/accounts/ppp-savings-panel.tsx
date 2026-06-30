@@ -42,6 +42,29 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
   const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const previewHtml = useMemo(() => {
+    if (!sanitizedEmailHtml) return "";
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              font-family: ui-sans-serif, system-ui, sans-serif;
+              padding: 0;
+              margin: 0;
+              color: #000;
+              font-size: 0.875rem;
+              background: #fff;
+            }
+          </style>
+        </head>
+        <body>
+          ${sanitizedEmailHtml}
+        </body>
+      </html>
+    `;
+  }, [sanitizedEmailHtml]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -232,8 +255,13 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
                 )}
               </div>
             </div>
-            <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+            <div className="min-h-[24rem] w-full bg-white p-0">
+              <iframe
+                title="Email preview"
+                srcDoc={previewHtml}
+                className="h-full min-h-[24rem] w-full border-none p-6"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+              />
             </div>
           </div>
         </div>
