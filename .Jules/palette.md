@@ -1,0 +1,3 @@
+## 2025-01-20 - Ensure unbroken screen reader association in React conditional rendering
+**Learning:** When using React conditional rendering to swap out entire blocks of content for an accordion or expand/collapse area (e.g., `<Summary />` vs `<Full />`), the screen reader's `aria-controls` association can break if the target ID is only present on one branch or disappears during state transitions.
+**Action:** Assigned the same dynamically generated `id` (via `useId()`) to both conditional branch elements to ensure the `aria-controls` target is always present in the DOM when the section is expanded or collapsed.
