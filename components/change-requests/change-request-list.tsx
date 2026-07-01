@@ -121,12 +121,16 @@ function buildRequestTitle(problem: string, fallback: string) {
   return trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
 }
 
-async function readMutationResponse(response: Response): Promise<ChangeRequestMutationResponse> {
+async function readMutationResponse(
+  response: Response,
+): Promise<ChangeRequestMutationResponse> {
   const text = await response.text();
   if (!text) {
     return {
       ok: false,
-      error: response.ok ? "The server returned an empty response." : `The server returned ${response.status}.`,
+      error: response.ok
+        ? "The server returned an empty response."
+        : `The server returned ${response.status}.`,
     };
   }
 
@@ -135,14 +139,18 @@ async function readMutationResponse(response: Response): Promise<ChangeRequestMu
   } catch {
     return {
       ok: false,
-      error: response.ok ? "The server returned an unreadable response." : `The server returned ${response.status}.`,
+      error: response.ok
+        ? "The server returned an unreadable response."
+        : `The server returned ${response.status}.`,
     };
   }
 }
 
 function isRetriableAttachmentTransportError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return /string did not match the expected pattern|failed to fetch|networkerror|load failed|body stream/i.test(message);
+  return /string did not match the expected pattern|failed to fetch|networkerror|load failed|body stream/i.test(
+    message,
+  );
 }
 
 export function ChangeRequestList({
@@ -157,7 +165,9 @@ export function ChangeRequestList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, RequestDraft>>({});
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
-  const [errorByRequest, setErrorByRequest] = useState<Record<string, string | null>>({});
+  const [errorByRequest, setErrorByRequest] = useState<
+    Record<string, string | null>
+  >({});
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -209,7 +219,13 @@ export function ChangeRequestList({
     setDrafts((current) => ({
       ...current,
       [requestId]: {
-        ...(current[requestId] ?? { problem: "", requestedOutcome: "", businessContext: "", acceptanceCriteria: "", attachments: [] }),
+        ...(current[requestId] ?? {
+          problem: "",
+          requestedOutcome: "",
+          businessContext: "",
+          acceptanceCriteria: "",
+          attachments: [],
+        }),
         ...patch,
       },
     }));
@@ -256,7 +272,10 @@ export function ChangeRequestList({
           },
         );
       } catch (error) {
-        if (draft.attachments.length && isRetriableAttachmentTransportError(error)) {
+        if (
+          draft.attachments.length &&
+          isRetriableAttachmentTransportError(error)
+        ) {
           response = await fetch(
             `/api/runtime/organizations/${encodeURIComponent(orgSlug)}/change-requests/${encodeURIComponent(request.id)}`,
             {
@@ -264,7 +283,8 @@ export function ChangeRequestList({
               body: buildFormData([]),
             },
           );
-          attachmentFallbackNotice = "Request updated. Attachments were skipped because this browser could not upload them.";
+          attachmentFallbackNotice =
+            "Request updated. Attachments were skipped because this browser could not upload them.";
         } else {
           throw error;
         }
@@ -275,17 +295,22 @@ export function ChangeRequestList({
         throw new Error(payload.error ?? "Unable to save request.");
       }
 
-      setRequests((current) => current.map((item) => (item.id === request.id ? payload.request! : item)));
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === request.id ? payload.request! : item,
+        ),
+      );
       cancelEditing(request.id);
       setNotice(
         payload.warnings?.length
           ? `Request updated. ${payload.warnings.join(" ")}`
-          : attachmentFallbackNotice ?? "Request updated.",
+          : (attachmentFallbackNotice ?? "Request updated."),
       );
     } catch (error) {
       setErrorByRequest((current) => ({
         ...current,
-        [request.id]: error instanceof Error ? error.message : "Unable to save request.",
+        [request.id]:
+          error instanceof Error ? error.message : "Unable to save request.",
       }));
     } finally {
       setBusyRequestId(null);
@@ -307,12 +332,17 @@ export function ChangeRequestList({
           method: "DELETE",
         },
       );
-      const payload = (await response.json()) as { ok: boolean; error?: string };
+      const payload = (await response.json()) as {
+        ok: boolean;
+        error?: string;
+      };
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error ?? "Unable to delete request.");
       }
 
-      setRequests((current) => current.filter((request) => request.id !== requestId));
+      setRequests((current) =>
+        current.filter((request) => request.id !== requestId),
+      );
       setExpandedIds((current) => {
         const next = { ...current };
         delete next[requestId];
@@ -323,7 +353,8 @@ export function ChangeRequestList({
     } catch (error) {
       setErrorByRequest((current) => ({
         ...current,
-        [requestId]: error instanceof Error ? error.message : "Unable to delete request.",
+        [requestId]:
+          error instanceof Error ? error.message : "Unable to delete request.",
       }));
     } finally {
       setBusyRequestId(null);
@@ -334,10 +365,15 @@ export function ChangeRequestList({
     <section className="rounded-[1.5rem] border border-[var(--border-subtle)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">Change requests</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Workspace request queue</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
+            Change requests
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">
+            Workspace request queue
+          </h2>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
-            Each marked comment lands here as its own request. Open a request to add more detail, attach files, or delete it.
+            Each marked comment lands here as its own request. Open a request to
+            add more detail, attach files, or delete it.
           </p>
         </div>
 
@@ -347,7 +383,9 @@ export function ChangeRequestList({
           </div>
           <button
             type="button"
-            onClick={() => window.dispatchEvent(new Event(CHANGE_REQUEST_CAPTURE_EVENT))}
+            onClick={() =>
+              window.dispatchEvent(new Event(CHANGE_REQUEST_CAPTURE_EVENT))
+            }
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-3 text-sm font-semibold text-white"
             style={{ color: "#fff" }}
           >
@@ -366,12 +404,15 @@ export function ChangeRequestList({
       <div className="mt-5 space-y-3">
         {requests.map((request) => {
           const previewImage = request.attachments.find(
-            (attachment) => attachment.signedUrl && attachment.contentType?.startsWith("image/"),
+            (attachment) =>
+              attachment.signedUrl &&
+              attachment.contentType?.startsWith("image/"),
           );
           const expanded = Boolean(expandedIds[request.id]);
           const editing = editingId === request.id;
           const draft = drafts[request.id] ?? buildDraft(request);
           const isBusy = busyRequestId === request.id;
+          const contentId = `request-details-${request.id}`;
           const hasMoreDetails =
             Boolean(request.businessContext?.trim()) ||
             Boolean(request.acceptanceCriteria?.trim()) ||
@@ -402,6 +443,7 @@ export function ChangeRequestList({
                   type="button"
                   onClick={() => toggleExpanded(request.id)}
                   aria-expanded={expanded}
+                  aria-controls={contentId}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -423,7 +465,8 @@ export function ChangeRequestList({
                     {request.attachments.length ? (
                       <span className="inline-flex items-center gap-1.5">
                         <Paperclip className="h-4 w-4" />
-                        {request.attachments.length} file{request.attachments.length === 1 ? "" : "s"}
+                        {request.attachments.length} file
+                        {request.attachments.length === 1 ? "" : "s"}
                       </span>
                     ) : null}
                   </div>
@@ -434,246 +477,294 @@ export function ChangeRequestList({
                     type="button"
                     onClick={() => toggleExpanded(request.id)}
                     aria-expanded={expanded}
+                    aria-controls={contentId}
                     aria-label={`${expanded ? "Collapse" : "Expand"} request: ${request.title}`}
                     className="inline-flex items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]"
                   >
-                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {expanded ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              {expanded ? (
-                <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
-                  {previewImage?.signedUrl ? (
-                    <a
-                      href={previewImage.signedUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mb-4 block overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)]"
-                    >
-                      <img
-                        src={previewImage.signedUrl}
-                        alt={`${request.title} screenshot`}
-                        className="block h-auto max-h-80 w-full object-cover object-top"
-                      />
-                    </a>
-                  ) : null}
-
-                  {editing ? (
-                    <div className="space-y-4">
-                      <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                          What should change
-                        </span>
-                        <textarea
-                          rows={3}
-                          value={draft.problem}
-                          onChange={(event) => updateDraft(request.id, { problem: event.target.value })}
-                          className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+              <div id={contentId}>
+                {expanded ? (
+                  <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-4 md:px-5">
+                    {previewImage?.signedUrl ? (
+                      <a
+                        href={previewImage.signedUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mb-4 block overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)]"
+                      >
+                        <img
+                          src={previewImage.signedUrl}
+                          alt={`${request.title} screenshot`}
+                          className="block h-auto max-h-80 w-full object-cover object-top"
                         />
-                      </label>
+                      </a>
+                    ) : null}
 
-                      <div className="grid gap-4 md:grid-cols-2">
+                    {editing ? (
+                      <div className="space-y-4">
                         <label className="block">
                           <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                            Requested result
+                            What should change
                           </span>
                           <textarea
                             rows={3}
-                            value={draft.requestedOutcome}
-                            onChange={(event) => updateDraft(request.id, { requestedOutcome: event.target.value })}
-                            placeholder="What should the finished change look like?"
+                            value={draft.problem}
+                            onChange={(event) =>
+                              updateDraft(request.id, {
+                                problem: event.target.value,
+                              })
+                            }
                             className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
                           />
                         </label>
 
-                        <label className="block">
-                          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                            Why it matters
-                          </span>
-                          <textarea
-                            rows={3}
-                            value={draft.businessContext}
-                            onChange={(event) => updateDraft(request.id, { businessContext: event.target.value })}
-                            placeholder="Why does this matter operationally or commercially?"
-                            className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                          />
-                        </label>
-                      </div>
-
-                      <label className="block">
-                        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
-                          Done looks like
-                        </span>
-                        <textarea
-                          rows={2}
-                          value={draft.acceptanceCriteria}
-                          onChange={(event) => updateDraft(request.id, { acceptanceCriteria: event.target.value })}
-                          placeholder="How should the harness know this request is actually finished?"
-                          className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
-                        />
-                      </label>
-
-                      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--text-primary)]">Add screenshots or files</p>
-                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                              Upload more screenshots, photos, or notes to this request.
-                            </p>
-                          </div>
-                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]">
-                            <Upload className="h-4 w-4" />
-                            Add files
-                            <input
-                              type="file"
-                              multiple
-                              className="hidden"
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                              Requested result
+                            </span>
+                            <textarea
+                              rows={3}
+                              value={draft.requestedOutcome}
                               onChange={(event) =>
                                 updateDraft(request.id, {
-                                  attachments: Array.from(event.target.files ?? []),
+                                  requestedOutcome: event.target.value,
                                 })
                               }
+                              placeholder="What should the finished change look like?"
+                              className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                              Why it matters
+                            </span>
+                            <textarea
+                              rows={3}
+                              value={draft.businessContext}
+                              onChange={(event) =>
+                                updateDraft(request.id, {
+                                  businessContext: event.target.value,
+                                })
+                              }
+                              placeholder="Why does this matter operationally or commercially?"
+                              className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
                             />
                           </label>
                         </div>
 
-                        {draft.attachments.length ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {draft.attachments.map((file) => (
-                              <span
-                                key={`${file.name}-${file.size}`}
-                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
-                              >
-                                <Paperclip className="h-3.5 w-3.5" />
-                                {file.name}
-                              </span>
-                            ))}
+                        <label className="block">
+                          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-tertiary)]">
+                            Done looks like
+                          </span>
+                          <textarea
+                            rows={2}
+                            value={draft.acceptanceCriteria}
+                            onChange={(event) =>
+                              updateDraft(request.id, {
+                                acceptanceCriteria: event.target.value,
+                              })
+                            }
+                            placeholder="How should the harness know this request is actually finished?"
+                            className="mt-2 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-4 py-3 text-sm font-medium outline-none"
+                          />
+                        </label>
+
+                        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">
+                                Add screenshots or files
+                              </p>
+                              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                                Upload more screenshots, photos, or notes to
+                                this request.
+                              </p>
+                            </div>
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)]">
+                              <Upload className="h-4 w-4" />
+                              Add files
+                              <input
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={(event) =>
+                                  updateDraft(request.id, {
+                                    attachments: Array.from(
+                                      event.target.files ?? [],
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
+
+                          {draft.attachments.length ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {draft.attachments.map((file) => (
+                                <span
+                                  key={`${file.name}-${file.size}`}
+                                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
+                                >
+                                  <Paperclip className="h-3.5 w-3.5" />
+                                  {file.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {errorByRequest[request.id] ? (
+                          <p className="text-sm font-semibold text-[var(--accent-danger)]">
+                            {errorByRequest[request.id]}
+                          </p>
+                        ) : null}
+
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => cancelEditing(request.id)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
+                          >
+                            <X className="h-4 w-4" />
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void saveRequest(request)}
+                            disabled={isBusy}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                            style={{ color: "#fff" }}
+                          >
+                            <Save className="h-4 w-4" />
+                            Save request
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            What should change
+                          </p>
+                          <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
+                            {request.problem}
+                          </p>
+                        </div>
+
+                        {request.requestedOutcome ? (
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              Requested result
+                            </p>
+                            <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
+                              {request.requestedOutcome}
+                            </p>
                           </div>
                         ) : null}
-                      </div>
 
-                      {errorByRequest[request.id] ? (
-                        <p className="text-sm font-semibold text-[var(--accent-danger)]">{errorByRequest[request.id]}</p>
-                      ) : null}
+                        {request.businessContext ? (
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              Why it matters
+                            </p>
+                            <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
+                              {request.businessContext}
+                            </p>
+                          </div>
+                        ) : null}
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => cancelEditing(request.id)}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
-                        >
-                          <X className="h-4 w-4" />
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void saveRequest(request)}
-                          disabled={isBusy}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--text-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                          style={{ color: "#fff" }}
-                        >
-                          <Save className="h-4 w-4" />
-                          Save request
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">What should change</p>
-                        <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
-                          {request.problem}
-                        </p>
-                      </div>
+                        {request.acceptanceCriteria ? (
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              Done looks like
+                            </p>
+                            <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
+                              {request.acceptanceCriteria}
+                            </p>
+                          </div>
+                        ) : null}
 
-                      {request.requestedOutcome ? (
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Requested result</p>
-                          <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
-                            {request.requestedOutcome}
+                        {request.attachments.length ? (
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">
+                              Files
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {request.attachments.map((attachment) => (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.signedUrl ?? "#"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
+                                >
+                                  <Paperclip className="h-3.5 w-3.5" />
+                                  {attachment.fileName}
+                                  {attachment.signedUrl ? (
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  ) : null}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {errorByRequest[request.id] ? (
+                          <p className="text-sm font-semibold text-[var(--accent-danger)]">
+                            {errorByRequest[request.id]}
                           </p>
-                        </div>
-                      ) : null}
+                        ) : null}
 
-                      {request.businessContext ? (
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Why it matters</p>
-                          <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
-                            {request.businessContext}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-sm text-[var(--text-secondary)]">
+                            {hasMoreDetails
+                              ? "Open this request to add more files or refine the details."
+                              : "Add more detail or files if you want the request to be easier to act on."}
                           </p>
-                        </div>
-                      ) : null}
-
-                      {request.acceptanceCriteria ? (
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Done looks like</p>
-                          <p className="mt-1 whitespace-pre-line text-sm leading-7 text-[var(--text-secondary)]">
-                            {request.acceptanceCriteria}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {request.attachments.length ? (
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Files</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {request.attachments.map((attachment) => (
-                              <a
-                                key={attachment.id}
-                                href={attachment.signedUrl ?? "#"}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
-                              >
-                                <Paperclip className="h-3.5 w-3.5" />
-                                {attachment.fileName}
-                                {attachment.signedUrl ? <ExternalLink className="h-3.5 w-3.5" /> : null}
-                              </a>
-                            ))}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEditing(request)}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3.5 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
+                            >
+                              <PencilLine className="h-4 w-4" />
+                              {hasMoreDetails ? "Edit request" : "Add details"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteRequest(request.id)}
+                              disabled={isBusy}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-semibold text-rose-700 disabled:opacity-60"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
                           </div>
                         </div>
-                      ) : null}
-
-                      {errorByRequest[request.id] ? (
-                        <p className="text-sm font-semibold text-[var(--accent-danger)]">{errorByRequest[request.id]}</p>
-                      ) : null}
-
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          {hasMoreDetails ? "Open this request to add more files or refine the details." : "Add more detail or files if you want the request to be easier to act on."}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => startEditing(request)}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3.5 py-2.5 text-sm font-semibold text-[var(--text-primary)]"
-                          >
-                            <PencilLine className="h-4 w-4" />
-                            {hasMoreDetails ? "Edit request" : "Add details"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void deleteRequest(request.id)}
-                            disabled={isBusy}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-semibold text-rose-700 disabled:opacity-60"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </article>
           );
         })}
 
         {!requests.length ? (
           <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-elevated)] p-6 text-sm text-[var(--text-secondary)]">
-            No requests are in the queue yet. Leave comments directly on the screen you want changed and the harness will store each one as its own request.
+            No requests are in the queue yet. Leave comments directly on the
+            screen you want changed and the harness will store each one as its
+            own request.
           </div>
         ) : null}
       </div>

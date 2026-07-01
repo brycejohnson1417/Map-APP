@@ -1,0 +1,3 @@
+## 2024-07-01 - Add aria-controls to conditionally rendered accordions
+**Learning:** When an accordion's content is conditionally rendered in React (e.g., `{expanded ? <div>...</div> : null}`), adding `aria-controls` to the trigger button will point to a non-existent ID when collapsed, breaking screen reader association.
+**Action:** Always provide an empty persistent container with the `id` (e.g., `<div id={contentId}>{expanded ? <Content /> : null}</div>`) or apply the `id` to both branches of a ternary to ensure the association remains unbroken.
