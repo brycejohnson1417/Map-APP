@@ -570,14 +570,42 @@ export function TerritoryWorkspace({ orgSlug, initialDashboard, territoryConfig 
   const mobileViewAutoSwitchedRef = useRef(initialPreferListView);
 
   const pins = data.pins;
-  const selectedPin = useMemo(() => pins.find((pin) => pin.id === selectedId) ?? null, [pins, selectedId]);
-  const routeStops = useMemo(
-    () =>
-      routePlanningEnabled
-        ? routeStopIds.map((id) => pins.find((pin) => pin.id === id)).filter((pin): pin is TerritoryAccountPin => Boolean(pin))
-        : [],
-    [pins, routePlanningEnabled, routeStopIds],
-  );
+
+  // ⚡ Bolt: Performance optimization
+  // Pre-compute an O(1) Map dictionary to prevent O(N^2) lookups
+  // during route planning and selection interactions.
+  const pinsById = useMemo(() => {
+    const map = new Map<string, TerritoryAccountPin>();
+    for (const pin of pins) {
+      map.set(pin.id, pin);
+    }
+    return map;
+  }, [pins]);
+
+  const selectedPin = useMemo(() => {
+    if (!selectedId) {
+      return null;
+    }
+    const pin = pinsById.get(selectedId);
+    if (pin) {
+      return pin;
+    }
+    return null;
+  }, [pinsById, selectedId]);
+
+  const routeStops = useMemo(() => {
+    if (!routePlanningEnabled) {
+      return [];
+    }
+    const stops: TerritoryAccountPin[] = [];
+    for (const id of routeStopIds) {
+      const pin = pinsById.get(id);
+      if (pin) {
+        stops.push(pin);
+      }
+    }
+    return stops;
+  }, [pinsById, routePlanningEnabled, routeStopIds]);
   const mappablePinCount = useMemo(() => pins.filter(hasUsableCoordinates).length, [pins]);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const useLiteMarkers = isNarrowViewport || mappablePinCount > 1200;
