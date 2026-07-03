@@ -1,0 +1,3 @@
+## 2024-07-03 - Bypass cache wrapper for pre-fetched entities
+**Learning:** In React's `cache()` wrappers (like `getWorkspaceExperienceBySlug`), adding optional pre-fetched object arguments fragments the cache key and degrades performance. Bypassing the cached database fetch entirely and calling the internal synchronous compiler directly when we already have the data is much faster.
+**Action:** When an entity is already fetched (like `organization` during tenant access resolution), bypass `getWorkspaceExperienceBySlug` and call `compileWorkspaceExperience` directly to avoid redundant database queries.
