@@ -12,6 +12,7 @@ import {
 } from "@/lib/application/auth/tenant-routing";
 import { selectMembershipOrganization } from "@/lib/application/auth/tenant-access-selection";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
@@ -110,6 +111,24 @@ export async function resolveTenantAccess(
     });
 
     if (organization) {
+      // organization here is of type MembershipSelectionOrganization, which is a pick of id, name, slug.
+      // But we have the full organization record in organizationsById
+      const fullOrganization = organizationsById.get(organization.id);
+      if (fullOrganization) {
+        // Optimization: we already fetched the full organization, bypass the database call
+        const workspace = compileWorkspaceExperience({
+          slug: fullOrganization.slug,
+          organization: fullOrganization,
+        });
+        return existingWorkspaceAccess({
+          slug: fullOrganization.slug,
+          name: fullOrganization.name,
+          workspace: workspace.workspace,
+          accessMethod: "membership",
+        });
+      }
+
+      // Fallback
       const workspace = await getWorkspaceExperienceBySlug(organization.slug);
       return existingWorkspaceAccess({
         slug: organization.slug,
@@ -124,7 +143,11 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization && (!requestedSlug || workspaceOrganization.slug === requestedSlug)) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      // Optimization: we already fetched the full organization, bypass the database call
+      const workspace = compileWorkspaceExperience({
+        slug: workspaceOrganization.slug,
+        organization: workspaceOrganization,
+      });
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
@@ -143,7 +166,11 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        // Optimization: we already fetched the full organization, bypass the database call
+        const workspace = compileWorkspaceExperience({
+          slug: existingOrganization.slug,
+          organization: existingOrganization,
+        });
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
