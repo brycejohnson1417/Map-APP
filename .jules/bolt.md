@@ -1,0 +1,4 @@
+## 2024-07-04 - Bypass Redundant DB Queries in React Cache Methods
+
+**Learning:** When using React's `cache()` to memoize data-fetching methods like `getWorkspaceExperienceBySlug(slug)`, the cache keys strictly off the provided arguments (e.g., `slug`). If an upstream function (like `resolveTenantAccess`) has already fetched the necessary objects (e.g., an `Organization` record) via a separate database query, passing these objects as optional arguments into the cached method to avoid an N+1 query will actually fragment the cache by changing the cache key.
+**Action:** Instead of modifying the signature of the cached method, bypass it entirely when the data is already available in the application layer. Directly call the internal synchronous compiler (e.g., `compileWorkspaceExperience`) with the pre-fetched objects to bypass redundant DB queries, and retain the original async cached method only as a fallback.
