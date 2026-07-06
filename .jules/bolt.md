@@ -1,0 +1,3 @@
+## 2024-05-14 - Bypass redundant getWorkspaceExperienceBySlug calls in tenant resolution
+**Learning:** When fetching organizations upfront (like in batch queries for memberships), calling `getWorkspaceExperienceBySlug` introduces redundant database lookups because it refetches the organization. `compileWorkspaceExperience` can be called directly synchronously if the `Organization` object is already available.
+**Action:** Always check if the full `Organization` object is already fetched in the current execution flow. If so, bypass cached fetchers and directly use `compileWorkspaceExperience` to avoid N+1-like redundant queries during tenant resolution.
