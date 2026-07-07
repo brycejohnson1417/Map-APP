@@ -12,6 +12,7 @@ import {
 } from "@/lib/application/auth/tenant-routing";
 import { selectMembershipOrganization } from "@/lib/application/auth/tenant-access-selection";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
@@ -110,7 +111,12 @@ export async function resolveTenantAccess(
     });
 
     if (organization) {
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+      // ⚡ Bolt: Using synchronous `compileWorkspaceExperience` directly since the full `Organization` object is already available in the map.
+      // 📊 Impact: Bypasses the `getWorkspaceExperienceBySlug` cache fetch which causes redundant DB lookups since the `Organization` object cannot be safely passed to the React cache key.
+      const workspace = compileWorkspaceExperience({
+        slug: organization.slug,
+        organization,
+      });
       return existingWorkspaceAccess({
         slug: organization.slug,
         name: organization.name,
@@ -124,7 +130,12 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization && (!requestedSlug || workspaceOrganization.slug === requestedSlug)) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      // ⚡ Bolt: Using synchronous `compileWorkspaceExperience` directly since the full `Organization` object was fetched above.
+      // 📊 Impact: Saves a redundant DB query on login.
+      const workspace = compileWorkspaceExperience({
+        slug: workspaceOrganization.slug,
+        organization: workspaceOrganization,
+      });
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
@@ -143,7 +154,12 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        // ⚡ Bolt: Using synchronous `compileWorkspaceExperience` directly since the full `Organization` object was fetched above.
+        // 📊 Impact: Saves a redundant DB query on login.
+        const workspace = compileWorkspaceExperience({
+          slug: existingOrganization.slug,
+          organization: existingOrganization,
+        });
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
