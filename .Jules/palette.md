@@ -1,0 +1,3 @@
+## 2024-07-07 - Add proper ARIA controls to conditional accordion content
+**Learning:** When building an accordion where the content block is conditionally rendered (e.g. `collapsed ? <Summary /> : <Full />`), attaching `id={contentId}` to only one branch or hardcoding string IDs can break screen reader association or cause ID collisions. Using `useId()` to generate the ID and applying it to both conditional branches ensures an unbroken `aria-controls` relationship in all states.
+**Action:** Applied `useId()` and `aria-controls` to the PPP savings panel toggle, attaching the ID to both the collapsed summary and expanded full view branches.
