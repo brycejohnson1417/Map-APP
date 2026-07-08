@@ -1,0 +1,3 @@
+## 2024-07-08 - Bypass Cached Database Queries with Synchronous Compilation
+**Learning:** When React's `cache()` wraps a data-fetching method (e.g., `getWorkspaceExperienceBySlug`), modifying its signature to accept optional pre-fetched objects fragments the cache. Furthermore, calling the cached method when the data (e.g., `Organization`) is already available results in redundant database queries.
+**Action:** Instead of modifying the cached function, bypass it and directly call the internal synchronous compiler (e.g., `compileWorkspaceExperience`) from the application layer when the necessary data is already available, taking care not to reference properties (like `organization`) that are omitted from the compiler's return type.
