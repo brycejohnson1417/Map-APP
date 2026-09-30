@@ -1,0 +1,3 @@
+## 2024-06-25 - Avoid redundant DB fetch via compileWorkspaceExperience
+**Learning:** When a service method like `getWorkspaceExperienceBySlug` is wrapped in React's `cache()` and fetches data from the DB, adding pre-fetched objects to its signature will fragment the cache. Instead, if the data is already available in the application layer, bypass the cached method and directly call the internal synchronous compiler (e.g., `compileWorkspaceExperience`) to avoid redundant queries.
+**Action:** Replace `getWorkspaceExperienceBySlug` with `compileWorkspaceExperience` where the `organization` is already loaded in scope.
