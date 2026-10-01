@@ -1,0 +1,3 @@
+## 2024-10-01 - O(N*M) Lookup Optimization
+**Learning:** Found O(N*M) time complexity loop where `Array.map` contained an `Array.find` inside a React useMemo hook (`routeStopIds.map((id) => pins.find(...))`). When replacing array lookups with memoized Maps (`useMemo`) in React components, do not use the memoized Map within imperative external bindings or global test hooks (e.g., `window.__TEST_HOOKS`, `window.__MAP_APP_TEST`) initialized outside the React render cycle, as this can introduce stale closures. Retain the original array lookups (e.g., `array.find()`) for those specific external bindings.
+**Action:** Replace `Array.map` with `Array.find` using a `Map` created via `useMemo` for O(1) lookups in the component, but retain `pins.find` in `window.__MAP_APP_TEST`.
