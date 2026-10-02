@@ -1,0 +1,3 @@
+## 2024-10-25 - Bypass cache() wrapper for redundant queries
+**Learning:** React's cache() keys off all arguments, so adding optional pre-fetched objects to a cached service method fragments the cache.
+**Action:** When a full object is already available from a prior query, bypass the cached data-fetching method (e.g., getWorkspaceExperienceBySlug) and directly call the internal synchronous compiler (e.g., compileWorkspaceExperience).
