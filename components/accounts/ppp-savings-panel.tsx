@@ -233,7 +233,12 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+              <iframe
+                title="Email Preview"
+                className="h-full w-full border-0 min-h-[24rem]"
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                srcDoc={`<!DOCTYPE html>\n<html>\n  <head>\n    <style>\n      body {\n        margin: 0;\n        font-family: system-ui, -apple-system, sans-serif;\n        font-size: 0.875rem;\n        line-height: 1.25rem;\n        color: #000;\n      }\n    </style>\n  </head>\n  <body>\n    ${sanitizedEmailHtml}\n  </body>\n</html>`}
+              />
             </div>
           </div>
         </div>
