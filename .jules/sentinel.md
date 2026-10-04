@@ -1,0 +1,4 @@
+## 2024-05-30 - Fix XSS Vulnerability in Email Preview
+**Vulnerability:** The email preview used `dangerouslySetInnerHTML` to render untrusted HTML, creating an XSS risk.
+**Learning:** Even with DOMPurify, it is safer to use a sandboxed iframe to render untrusted HTML. Since iframes create an isolated browsing context, applying CSS classes (like Tailwind) directly to the `<iframe>` tag does not style the inner document; an inline `<style>` tag must be injected into the `srcDoc` HTML string to apply fonts, colors, or sizing to the content itself.
+**Prevention:** Prioritize using a sandboxed `<iframe>` with the `srcDoc` attribute instead of `dangerouslySetInnerHTML` for dynamic or untrusted HTML. Include `sandbox="allow-popups allow-popups-to-escape-sandbox"` to permit link clicking while omitting `allow-scripts` and `allow-same-origin`.
