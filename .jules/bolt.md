@@ -1,0 +1,3 @@
+## 2024-05-18 - Bypass Redundant Queries for Cached Methods
+**Learning:** React's `cache()` is helpful but if it wraps a method doing a DB fetch, calling it when we *already* have the DB object fetched earlier in the execution path triggers a redundant query. We shouldn't modify the signature of the cached method to accept the object as it would fragment the cache key.
+**Action:** Bypass the cached wrapper method and instead call the underlying synchronous compiler directly (e.g., `compileWorkspaceExperience`) from the application layer when the data is already available. Ensure generics are used properly (e.g., `<T extends BaseInterface>`) to prevent downcasting when mapping objects that need to be passed downstream.
