@@ -1,0 +1,3 @@
+## 2024-05-24 - [Avoid React cache key fragmentation]
+**Learning:** When avoiding redundant database queries for service methods wrapped in Reacts cache() (e.g., getWorkspaceExperienceBySlug), do not add optional pre-fetched objects to the function signature, as Reacts cache keys off all arguments and this will fragment the cache. Instead, bypass the cached data-fetching method and directly call the internal synchronous compiler (e.g., compileWorkspaceExperience) from the application layer when the data is already available.
+**Action:** Replace `getWorkspaceExperienceBySlug(organization.slug)` calls with `compileWorkspaceExperience({slug: organization.slug, organization})` when `organization` is already loaded.
