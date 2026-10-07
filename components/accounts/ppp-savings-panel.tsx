@@ -41,7 +41,21 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     }
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
-  const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const sanitizedEmailHtml = useMemo(() => {
+    if (!report?.email.html) return "";
+    const html = DOMPurify.sanitize(report.email.html);
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: sans-serif; font-size: 14px; margin: 0; padding: 0; color: #000; }
+          </style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
+  }, [report]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -233,7 +247,16 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+              {/* SECURITY: Use a sandboxed iframe to render dynamic email HTML instead of dangerouslySetInnerHTML.
+                  This provides a strict defense-in-depth boundary against XSS, ensuring that even if DOMPurify
+                  fails to catch malicious scripts, the browser will block their execution while still allowing
+                  valid links to open via allow-popups. */}
+              <iframe
+                title="Email Preview"
+                srcDoc={sanitizedEmailHtml}
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                className="h-full w-full border-none min-h-[24rem]"
+              />
             </div>
           </div>
         </div>
