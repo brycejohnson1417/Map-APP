@@ -1,0 +1,3 @@
+## 2024-05-13 - [Optimize Tenant Access Resolution]
+**Learning:** React's cache wraps `getWorkspaceExperienceBySlug` but it still triggers a database call via `organizations.findBySlug` if the promise hasn't been cached. During `resolveTenantAccess`, we already have the `Organization` object from previous lookups. Calling `getWorkspaceExperienceBySlug` redundantly fetches the organization again if not cached in that request scope, adding latency to the critical auth routing path.
+**Action:** Replaced `getWorkspaceExperienceBySlug` calls in `resolveTenantAccess` with direct, synchronous `compileWorkspaceExperience` calls, passing the already retrieved `organization` object to bypass the database and the asynchronous cache boundary entirely.
