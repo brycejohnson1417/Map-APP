@@ -12,6 +12,7 @@ import {
 } from "@/lib/application/auth/tenant-routing";
 import { selectMembershipOrganization } from "@/lib/application/auth/tenant-access-selection";
 import { getWorkspaceExperienceBySlug } from "@/lib/application/workspace/workspace-service";
+import { compileWorkspaceExperience } from "@/lib/platform/workspace/compiler";
 import { OrganizationMemberRepository } from "@/lib/infrastructure/supabase/organization-member-repository";
 import { OrganizationRepository } from "@/lib/infrastructure/supabase/organization-repository";
 import { resolveWorkspaceTemplateForEmailDomain } from "@/lib/platform/workspace/registry";
@@ -110,13 +111,27 @@ export async function resolveTenantAccess(
     });
 
     if (organization) {
-      const workspace = await getWorkspaceExperienceBySlug(organization.slug);
-      return existingWorkspaceAccess({
-        slug: organization.slug,
-        name: organization.name,
-        workspace: workspace.workspace,
-        accessMethod: "membership",
-      });
+      const fullOrganization = organizationsById.get(organization.id);
+      if (fullOrganization) {
+        const compiled = compileWorkspaceExperience({
+          slug: organization.slug,
+          organization: fullOrganization,
+        });
+        return existingWorkspaceAccess({
+          slug: organization.slug,
+          name: organization.name,
+          workspace: compiled.workspace,
+          accessMethod: "membership",
+        });
+      } else {
+        const workspace = await getWorkspaceExperienceBySlug(organization.slug);
+        return existingWorkspaceAccess({
+          slug: organization.slug,
+          name: organization.name,
+          workspace: workspace.workspace,
+          accessMethod: "membership",
+        });
+      }
     }
   }
 
@@ -124,11 +139,14 @@ export async function resolveTenantAccess(
   if (emailDomain) {
     const workspaceOrganization = await organizations.findFirstByWorkspaceEmailDomain(emailDomain);
     if (workspaceOrganization && (!requestedSlug || workspaceOrganization.slug === requestedSlug)) {
-      const workspace = await getWorkspaceExperienceBySlug(workspaceOrganization.slug);
+      const compiled = compileWorkspaceExperience({
+        slug: workspaceOrganization.slug,
+        organization: workspaceOrganization,
+      });
       return existingWorkspaceAccess({
         slug: workspaceOrganization.slug,
         name: workspaceOrganization.name,
-        workspace: workspace.workspace,
+        workspace: compiled.workspace,
         accessMethod: "domain_template",
       });
     }
@@ -143,11 +161,14 @@ export async function resolveTenantAccess(
     if (guessed.slug) {
       const existingOrganization = await organizations.findBySlug(guessed.slug).catch(() => null);
       if (existingOrganization) {
-        const workspace = await getWorkspaceExperienceBySlug(existingOrganization.slug);
+        const compiled = compileWorkspaceExperience({
+          slug: existingOrganization.slug,
+          organization: existingOrganization,
+        });
         return existingWorkspaceAccess({
           slug: existingOrganization.slug,
           name: existingOrganization.name,
-          workspace: workspace.workspace,
+          workspace: compiled.workspace,
           accessMethod: "domain_template",
         });
       }
