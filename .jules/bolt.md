@@ -1,0 +1,3 @@
+## 2026-10-09 - Prevent React Cache Fragmentation in Tenant Resolution
+**Learning:** When bypassing getWorkspaceExperienceBySlug (which uses React cache) to avoid redundant database calls, do not add the full Organization object to the cached method signature. React cache keys on all arguments, which causes cache fragmentation. The proper pattern is to call compileWorkspaceExperience directly from the caller when the object is available.
+**Action:** Replaced getWorkspaceExperienceBySlug with compileWorkspaceExperience inside resolveTenantAccess, and used generics in selectMembershipOrganization to preserve the Organization type.
