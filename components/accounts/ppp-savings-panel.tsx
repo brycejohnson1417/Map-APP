@@ -42,6 +42,10 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
     return `mailto:${encodeURIComponent(report.recipientEmail)}?subject=${encodeURIComponent(report.email.subject)}&body=${encodeURIComponent(draft)}`;
   }, [draft, report]);
   const sanitizedEmailHtml = useMemo(() => (report?.email.html ? DOMPurify.sanitize(report.email.html) : ""), [report]);
+  const iframeSrcDoc = useMemo(() => {
+    if (!sanitizedEmailHtml) return "";
+    return `<style>body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; padding: 0; }</style>${sanitizedEmailHtml}`;
+  }, [sanitizedEmailHtml]);
 
   const pdfHref = report ? `/api/runtime/organizations/${orgSlug}/accounts/${accountId}/ppp-savings/pdf?year=${report.year}` : null;
 
@@ -233,7 +237,12 @@ export function PppSavingsPanel({ orgSlug, accountId }: PppSavingsPanelProps) {
               </div>
             </div>
             <div className="min-h-[24rem] w-full overflow-auto bg-white p-6 text-sm text-black">
-              <div dangerouslySetInnerHTML={{ __html: sanitizedEmailHtml }} />
+              <iframe
+                srcDoc={iframeSrcDoc}
+                sandbox="allow-popups allow-popups-to-escape-sandbox"
+                className="h-full min-h-[24rem] w-full border-none"
+                title="Email Preview"
+              />
             </div>
           </div>
         </div>
