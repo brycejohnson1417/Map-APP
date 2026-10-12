@@ -35,7 +35,7 @@ export function FilterToolbar({
   return (
     <form action={action} className="grid gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 lg:grid-cols-[1fr_auto_auto_auto] lg:items-center">
       {hiddenInputs?.map((input) => <input key={`${input.name}:${input.value}`} type="hidden" name={input.name} value={input.value} />)}
-      <label className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3">
+      <label className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3 transition-shadow focus-within:border-[var(--text-primary)] focus-within:ring-1 focus-within:ring-[var(--text-primary)]">
         <Search className="h-5 w-5 text-[var(--text-tertiary)]" />
         <input
           name={queryName}
@@ -50,7 +50,7 @@ export function FilterToolbar({
           <select
             name={select.name}
             defaultValue={select.value}
-            className="min-w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3 text-sm font-semibold normal-case tracking-normal text-[var(--text-primary)] outline-none"
+            className="min-w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)] px-3 py-3 text-sm font-semibold normal-case tracking-normal text-[var(--text-primary)] outline-none transition-shadow focus-visible:border-[var(--text-primary)] focus-visible:ring-1 focus-visible:ring-[var(--text-primary)]"
           >
             {select.options.map((option) => (
               <option key={`${select.name}:${option.value}`} value={option.value}>
@@ -64,7 +64,7 @@ export function FilterToolbar({
         {trailing}
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--text-primary)] px-5 py-3 text-sm font-semibold text-white outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-[var(--text-primary)] focus-visible:ring-offset-2"
           style={{ color: "#fff" }}
         >
           <SlidersHorizontal className="h-4 w-4" />

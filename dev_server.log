@@ -1,0 +1,159 @@
+
+> map-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.0-canary.36 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+- Environments: .env
+✓ Ready in 535ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+○ Compiling /_not-found/page ...
+ GET /screenprinting/orders 404 in 5.9s (next.js: 5.5s, application-code: 433ms)
+ GET / 307 in 934ms (next.js: 809ms, application-code: 124ms)
+ GET /login?org=fraternitees 200 in 1456ms (next.js: 1063ms, application-code: 393ms)
+ GET /login 200 in 444ms (next.js: 123ms, application-code: 321ms)
+○ Compiling /accounts ...
+⨯ {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\n' +
+    'Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n' +
+    '    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)',
+  hint: '',
+  code: ''
+}
+ POST /api/tenant-session 500 in 10.0s (next.js: 2.5s, application-code: 7.5s)
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 11.8s (next.js: 3.6s, application-code: 8.2s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ TypeError: fetch failed
+    at async fetchWithRetry (lib/application/runtime/runtime-rest.ts:44:24)
+    at async runtimeRestRequest (lib/application/runtime/runtime-rest.ts:63:20)
+    at async findRuntimeOrganization (lib/application/runtime/runtime-rest.ts:128:20)
+    at async getTerritoryRuntimeDashboard (lib/application/runtime/territory-service.ts:349:24)
+    at async getRepTodaySummary (lib/application/runtime/rep-today-service.ts:58:53)
+    at async TodayPage (app/today/page.tsx:15:19)
+  42 |   for (let attempt = 1; attempt <= REST_FETCH_ATTEMPTS; attempt += 1) {
+  43 |     try {
+> 44 |       const response = await fetch(input, init);
+     |                        ^
+  45 |       if (!shouldRetryStatus(response.status) || attempt === REST_FETCH_ATTEMPTS) {
+  46 |         return response;
+  47 |       } {
+  digest: '1719308871',
+  [cause]: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'your-project-ref.supabase.co'
+  }
+}
+ GET /today?org=fraternitees 500 in 1926ms (next.js: 973ms, application-code: 953ms)
+[browser] Uncaught TypeError: fetch failed
+    at fetchWithRetry (lib/application/runtime/runtime-rest.ts:44:24)
+    at runtimeRestRequest (lib/application/runtime/runtime-rest.ts:63:20)
+    at findRuntimeOrganization (lib/application/runtime/runtime-rest.ts:128:20)
+    at getTerritoryRuntimeDashboard (lib/application/runtime/territory-service.ts:349:24)
+    at Function.all (<anonymous>:1:21)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:58:53)
+    at TodayPage (app/today/page.tsx:15:19)
+  42 |   for (let attempt = 1; attempt <= REST_FETCH_ATTEMPTS; attempt += 1) {
+  43 |     try {
+> 44 |       const response = await fetch(input, init);
+     |                        ^
+  45 |       if (!shouldRetryStatus(response.status) || attempt === REST_FETCH_ATTEMPTS) {
+  46 |         return response;
+  47 |       }
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 7.6s (next.js: 4ms, application-code: 7.6s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ TypeError: fetch failed
+    at async fetchWithRetry (lib/application/runtime/runtime-rest.ts:44:24)
+    at async runtimeRestRequest (lib/application/runtime/runtime-rest.ts:63:20)
+    at async findRuntimeOrganization (lib/application/runtime/runtime-rest.ts:128:20)
+    at async getTerritoryRuntimeDashboard (lib/application/runtime/territory-service.ts:349:24)
+    at async getRepTodaySummary (lib/application/runtime/rep-today-service.ts:58:53)
+    at async TodayPage (app/today/page.tsx:15:19)
+  42 |   for (let attempt = 1; attempt <= REST_FETCH_ATTEMPTS; attempt += 1) {
+  43 |     try {
+> 44 |       const response = await fetch(input, init);
+     |                        ^
+  45 |       if (!shouldRetryStatus(response.status) || attempt === REST_FETCH_ATTEMPTS) {
+  46 |         return response;
+  47 |       } {
+  digest: '1719308871',
+  [cause]: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'your-project-ref.supabase.co'
+  }
+}
+ GET /today?org=dynalites 500 in 410ms (next.js: 4ms, application-code: 406ms)
+[browser] Uncaught TypeError: fetch failed
+    at fetchWithRetry (lib/application/runtime/runtime-rest.ts:44:24)
+    at runtimeRestRequest (lib/application/runtime/runtime-rest.ts:63:20)
+    at findRuntimeOrganization (lib/application/runtime/runtime-rest.ts:128:20)
+    at getTerritoryRuntimeDashboard (lib/application/runtime/territory-service.ts:349:24)
+    at Function.all (<anonymous>:1:21)
+    at getRepTodaySummary (lib/application/runtime/rep-today-service.ts:58:53)
+    at TodayPage (app/today/page.tsx:15:19)
+  42 |   for (let attempt = 1; attempt <= REST_FETCH_ATTEMPTS; attempt += 1) {
+  43 |     try {
+> 44 |       const response = await fetch(input, init);
+     |                        ^
+  45 |       if (!shouldRetryStatus(response.status) || attempt === REST_FETCH_ATTEMPTS) {
+  46 |         return response;
+  47 |       }
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 7.6s (next.js: 4ms, application-code: 7.6s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 7.6s (next.js: 4ms, application-code: 7.6s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 7.7s (next.js: 7ms, application-code: 7.6s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /territory?org=fraternitees 500 in 8.6s (next.js: 879ms, application-code: 7.7s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /accounts?org=fraternitees 500 in 7.6s (next.js: 3ms, application-code: 7.6s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
+⨯ Error: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n\nCaused by: Error: getaddrinfo ENOTFOUND your-project-ref.supabase.co (ENOTFOUND)\nError: getaddrinfo ENOTFOUND your-project-ref.supabase.co\n    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)\n    at GetAddrInfoReqWrap.callbackTrampoline (node:internal/async_hooks:130:17)","hint":"","code":""}
+    at ignore-listed frames {
+  digest: '3183108395@E394'
+}
+ GET /integrations?org=fraternitees 500 in 8.6s (next.js: 776ms, application-code: 7.9s)
+[browser] Uncaught Error: {message: ..., details: ..., hint: "", code: ...}
